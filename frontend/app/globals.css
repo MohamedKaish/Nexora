@@ -1,0 +1,85 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --background: 225 45% 4%;
+  --foreground: 205 65% 98%;
+  --muted: 223 22% 13%;
+  --muted-foreground: 214 20% 70%;
+  --border: 215 28% 18%;
+  --input: 215 28% 18%;
+  --ring: 193 100% 57%;
+  --primary: 193 100% 57%;
+  --primary-foreground: 225 45% 4%;
+  --secondary: 259 88% 66%;
+  --secondary-foreground: 205 65% 98%;
+  --accent: 218 91% 60%;
+  --accent-foreground: 205 65% 98%;
+  --destructive: 0 84% 62%;
+  --destructive-foreground: 205 65% 98%;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html {
+  scroll-behavior: smooth;
+  background: #05070d;
+}
+
+body {
+  min-height: 100vh;
+  background:
+    linear-gradient(180deg, rgba(5, 7, 13, 0.86), #05070d 30%),
+    radial-gradient(circle at 15% 10%, rgba(36, 212, 255, 0.18), transparent 28%),
+    radial-gradient(circle at 85% 0%, rgba(139, 92, 246, 0.16), transparent 30%),
+    #05070d;
+  color: hsl(var(--foreground));
+  font-feature-settings: "cv02", "cv03", "cv04", "cv11";
+  letter-spacing: 0;
+}
+
+::selection {
+  background: rgba(36, 212, 255, 0.26);
+  color: #f8fbff;
+}
+
+.glass-line {
+  position: relative;
+}
+
+.glass-line::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  padding: 1px;
+  background: linear-gradient(135deg, rgba(36, 212, 255, 0.5), rgba(139, 92, 246, 0.18), rgba(255, 255, 255, 0.1));
+  mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+  mask-composite: exclude;
+  pointer-events: none;
+}
+
+.noise {
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
+  opacity: 0.11;
+  background-image: linear-gradient(115deg, rgba(255,255,255,.05) 25%, transparent 25%), linear-gradient(245deg, rgba(255,255,255,.04) 25%, transparent 25%);
+  background-size: 3px 3px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    scroll-behavior: auto !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+
