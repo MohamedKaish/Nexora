@@ -1,9 +1,16 @@
 "use client";
 
-import { motion, type MotionProps } from "framer-motion";
+/**
+ * Reveal Component.
+ *
+ * A reusable Framer Motion wrapper that fades and slides elements up
+ * when they scroll into the viewport.
+ */
+
+import { motion, type HTMLMotionProps } from "framer-motion";
 import type { ReactNode } from "react";
 
-type RevealProps = MotionProps & {
+type RevealProps = HTMLMotionProps<"div"> & {
   children: ReactNode;
   className?: string;
   delay?: number;
@@ -23,4 +30,3 @@ export function Reveal({ children, className, delay = 0, ...props }: RevealProps
     </motion.div>
   );
 }
-

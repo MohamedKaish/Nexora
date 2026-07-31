@@ -1,6 +1,32 @@
 # TruthLens AI MVP Project Status
 
-## Completed Features
+---
+
+## Sprint 2 — Robustness, UX Polish & Foundation Hardening (2026-07-29)
+
+### New Files
+- `backend/services/cleanup_service.py` — scheduled deletion of uploaded videos and PDF reports
+- `frontend/lib/constants.ts` — shared frontend constants (poll limits, size limits)
+
+### Backend Changes
+- `backend/config/settings.py` — added `UPLOAD_TTL_SECONDS` (24h), `REPORT_TTL_SECONDS` (7d), `JOB_TTL_SECONDS` (24h), `MODEL_WARM_UP_ON_START` (True)
+- `backend/services/media_intake.py` — upgraded to a proper singleton, reads limits from Settings, added `max_file_size_bytes` and `is_within_size_limit()` — now the single source of truth for upload validation
+- `backend/api/analysis.py` — removed duplicated `SUPPORTED_EXTENSIONS` constant, delegated all validation to `media_intake_policy`, wired `cleanup_service` for deferred file deletion on success and immediate deletion on failure
+- `backend/services/job_store.py` — added TTL eviction sweep; terminal-state jobs are removed after `JOB_TTL_SECONDS`; added `shutdown()` for clean process exit
+- `backend/services/deepfake_model.py` — added `is_loaded() -> bool` method
+- `backend/api/health.py` — `ai_analysis_enabled` now reflects the real model load state via `deepfake_model.is_loaded()`
+- `backend/main.py` — model warm-up runs in the lifespan startup block via `run_in_executor`; `job_store.shutdown()` called on teardown
+
+### Frontend Changes
+- `frontend/components/analyze-upload-zone.tsx` — imports shared constants, `pollStatus()` now has a 120-attempt ceiling (168 seconds) with a descriptive timeout error; "Media Types" button now scrolls to the guidelines card (`id="upload-guidelines"` added); CRLF anomaly on line 20 fixed
+- `frontend/app/results/results-client.tsx` — replaced one-shot fetch with a recursive polling loop; shows a branded progress card with animated spinner and progress bar while the job runs; stops on complete/failed; uses `activeRef` to prevent state updates after unmount
+- `frontend/components/results-dashboard.tsx` — integrated `ConfidenceCircle` as the primary visual in a 3-column metric row (confidence ring + verdict card + manipulation probability card)
+- `frontend/types/analysis.ts` — removed orphaned `TimelinePoint` type
+- `backend/.env.example` — documented all four new environment variables with defaults
+
+---
+
+## Sprint 1 — MVP Completed Features
 
 - Existing premium Next.js App Router frontend has been preserved.
 - Existing FastAPI backend skeleton has been extended into an MVP API.

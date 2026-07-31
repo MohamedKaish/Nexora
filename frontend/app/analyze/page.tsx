@@ -1,3 +1,10 @@
+/**
+ * Analyze Page.
+ *
+ * Provides the interactive file dropzone and upload interface for initiating
+ * new video authenticity analysis jobs.
+ */
+
 import type { Metadata } from "next";
 
 import { AnalyzeUploadZone } from "@/components/analyze-upload-zone";
@@ -14,4 +21,3 @@ export default function AnalyzePage() {
     </section>
   );
 }
-

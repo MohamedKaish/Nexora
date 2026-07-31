@@ -1,16 +1,17 @@
+/**
+ * Root Layout Component.
+ *
+ * Defines the global HTML structure, fonts, CSS variables, and top-level
+ * UI components (Navbar, Footer, InitialLoader).
+ * All pages are rendered within the `main` tag of this layout.
+ */
+
 import type { Metadata, Viewport } from "next";
-import { Inter } from "next/font/google";
 
 import { Footer } from "@/components/layout/footer";
 import { InitialLoader } from "@/components/layout/initial-loader";
 import { Navbar } from "@/components/layout/navbar";
 import "./globals.css";
-
-const inter = Inter({
-  subsets: ["latin"],
-  variable: "--font-inter",
-  display: "swap"
-});
 
 export const metadata: Metadata = {
   title: {
@@ -39,11 +40,12 @@ export const viewport: Viewport = {
 export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
   return (
     <html lang="en" className="dark">
-      <body className={`${inter.variable} font-sans antialiased`}>
+      <body className="font-sans antialiased">
         <InitialLoader />
-        <div className="noise" />
+        {/* Subtle animated noise texture overlay */}
+        <div className="noise" aria-hidden="true" />
         <Navbar />
-        <main>{children}</main>
+        <main id="main-content">{children}</main>
         <Footer />
       </body>
     </html>

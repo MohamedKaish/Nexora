@@ -1,3 +1,9 @@
+/**
+ * Section Component.
+ *
+ * Standardized section wrapper for consistent vertical padding and max-width clamping.
+ */
+
 import type { ReactNode } from "react";
 
 import { cn } from "@/lib/utils";
@@ -15,4 +21,3 @@ export function Section({ id, className, children }: SectionProps) {
     </section>
   );
 }
-

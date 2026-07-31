@@ -1,3 +1,11 @@
+/**
+ * Results Page.
+ *
+ * Hosts the ResultsClient component which fetches and renders the outcome
+ * of a completed analysis job. Wrapped in a React Suspense boundary because
+ * the child component reads from the URL search params.
+ */
+
 import type { Metadata } from "next";
 import { Suspense } from "react";
 

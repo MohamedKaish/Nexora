@@ -1,3 +1,8 @@
+/**
+ * Card Component Family.
+ *
+ * A suite of components for building consistent, glassmorphic card surfaces.
+ */
 import * as React from "react";
 
 import { cn } from "@/lib/utils";
@@ -37,4 +42,3 @@ const CardContent = ({ className, ...props }: React.HTMLAttributes<HTMLDivElemen
 CardContent.displayName = "CardContent";
 
 export { Card, CardContent, CardDescription, CardHeader, CardTitle };
-
