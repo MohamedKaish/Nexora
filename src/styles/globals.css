@@ -1,0 +1,259 @@
+@import "tailwindcss";
+@import "tw-animate-css";
+@import "shadcn/tailwind.css";
+
+@custom-variant dark (&:is(.dark *));
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --font-sans: var(--font-geist-sans);
+  --font-mono: var(--font-geist-mono);
+  --color-sidebar-ring: var(--sidebar-ring);
+  --color-sidebar-border: var(--sidebar-border);
+  --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
+  --color-sidebar-accent: var(--sidebar-accent);
+  --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
+  --color-sidebar-primary: var(--sidebar-primary);
+  --color-sidebar-foreground: var(--sidebar-foreground);
+  --color-sidebar: var(--sidebar);
+  
+  --color-chart-5: var(--chart-5);
+  --color-chart-4: var(--chart-4);
+  --color-chart-3: var(--chart-3);
+  --color-chart-2: var(--chart-2);
+  --color-chart-1: var(--chart-1);
+  
+  --color-ring: var(--ring);
+  --color-input: var(--input);
+  --color-border: var(--border);
+  --color-destructive: var(--destructive);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-accent: var(--accent);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-muted: var(--muted);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-secondary: var(--secondary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-primary: var(--primary);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-popover: var(--popover);
+  --color-card-foreground: var(--card-foreground);
+  --color-card: var(--card);
+  --color-success-foreground: var(--success-foreground);
+  --color-success: var(--success);
+  --color-warning-foreground: var(--warning-foreground);
+  --color-warning: var(--warning);
+
+  --radius-sm: calc(var(--radius) * 0.6);
+  --radius-md: calc(var(--radius) * 0.8);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) * 1.4);
+  --radius-2xl: calc(var(--radius) * 1.8);
+  
+  /* Custom Tokens */
+  --color-brand-blue: #3b82f6;
+  --color-brand-purple: #8b5cf6;
+  --color-brand-emerald: #10b981;
+  --color-brand-amber: #f59e0b;
+  --color-brand-rose: #f43f5e;
+}
+
+:root {
+  /* DARK-FIRST PREMIUM DESIGN (Deep Space Theme) */
+  --background: oklch(0.18 0.02 265); /* Deep Space: #0B1020 approx */
+  --foreground: oklch(0.96 0.01 265); /* Off-white with slate tint */
+  
+  --card: oklch(0.20 0.02 265); /* Slightly lighter deep space */
+  --card-foreground: oklch(0.96 0.01 265);
+  
+  --popover: oklch(0.20 0.02 265);
+  --popover-foreground: oklch(0.96 0.01 265);
+  
+  --primary: oklch(0.65 0.15 260); /* Electric Blue / Indigo */
+  --primary-foreground: oklch(0.98 0 0);
+  
+  --secondary: oklch(0.25 0.03 265); /* Graphite */
+  --secondary-foreground: oklch(0.96 0.01 265);
+  
+  --muted: oklch(0.25 0.03 265);
+  --muted-foreground: oklch(0.65 0.02 265); /* Slate */
+  
+  --accent: oklch(0.28 0.04 265);
+  --accent-foreground: oklch(0.96 0.01 265);
+  
+  --destructive: oklch(0.55 0.2 20); /* Premium subtle red */
+  --success: oklch(0.65 0.15 150);
+  --success-foreground: oklch(0.98 0 0);
+  --warning: oklch(0.75 0.15 75);
+  --warning-foreground: oklch(0.15 0 0);
+  --border: oklch(0.28 0.03 265); /* Subtle border matching graphite */
+  --input: oklch(0.25 0.03 265);
+  --ring: oklch(0.65 0.15 260);
+  
+  --chart-1: oklch(0.65 0.15 260); /* Electric Blue */
+  --chart-2: oklch(0.70 0.12 195); /* Cyan */
+  --chart-3: oklch(0.60 0.14 290); /* Indigo / Subtle Purple */
+  --chart-4: oklch(0.75 0.10 320); /* Light Purple highlight */
+  --chart-5: oklch(0.55 0.10 240); /* Deep Indigo */
+  
+  --radius: 0.85rem;
+  
+  --sidebar: oklch(0.16 0.02 265); /* Even deeper space */
+  --sidebar-foreground: oklch(0.96 0.01 265);
+  --sidebar-primary: oklch(0.65 0.15 260);
+  --sidebar-primary-foreground: oklch(0.98 0 0);
+  --sidebar-accent: oklch(0.22 0.02 265);
+  --sidebar-accent-foreground: oklch(0.96 0.01 265);
+  --sidebar-border: oklch(0.22 0.02 265);
+  --sidebar-ring: oklch(0.65 0.15 260);
+}
+
+.light {
+  /* LIGHT MODE FALLBACK */
+  --background: oklch(0.985 0 0);
+  --foreground: oklch(0.145 0 0);
+  --card: oklch(1 0 0);
+  --card-foreground: oklch(0.145 0 0);
+  --popover: oklch(1 0 0);
+  --popover-foreground: oklch(0.145 0 0);
+  --primary: oklch(0.6 0.118 265.8);
+  --primary-foreground: oklch(0.985 0 0);
+  --secondary: oklch(0.97 0 0);
+  --secondary-foreground: oklch(0.205 0 0);
+  --muted: oklch(0.97 0 0);
+  --muted-foreground: oklch(0.556 0 0);
+  --accent: oklch(0.97 0 0);
+  --accent-foreground: oklch(0.205 0 0);
+  --destructive: oklch(0.577 0.245 27.325);
+  --success: oklch(0.65 0.15 150);
+  --success-foreground: oklch(0.98 0 0);
+  --warning: oklch(0.75 0.15 75);
+  --warning-foreground: oklch(0.15 0 0);
+  --border: oklch(0.922 0 0);
+  --input: oklch(0.922 0 0);
+  --ring: oklch(0.6 0.118 265.8);
+  --chart-1: oklch(0.6 0.118 265.8);
+  --chart-2: oklch(0.6 0.2 290);
+  --chart-3: oklch(0.7 0.15 150);
+  --chart-4: oklch(0.8 0.15 80);
+  --chart-5: oklch(0.6 0.2 20);
+  --sidebar: oklch(0.985 0 0);
+  --sidebar-foreground: oklch(0.145 0 0);
+  --sidebar-primary: oklch(0.6 0.118 265.8);
+  --sidebar-primary-foreground: oklch(0.985 0 0);
+  --sidebar-accent: oklch(0.97 0 0);
+  --sidebar-accent-foreground: oklch(0.205 0 0);
+  --sidebar-border: oklch(0.922 0 0);
+  --sidebar-ring: oklch(0.6 0.118 265.8);
+}
+
+@layer base {
+  * {
+    @apply border-border outline-ring/50;
+  }
+  body {
+    @apply bg-background text-foreground tracking-tight selection:bg-primary/20 selection:text-primary antialiased;
+    font-feature-settings: "cv02", "cv03", "cv04", "cv11";
+  }
+  h1, h2, h3, h4, h5, h6 {
+    @apply font-semibold tracking-tight;
+  }
+}
+
+/* Base custom styles for premium feel */
+@layer utilities {
+  .glass-card {
+    @apply bg-card/60 backdrop-blur-xl border border-white/5 shadow-[0_8px_32px_rgba(0,0,0,0.2)] transition-all duration-300;
+  }
+  
+  .glass-card:hover {
+    @apply border-white/10 shadow-[0_8px_32px_rgba(0,0,0,0.3)] bg-card/80;
+  }
+
+  .text-gradient {
+    @apply bg-clip-text text-transparent bg-gradient-to-b from-foreground to-foreground/70;
+  }
+  
+  .text-gradient-primary {
+    @apply bg-clip-text text-transparent bg-gradient-to-r from-primary to-chart-2;
+  }
+  
+  .smooth-ring {
+    @apply focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40 focus-visible:ring-offset-2 focus-visible:ring-offset-background transition-shadow;
+  }
+}
+
+/* FullCalendar Premium Overrides */
+@layer components {
+  .fc {
+    font-family: inherit;
+    --fc-border-color: var(--border);
+    --fc-page-bg-color: transparent;
+    --fc-neutral-bg-color: var(--secondary);
+    --fc-neutral-text-color: var(--foreground);
+    --fc-today-bg-color: rgba(99, 102, 241, 0.05); /* very subtle blue */
+    --fc-button-text-color: var(--foreground);
+    --fc-button-bg-color: var(--secondary);
+    --fc-button-border-color: var(--border);
+    --fc-button-hover-bg-color: color-mix(in srgb, var(--secondary) 80%, white);
+    --fc-button-hover-border-color: var(--border);
+    --fc-button-active-bg-color: rgba(99, 102, 241, 0.2);
+    --fc-button-active-border-color: var(--primary);
+  }
+
+  /* Header Toolbar */
+  .fc .fc-toolbar.fc-header-toolbar {
+    @apply mb-6;
+  }
+  .fc .fc-toolbar-title {
+    @apply text-xl font-bold tracking-tight text-foreground;
+  }
+  .fc .fc-button {
+    @apply rounded-lg font-medium transition-colors shadow-sm outline-none px-4 py-2 capitalize;
+    text-transform: capitalize !important;
+  }
+  .fc .fc-button-primary:not(:disabled).fc-button-active,
+  .fc .fc-button-primary:not(:disabled):active {
+    @apply bg-primary/20 text-primary border-primary;
+  }
+
+  /* Grid lines and cells */
+  .fc-theme-standard td, .fc-theme-standard th, .fc-theme-standard .fc-scrollgrid {
+    @apply border-border/40;
+  }
+  .fc-col-header-cell-cushion {
+    @apply font-semibold py-3 text-muted-foreground tracking-wide text-xs uppercase;
+  }
+  .fc-daygrid-day-number {
+    @apply text-sm font-medium p-2 text-muted-foreground hover:text-foreground transition-colors;
+  }
+  .fc .fc-daygrid-day.fc-day-today {
+    @apply bg-brand-blue/5;
+  }
+  .fc .fc-daygrid-day.fc-day-today .fc-daygrid-day-number {
+    @apply text-primary font-bold bg-primary/10 rounded-full w-8 h-8 flex items-center justify-center m-1 shadow-[0_0_10px_rgba(99,102,241,0.2)];
+  }
+
+  /* Events */
+  .fc-event {
+    @apply rounded-md shadow-sm border-0 transition-transform hover:scale-[1.02] cursor-pointer overflow-hidden;
+  }
+  .fc-event-main {
+    @apply px-2 py-1 text-xs font-semibold;
+  }
+  
+  /* Timegrid specifics */
+  .fc .fc-timegrid-slot {
+    @apply h-12; /* taller slots */
+  }
+  .fc .fc-timegrid-axis-cushion {
+    @apply text-xs text-muted-foreground font-medium pr-3;
+  }
+  .fc .fc-timegrid-now-indicator-line {
+    @apply border-brand-rose border-t-2;
+  }
+  .fc .fc-timegrid-now-indicator-arrow {
+    @apply border-brand-rose;
+  }
+}
