@@ -6,9 +6,14 @@ export const metadata = {
   title: 'Habits - Nexora'
 }
 
-export default async function HabitsPage() {
-  const habits = await getHabits()
+import { Suspense } from 'react'
 
+async function HabitsContent() {
+  const habits = await getHabits()
+  return <HabitList initialHabits={habits} />
+}
+
+export default function HabitsPage() {
   return (
     <div className="flex-1 space-y-6 p-8 pt-8 max-w-7xl mx-auto w-full">
       <div className="flex flex-col md:flex-row md:items-end justify-between space-y-5 md:space-y-0 mb-8">
@@ -22,7 +27,9 @@ export default async function HabitsPage() {
       </div>
       
       <div className="mt-8">
-        <HabitList initialHabits={habits} />
+        <Suspense fallback={<div className="animate-pulse h-[400px] bg-secondary/30 rounded-2xl w-full" />}>
+          <HabitsContent />
+        </Suspense>
       </div>
     </div>
   )

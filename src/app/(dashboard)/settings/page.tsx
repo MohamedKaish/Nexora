@@ -1,13 +1,15 @@
-import { createClient } from '@/lib/supabase/server'
+import { createClient, getUser } from '@/lib/supabase/server'
 import { SettingsForm } from '@/features/settings/components/SettingsForm'
 
 export const metadata = {
   title: 'Settings - Nexora'
 }
 
-export default async function SettingsPage() {
+import { Suspense } from 'react'
+
+async function SettingsContent() {
   const supabase = await createClient()
-  const { data: { user } } = await supabase.auth.getUser()
+  const { data: { user } } = await getUser()
 
   let prefs = null
   if (user) {
@@ -15,6 +17,10 @@ export default async function SettingsPage() {
     prefs = data
   }
 
+  return <SettingsForm initialPrefs={prefs} />
+}
+
+export default function SettingsPage() {
   return (
     <div className="flex-1 space-y-8 p-8 pt-6 max-w-4xl">
       <div>
@@ -22,7 +28,9 @@ export default async function SettingsPage() {
         <p className="text-gray-500 mt-1">Manage your Nexora experience.</p>
       </div>
       <div className="mt-8">
-        <SettingsForm initialPrefs={prefs} />
+        <Suspense fallback={<div className="animate-pulse h-[600px] bg-secondary/30 rounded-xl" />}>
+          <SettingsContent />
+        </Suspense>
       </div>
     </div>
   )

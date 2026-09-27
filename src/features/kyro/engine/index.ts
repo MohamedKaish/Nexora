@@ -1,18 +1,18 @@
-import { TaskInput } from '../types'
+import { TaskInput, BankruptcyDiagnostic } from '../types'
 import { TimelineBlock, BufferBlock } from '@/types/timeline'
 
 // ============================================================================
 // PriorityEngine
-// Deterministic sorting based on Eisenhower Matrix (Urgency/Importance) & Due Dates
+// Deterministic sorting based on Eisenhower Matrix (Urgency/Importance), Due Dates & Proximity
 // ============================================================================
 export class PriorityEngine {
-  public sort(tasks: TaskInput[]): TaskInput[] {
+  public sort(tasks: TaskInput[], referenceTimeMs: number = Date.now()): TaskInput[] {
     return [...tasks].sort((a, b) => {
-      const scoreA = this.calculateScore(a)
-      const scoreB = this.calculateScore(b)
+      const scoreA = this.calculateScore(a, referenceTimeMs)
+      const scoreB = this.calculateScore(b, referenceTimeMs)
       if (scoreA !== scoreB) return scoreB - scoreA // Higher score first
       
-      // Secondary sort: Due date
+      // Secondary sort: Due date ascending
       if (a.dueDate && b.dueDate) {
         return new Date(a.dueDate).getTime() - new Date(b.dueDate).getTime()
       }
@@ -23,19 +23,41 @@ export class PriorityEngine {
     })
   }
 
-  private calculateScore(task: TaskInput): number {
+  public calculateScore(task: TaskInput, referenceTimeMs: number = Date.now()): number {
     let score = 0
+    
+    // Base Priority Score
     if (task.priority === 'urgent') score += 100
-    if (task.priority === 'high') score += 50
-    if (task.priority === 'medium') score += 20
-    if (task.priority === 'low') score += 5
+    else if (task.priority === 'high') score += 50
+    else if (task.priority === 'medium') score += 20
+    else if (task.priority === 'low') score += 5
+
+    // Eisenhower Attribute Weighting
+    if (task.isUrgent) score += 40
+    if (task.isImportant) score += 35
+    if (task.isScheduledForToday) score += 25
+
+    // Due Date Proximity Weighting
+    if (task.dueDate) {
+      const dueMs = new Date(task.dueDate).getTime()
+      const diffHours = (dueMs - referenceTimeMs) / (1000 * 60 * 60)
+
+      if (diffHours < 0) {
+        score += 150 // Overdue tasks take absolute precedence
+      } else if (diffHours <= 24) {
+        score += 80 // Due within 24 hours
+      } else if (diffHours <= 72) {
+        score += 30 // Due within 3 days
+      }
+    }
+
     return score
   }
 }
 
 // ============================================================================
 // ConstraintEngine
-// Prevents overlap with fixed blocks (Calendar, Pinned)
+// Prevents overlap with fixed blocks (Calendar, Timetable Slots, Pinned)
 // ============================================================================
 export class ConstraintEngine {
   public isValidSlot(startTime: number, endTime: number, fixedBlocks: TimelineBlock[]): boolean {
@@ -114,13 +136,47 @@ export class DependencyEngine {
 
 // ============================================================================
 // ConflictResolver & ReflowEngine
-// Orchestrates the math
+// Orchestrates the math and generates explainable diagnostic reports
 // ============================================================================
 export class ConflictResolver {
   public checkTimeBankruptcy(tasks: TaskInput[], gaps: { start: number, end: number }[]): boolean {
     const totalRequiredMinutes = tasks.reduce((acc, t) => acc + t.estimatedMinutes, 0)
     const totalAvailableMinutes = gaps.reduce((acc, gap) => acc + (gap.end - gap.start) / 60000, 0)
     return totalRequiredMinutes > totalAvailableMinutes
+  }
+
+  public diagnoseBankruptcy(tasks: TaskInput[], gaps: { start: number, end: number }[]): BankruptcyDiagnostic {
+    const totalRequiredMinutes = tasks.reduce((acc, t) => acc + t.estimatedMinutes, 0)
+    const totalAvailableMinutes = gaps.reduce((acc, gap) => acc + (gap.end - gap.start) / 60000, 0)
+    const deficitMinutes = Math.max(0, totalRequiredMinutes - totalAvailableMinutes)
+    const isBankrupt = deficitMinutes > 0
+
+    let remainingMinutes = totalAvailableMinutes
+    const fittingTasks: TaskInput[] = []
+    const overflowTasks: TaskInput[] = []
+
+    for (const task of tasks) {
+      if (remainingMinutes >= task.estimatedMinutes) {
+        fittingTasks.push(task)
+        remainingMinutes -= task.estimatedMinutes
+      } else {
+        overflowTasks.push(task)
+      }
+    }
+
+    const reason = isBankrupt
+      ? `Schedule is overloaded: ${totalRequiredMinutes}m of planned tasks exceed available capacity of ${totalAvailableMinutes}m (${deficitMinutes}m deficit).`
+      : `Schedule is balanced: ${totalRequiredMinutes}m of planned tasks fit within ${totalAvailableMinutes}m of available capacity.`
+
+    return {
+      isBankrupt,
+      totalRequiredMinutes,
+      totalAvailableMinutes,
+      deficitMinutes,
+      fittingTasks,
+      overflowTasks,
+      reason
+    }
   }
 }
 

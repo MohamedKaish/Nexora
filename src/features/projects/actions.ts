@@ -1,78 +1,147 @@
 'use server'
 
-import { createClient } from '@/lib/supabase/server'
+import { createClient, getUser } from '@/lib/supabase/server'
 import { revalidatePath } from 'next/cache'
+import { projectSchema, updateProjectSchema, ProjectInput } from '@/lib/validations/projects'
 
 export async function getProjects() {
   const supabase = await createClient()
-  const { data: { user }, error: userError } = await supabase.auth.getUser()
-  if (userError || !user) throw new Error('Unauthorized')
+  const { data: { user } } = await getUser()
+  if (!user) throw new Error('Unauthorized')
 
   const { data, error } = await supabase
     .from('projects')
     .select('*, tasks(*)')
+    .eq('user_id', user.id)
     .is('deleted_at', null)
     .order('created_at', { ascending: false })
 
   if (error) {
-    if (error.code === 'PGRST205' || error.code === '42P01') return [];
-    throw new Error(error.message);
+    if (error.code === 'PGRST205' || error.code === '42P01') return []
+    throw new Error(error.message)
   }
-  return (data || []) as unknown as { id: string; user_id: string; category_id: string | null; name: string; description: string | null; color: string; status: 'active' | 'archived' | 'completed'; due_date: string | null; created_at: string; updated_at: string; deleted_at: string | null; tasks?: { id: string; status: string; due_date: string | null; updated_at: string; deleted_at: string | null }[] }[]
+  return (data || []) as unknown as {
+    id: string
+    user_id: string
+    category_id: string | null
+    name: string
+    description: string | null
+    color: string
+    status: 'active' | 'archived' | 'completed'
+    due_date: string | null
+    created_at: string
+    updated_at: string
+    deleted_at: string | null
+    tasks?: { id: string; status: string; due_date: string | null; updated_at: string; deleted_at: string | null }[]
+  }[]
 }
 
-export async function createProject(input: { name: string, description?: string, color?: string, due_date?: string, status?: 'active' | 'archived' | 'completed' }) {
+export async function getProjectById(id: string) {
   const supabase = await createClient()
-  const { data: { user }, error: userError } = await supabase.auth.getUser()
-  if (userError || !user) throw new Error('Unauthorized')
+  const { data: { user } } = await getUser()
+  if (!user) throw new Error('Unauthorized')
+
+  const { data, error } = await supabase
+    .from('projects')
+    .select('*, tasks(*)')
+    .eq('id', id)
+    .eq('user_id', user.id)
+    .is('deleted_at', null)
+    .single()
+
+  if (error) return null
+  return data as unknown as {
+    id: string
+    user_id: string
+    name: string
+    description: string | null
+    color: string
+    status: 'active' | 'archived' | 'completed'
+    due_date: string | null
+    created_at: string
+    updated_at: string
+    deleted_at: string | null
+    tasks?: { id: string; status: string; due_date: string | null; updated_at: string; deleted_at: string | null }[]
+  }
+}
+
+export async function createProject(input: ProjectInput) {
+  const supabase = await createClient()
+  const { data: { user } } = await getUser()
+  if (!user) throw new Error('Unauthorized')
+
+  const validated = projectSchema.parse(input)
 
   const { data, error } = await supabase
     .from('projects')
     .insert({
-      ...input,
+      ...validated,
       user_id: user.id,
     })
     .select()
     .single()
 
   if (error) throw new Error(error.message)
-  
+
   revalidatePath('/', 'layout')
-  return data
+  return {
+    ...data,
+    tasks: [],
+  }
 }
 
-export async function updateProject(id: string, input: { name?: string, description?: string, color?: string, status?: 'active' | 'archived' | 'completed', due_date?: string }) {
+export async function updateProject(id: string, input: Partial<ProjectInput>) {
   const supabase = await createClient()
-  const { data: { user }, error: userError } = await supabase.auth.getUser()
-  if (userError || !user) throw new Error('Unauthorized')
+  const { data: { user } } = await getUser()
+  if (!user) throw new Error('Unauthorized')
+
+  const parsed = updateProjectSchema.parse(input)
+  const fieldsToUpdate = Object.entries(parsed).reduce((acc, [key, val]) => {
+    if (val !== undefined) acc[key] = val
+    return acc
+  }, {} as Record<string, unknown>)
 
   const { data, error } = await supabase
     .from('projects')
-    .update(input)
+    .update({
+      ...fieldsToUpdate,
+      updated_at: new Date().toISOString(),
+    })
     .eq('id', id)
     .eq('user_id', user.id)
     .select()
     .single()
 
   if (error) throw new Error(error.message)
-  
+
   revalidatePath('/', 'layout')
   return data
 }
 
 export async function deleteProject(id: string) {
   const supabase = await createClient()
-  const { data: { user }, error: userError } = await supabase.auth.getUser()
-  if (userError || !user) throw new Error('Unauthorized')
+  const { data: { user } } = await getUser()
+  if (!user) throw new Error('Unauthorized')
 
-  const { error } = await supabase
+  const now = new Date().toISOString()
+
+  // 1. Soft-delete project
+  const { error: projError } = await supabase
     .from('projects')
-    .update({ deleted_at: new Date().toISOString() })
+    .update({ deleted_at: now })
     .eq('id', id)
     .eq('user_id', user.id)
 
-  if (error) throw new Error(error.message)
-  
+  if (projError) throw new Error(projError.message)
+
+  // 2. Cascade soft-delete to associated tasks
+  await supabase
+    .from('tasks')
+    .update({ deleted_at: now })
+    .eq('project_id', id)
+    .eq('user_id', user.id)
+    .is('deleted_at', null)
+
   revalidatePath('/', 'layout')
   return { success: true }
 }

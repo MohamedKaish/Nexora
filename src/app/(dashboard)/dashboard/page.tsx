@@ -7,6 +7,8 @@ import { FocusWidget } from '@/features/dashboard/components/FocusWidget'
 import { RecentProjectsWidget } from '@/features/dashboard/components/RecentProjectsWidget'
 import { SmartInsightsWidget } from '@/features/dashboard/components/SmartInsightsWidget'
 import { UpcomingScheduleWidget } from '@/features/dashboard/components/UpcomingScheduleWidget'
+import { IntelligentAdvisorWidget } from '@/features/intelligence/components/IntelligentAdvisorWidget'
+import { getDailyAdvisorReport } from '@/features/intelligence/actions'
 
 export const metadata = {
   title: 'Dashboard - Nexora',
@@ -40,6 +42,16 @@ function InsightsSkeleton() {
   )
 }
 
+async function AdvisorSection() {
+  let report = null
+  try {
+    report = await getDailyAdvisorReport()
+  } catch {
+    // Graceful fallback when database or session is uninitialized
+  }
+  return <IntelligentAdvisorWidget initialReport={report} />
+}
+
 export default function DashboardPage() {
   return (
     <div className="flex-1 space-y-6 p-8 pt-8 max-w-7xl mx-auto">
@@ -60,6 +72,12 @@ export default function DashboardPage() {
       
       <Suspense fallback={<StatsSkeleton />}>
         <StatsWidget />
+      </Suspense>
+
+      <Suspense fallback={<div className="h-44 rounded-[24px] bg-secondary/20 animate-pulse mt-6" />}>
+        <div className="mt-6">
+          <AdvisorSection />
+        </div>
       </Suspense>
 
       <Suspense fallback={<GridSkeleton />}>

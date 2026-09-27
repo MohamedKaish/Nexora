@@ -1,9 +1,16 @@
 import { FocusDashboard } from '@/features/focus/components/FocusDashboard'
+import { getTasks } from '@/features/tasks/actions'
 import { Metadata } from 'next'
+import { Suspense } from 'react'
 
 export const metadata: Metadata = {
   title: 'Focus - Nexora',
   description: 'Deep work and Pomodoro timer',
+}
+
+async function FocusContent() {
+  const tasks = await getTasks()
+  return <FocusDashboard tasks={tasks} />
 }
 
 export default function FocusPage() {
@@ -15,9 +22,11 @@ export default function FocusPage() {
           <p className="text-muted-foreground text-lg font-medium">Immersive sessions for deep work and studying.</p>
         </div>
       </div>
-      
+
       <div className="max-w-4xl mx-auto mt-10">
-        <FocusDashboard />
+        <Suspense fallback={<div className="animate-pulse h-[400px] bg-secondary/30 rounded-2xl w-full" />}>
+          <FocusContent />
+        </Suspense>
       </div>
     </div>
   )

@@ -1,8 +1,34 @@
 import { createServerClient } from '@supabase/ssr'
 import { cookies } from 'next/headers'
 import { Database } from '@/types/database.types'
+import { cache } from 'react'
 
-export async function createClient() {
+/**
+ * Resilient fetch that gracefully handles transient cloud clock-skew ("JWT issued at future")
+ * between Supabase Gotrue Auth and PostgREST containers.
+ */
+async function clockSkewResilientFetch(
+  input: RequestInfo | URL,
+  init?: RequestInit
+): Promise<Response> {
+  const res = await fetch(input, init)
+  if (res.status === 401) {
+    try {
+      const clone = res.clone()
+      const text = await clone.text()
+      if (text.includes('JWT issued at future')) {
+        // Wait 600ms for PostgREST server clock to catch up with Gotrue JWT iat timestamp
+        await new Promise((resolve) => setTimeout(resolve, 600))
+        return await fetch(input, init)
+      }
+    } catch {
+      // Return original response if cloning/reading fails
+    }
+  }
+  return res
+}
+
+export const createClient = cache(async () => {
   const cookieStore = await cookies()
 
   return createServerClient<Database>(
@@ -25,6 +51,14 @@ export async function createClient() {
           }
         },
       },
+      global: {
+        fetch: clockSkewResilientFetch,
+      },
     }
   )
-}
+})
+
+export const getUser = cache(async () => {
+  const supabase = await createClient()
+  return await supabase.auth.getUser()
+})

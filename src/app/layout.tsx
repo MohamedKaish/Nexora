@@ -3,7 +3,6 @@ import { Geist, Geist_Mono } from "next/font/google";
 import "../styles/globals.css";
 import { ThemeProvider } from "@/components/theme-provider";
 import { Toaster } from 'sonner'
-import { GlobalTimer } from '@/features/focus/components/GlobalTimer'
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -30,6 +29,8 @@ export default function RootLayout({
 }: Readonly<{
   children: React.ReactNode;
 }>) {
+  const isDev = process.env.NODE_ENV === 'development';
+
   return (
     <html
       lang="en"
@@ -37,32 +38,43 @@ export default function RootLayout({
       suppressHydrationWarning
     >
       <body className="min-h-full flex flex-col">
-          <ThemeProvider
-            attribute="class"
-            defaultTheme="dark"
-            enableSystem={false}
-            disableTransitionOnChange
-          >
+        <ThemeProvider
+          attribute="class"
+          defaultTheme="dark"
+          enableSystem={false}
+          disableTransitionOnChange
+        >
           {children}
           <Toaster richColors position="top-right" theme="system" />
-          <GlobalTimer />
         </ThemeProvider>
         <script
           dangerouslySetInnerHTML={{
-            __html: `
-              if ('serviceWorker' in navigator) {
-                window.addEventListener('load', function() {
-                  navigator.serviceWorker.register('/sw.js').then(
-                    function(registration) {
-                      console.log('Service Worker registration successful with scope: ', registration.scope);
-                    },
-                    function(err) {
-                      console.log('Service Worker registration failed: ', err);
+            __html: isDev
+              ? `
+                if ('serviceWorker' in navigator) {
+                  navigator.serviceWorker.getRegistrations().then(function(registrations) {
+                    for (var i = 0; i < registrations.length; i++) {
+                      registrations[i].unregister();
                     }
-                  );
-                });
-              }
-            `,
+                  });
+                  if (window.caches) {
+                    caches.keys().then(function(names) {
+                      for (var i = 0; i < names.length; i++) {
+                        caches.delete(names[i]);
+                      }
+                    });
+                  }
+                }
+              `
+              : `
+                if ('serviceWorker' in navigator) {
+                  window.addEventListener('load', function() {
+                    navigator.serviceWorker.register('/sw.js').catch(function(err) {
+                      console.error('Service Worker registration failed: ', err);
+                    });
+                  });
+                }
+              `,
           }}
         />
       </body>

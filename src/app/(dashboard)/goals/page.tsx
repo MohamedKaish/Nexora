@@ -7,9 +7,14 @@ export const metadata: Metadata = {
   description: 'Track your daily, weekly, and monthly goals',
 }
 
-export default async function GoalsPage() {
-  const goals = await getGoals()
+import { Suspense } from 'react'
 
+async function GoalsContent() {
+  const goals = await getGoals()
+  return <GoalsDashboard initialGoals={goals} />
+}
+
+export default function GoalsPage() {
   return (
     <div className="flex-1 space-y-6 p-8 pt-8 max-w-7xl mx-auto w-full">
       <div className="flex flex-col md:flex-row md:items-end justify-between space-y-5 md:space-y-0 mb-8">
@@ -19,7 +24,9 @@ export default async function GoalsPage() {
         </div>
       </div>
       
-      <GoalsDashboard initialGoals={goals} />
+      <Suspense fallback={<div className="animate-pulse h-[500px] bg-secondary/30 rounded-2xl w-full" />}>
+        <GoalsContent />
+      </Suspense>
     </div>
   )
 }

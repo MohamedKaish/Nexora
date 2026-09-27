@@ -5,9 +5,21 @@ export const metadata = {
   title: 'Analytics - Nexora'
 }
 
-export default async function AnalyticsPage() {
-  const data = await getAnalyticsData()
+import { Suspense } from 'react'
 
+async function AnalyticsContent() {
+  const data = await getAnalyticsData()
+  if (!data) {
+    return (
+      <div className="text-center py-12">
+        <p className="text-muted-foreground">Failed to load analytics data.</p>
+      </div>
+    )
+  }
+  return <AnalyticsDashboard data={data} />
+}
+
+export default function AnalyticsPage() {
   return (
     <div className="flex-1 space-y-6 p-8 pt-8 max-w-7xl mx-auto w-full">
       <div className="flex flex-col md:flex-row md:items-end justify-between space-y-5 md:space-y-0 mb-8">
@@ -18,13 +30,9 @@ export default async function AnalyticsPage() {
       </div>
       
       <div className="mt-6">
-        {data ? (
-          <AnalyticsDashboard data={data} />
-        ) : (
-          <div className="text-center py-12">
-            <p className="text-muted-foreground">Failed to load analytics data.</p>
-          </div>
-        )}
+        <Suspense fallback={<div className="animate-pulse h-[600px] bg-secondary/30 rounded-xl" />}>
+          <AnalyticsContent />
+        </Suspense>
       </div>
     </div>
   )

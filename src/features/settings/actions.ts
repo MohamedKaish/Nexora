@@ -1,11 +1,11 @@
 'use server'
 
-import { createClient } from '@/lib/supabase/server'
+import { createClient, getUser } from '@/lib/supabase/server'
 import { revalidatePath } from 'next/cache'
 
 export async function updatePreferences(prefs: Record<string, unknown>) {
   const supabase = await createClient()
-  const { data: { user } } = await supabase.auth.getUser()
+  const { data: { user } } = await getUser()
 
   if (!user) throw new Error('Not authenticated')
 
@@ -22,7 +22,7 @@ export async function updatePreferences(prefs: Record<string, unknown>) {
       return obj
     }, {} as Record<string, unknown>)
 
-  const { error, count } = await supabase
+  const { data, error } = await supabase
     .from('user_preferences')
     .update({ 
       ...validPrefs,
@@ -32,7 +32,7 @@ export async function updatePreferences(prefs: Record<string, unknown>) {
     .select('id')
 
   // If update didn't touch any rows, the row doesn't exist. Insert it.
-  if (!error && (!count || count === 0)) {
+  if (!error && (!data || data.length === 0)) {
     const { error: insertError } = await supabase
       .from('user_preferences')
       .insert({ 
@@ -42,8 +42,6 @@ export async function updatePreferences(prefs: Record<string, unknown>) {
       })
     
     if (insertError) {
-      // If RLS fails on insert because of missing INSERT policy, 
-      // there might be a fallback or it's a critical DB issue.
       throw new Error(insertError.message)
     }
   } else if (error) {

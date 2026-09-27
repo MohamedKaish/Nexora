@@ -4,6 +4,7 @@ import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { 
   LayoutDashboard, 
+  Bot,
   CheckSquare, 
   FolderKanban, 
   CalendarDays, 
@@ -17,6 +18,7 @@ import {
 
 const navItems = [
   { href: '/dashboard', label: 'Command Center', icon: LayoutDashboard },
+  { href: '/agent', label: 'Nexora Agent', icon: Bot },
   { href: '/focus', label: 'Focus Mode', icon: Zap },
   { href: '/tasks', label: 'Tasks', icon: CheckSquare },
   { href: '/goals', label: 'Goals', icon: Target },

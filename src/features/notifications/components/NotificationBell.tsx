@@ -10,11 +10,19 @@ export function NotificationBell() {
   const [isOpen, setIsOpen] = useState(false)
   const [filter, setFilter] = useState<'all' | 'kyro' | 'reminder' | 'system'>('all')
   const menuRef = useRef<HTMLDivElement>(null)
+  const hasFetched = useRef(false)
 
   useEffect(() => {
+    if (hasFetched.current) return;
+    hasFetched.current = true;
+    
     async function load() {
-      const data = await getNotifications()
-      setNotifications(data)
+      try {
+        const data = await getNotifications()
+        setNotifications(data)
+      } catch (e) {
+        console.error("Failed to load notifications", e)
+      }
     }
     load()
 

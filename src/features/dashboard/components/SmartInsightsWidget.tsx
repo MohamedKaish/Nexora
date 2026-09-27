@@ -1,6 +1,6 @@
 import { getAnalyticsData } from '@/features/analytics/actions'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
-import { Zap } from 'lucide-react'
+import { Zap, Sparkles } from 'lucide-react'
 
 export async function SmartInsightsWidget() {
   const analyticsData = await getAnalyticsData()
@@ -18,8 +18,8 @@ export async function SmartInsightsWidget() {
           <ul className="space-y-3">
             {analyticsData.insights.slice(0, 3).map((insight, idx) => (
               <li key={idx} className="flex gap-3 text-[14px] font-medium text-muted-foreground items-start bg-secondary/30 hover:bg-secondary/50 transition-colors p-3.5 rounded-[12px] border border-white/5 shadow-sm">
-                <span className="text-primary mt-0.5">✦</span>
-                {insight}
+                <Sparkles className="h-4 w-4 text-primary shrink-0 mt-0.5" />
+                <span>{insight}</span>
               </li>
             ))}
           </ul>

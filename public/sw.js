@@ -4,7 +4,7 @@ const CACHE_NAME = `nexora-cache-${CACHE_VERSION}`
 const STATIC_ASSETS = [
   '/dashboard',
   '/manifest.webmanifest',
-  '/icon.png'
+  '/icon'
 ]
 
 self.addEventListener('install', (event) => {
@@ -32,10 +32,27 @@ self.addEventListener('activate', (event) => {
 self.addEventListener('fetch', (event) => {
   if (event.request.method !== 'GET') return
   
-  // Stale-while-revalidate for Next.js assets and app shell
+  const url = new URL(event.request.url)
+
+  // Do NOT intercept Next.js RSC requests, API routes, or development chunks
+  if (
+    event.request.headers.get('RSC') === '1' ||
+    url.pathname.startsWith('/api/') ||
+    url.pathname.includes('/development/') ||
+    url.pathname.includes('webpack') ||
+    url.pathname.includes('turbopack') ||
+    (!url.pathname.startsWith('/_next/static/') && !url.pathname.match(/\.(png|jpg|jpeg|gif|svg|webp|ico)$/))
+  ) {
+    return
+  }
+  
+  // Cache-first for static assets
   event.respondWith(
     caches.match(event.request).then((cachedResponse) => {
-      const fetchPromise = fetch(event.request).then((networkResponse) => {
+      if (cachedResponse) {
+        return cachedResponse
+      }
+      return fetch(event.request).then((networkResponse) => {
         if (networkResponse && networkResponse.status === 200 && networkResponse.type === 'basic') {
           const responseToCache = networkResponse.clone()
           caches.open(CACHE_NAME).then((cache) => {
@@ -43,12 +60,7 @@ self.addEventListener('fetch', (event) => {
           })
         }
         return networkResponse
-      }).catch(() => {
-        // Return cached response if offline
-        return cachedResponse || new Response('Offline', { status: 503, statusText: 'Offline' })
       })
-      
-      return cachedResponse || fetchPromise
     })
   )
 })

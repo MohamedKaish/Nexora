@@ -5,18 +5,27 @@ import FullCalendar from '@fullcalendar/react'
 import timeGridPlugin from '@fullcalendar/timegrid'
 import dayGridPlugin from '@fullcalendar/daygrid'
 import listPlugin from '@fullcalendar/list'
-import { getTimelineBlocksForCalendar } from '../actions'
+import { getTimelineBlocksForCalendar, getKyroSchedulingContext, saveTimelineBlocks } from '../actions'
+import { useKyroWorker } from '@/features/kyro/hooks/useKyroWorker'
+import { useTimelineStore } from '@/store/timelineStore'
+import { TimelineBlock } from '@/types/timeline'
 import { startOfWeek, endOfWeek } from 'date-fns'
 import { Card } from '@/components/ui/card'
 import { CalendarDays, ShieldAlert, Sparkles, AlertCircle } from 'lucide-react'
 import { toast } from 'sonner'
+
+export type ReflowStatus = 'IDLE' | 'LOADING' | 'SUCCESS' | 'NO_CHANGE' | 'ERROR'
 
 export function TimelineCalendarView() {
   const [events, setEvents] = useState<Record<string, unknown>[]>([])
   const [currentDate, setCurrentDate] = useState(new Date())
   const [isMobile, setIsMobile] = useState(false)
   const [isKyroRunning, setIsKyroRunning] = useState(false)
+  const [reflowStatus, setReflowStatus] = useState<ReflowStatus>('IDLE')
   const calendarRef = useRef<FullCalendar>(null)
+
+  const { schedule } = useKyroWorker()
+  const setStoreBlocks = useTimelineStore((state) => state.setBlocks)
 
   useEffect(() => {
     const handleResize = () => setIsMobile(window.innerWidth < 768)
@@ -25,13 +34,53 @@ export function TimelineCalendarView() {
     return () => window.removeEventListener('resize', handleResize)
   }, [])
 
+  const mapBlocksToEvents = React.useCallback((blocks: TimelineBlock[]): Record<string, unknown>[] => {
+    return blocks.map(block => {
+      const isFixed = block.type === 'calendar' || block.isFixed === true
+      let bg = '#6366F1'
+      let border = '#4F46E5'
+
+      if (isFixed) {
+        bg = 'hsl(var(--brand-emerald, 158 64% 52%))'
+        border = 'hsl(var(--brand-emerald, 158 64% 42%))'
+      } else if (block.type === 'task') {
+        const priority = (block as unknown as { priority?: string }).priority
+        if (priority === 'urgent' || priority === 'high') {
+          bg = '#EF4444'
+          border = '#DC2626'
+        } else if (priority === 'low') {
+          bg = '#10B981'
+          border = '#059669'
+        }
+      }
+
+      return {
+        id: block.id,
+        title: block.title,
+        start: block.startTime instanceof Date ? block.startTime.toISOString() : String(block.startTime || ''),
+        end: block.endTime instanceof Date ? block.endTime.toISOString() : String(block.endTime || ''),
+        backgroundColor: bg,
+        borderColor: border,
+        extendedProps: {
+          isFixed,
+          type: block.type,
+          priority: (block as unknown as { priority?: string }).priority
+        }
+      }
+    })
+  }, [])
+
   const loadData = React.useCallback(() => {
     const start = startOfWeek(currentDate, { weekStartsOn: 1 })
     const end = endOfWeek(currentDate, { weekStartsOn: 1 })
     
     getTimelineBlocksForCalendar(start.toISOString(), end.toISOString())
-      .then(data => setEvents(data))
-      .catch(console.error)
+      .then(data => {
+        setEvents(data)
+      })
+      .catch((err) => {
+        console.error('[Timeline] Error loading calendar blocks:', err)
+      })
   }, [currentDate])
 
   useEffect(() => {
@@ -39,13 +88,80 @@ export function TimelineCalendarView() {
   }, [loadData])
 
   const triggerKyroReflow = async () => {
+    setIsKyroRunning(true)
+    setReflowStatus('LOADING')
+
     try {
-      setIsKyroRunning(true)
-      await new Promise(resolve => setTimeout(resolve, 1500)) // Simulate engine run
-      toast.success('Kyro scheduling complete', { description: 'Your timeline has been reflowed.' })
-      loadData()
-    } catch {
-      toast.error('Failed to run Kyro engine')
+      // 1. Fetch real authenticated task, habit, and calendar context from Supabase
+      const context = await getKyroSchedulingContext()
+
+      // 2. Execute real deterministic Kyro scheduling computation via worker/engine
+      const computedBlocks = await schedule(context, currentDate)
+
+      // 3. Handle truthful outcomes without artificial delay or hardcoded counts
+      if (!computedBlocks || computedBlocks.length === 0) {
+        setReflowStatus('NO_CHANGE')
+        toast.info('Kyro reflow completed', {
+          description: 'No tasks or calendar events were available to schedule.'
+        })
+        return
+      }
+
+      const taskBlocks = computedBlocks.filter(b => b.type === 'task')
+      const calBlocks = computedBlocks.filter(b => b.type === 'calendar')
+
+      // 4. Persistence to database: Must be awaited and checked to prevent false SUCCESS
+      const timeframe = {
+        start: startOfWeek(currentDate, { weekStartsOn: 1 }).toISOString(),
+        end: endOfWeek(currentDate, { weekStartsOn: 1 }).toISOString()
+      }
+
+      const saveResult = await saveTimelineBlocks(
+        computedBlocks.map(b => ({
+          id: b.id,
+          title: b.title,
+          type: b.type,
+          startTime: b.startTime instanceof Date ? b.startTime.toISOString() : (b.startTime ? String(b.startTime) : null),
+          endTime: b.endTime instanceof Date ? b.endTime.toISOString() : (b.endTime ? String(b.endTime) : null),
+          priority: (b as unknown as { priority?: string }).priority,
+          isFixed: b.type === 'calendar'
+        })),
+        timeframe
+      )
+
+      if (!saveResult.success) {
+        setReflowStatus('ERROR')
+        toast.error('Kyro reflow persistence failed', {
+          description: saveResult.error || 'Database write failed. Changes could not be saved.'
+        })
+        return
+      }
+
+      // 5. Update Zustand state
+      setStoreBlocks(computedBlocks)
+
+      // 6. Update FullCalendar events
+      const calendarEvents = mapBlocksToEvents(computedBlocks)
+      setEvents(calendarEvents)
+
+      setReflowStatus('SUCCESS')
+
+      if (taskBlocks.length > 0) {
+        toast.success('Kyro reflow completed', {
+          description: `${taskBlocks.length} task block${taskBlocks.length === 1 ? '' : 's'} mathematically scheduled into available gaps.`
+        })
+      } else {
+        toast.info('Kyro reflow completed', {
+          description: `${calBlocks.length} fixed calendar event${calBlocks.length === 1 ? '' : 's'} aligned. No pending tasks to schedule.`
+        })
+      }
+    } catch (err) {
+      setReflowStatus('ERROR')
+      const errorMessage = err instanceof Error ? err.message : 'Failed to execute Kyro scheduling engine'
+      console.error('[Timeline] Kyro Reflow Error:', err)
+      toast.error('Kyro reflow failed', {
+        description: errorMessage
+      })
     } finally {
       setIsKyroRunning(false)
     }
@@ -65,6 +181,8 @@ export function TimelineCalendarView() {
         <button 
           onClick={triggerKyroReflow}
           disabled={isKyroRunning}
+          data-testid="kyro-reflow-button"
+          data-status={reflowStatus}
           className="bg-primary text-primary-foreground font-bold px-6 py-2.5 rounded-full shadow-[0_4px_14px_0_rgba(99,102,241,0.39)] hover:bg-primary/90 hover:scale-105 transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
         >
           {isKyroRunning ? (
@@ -72,7 +190,7 @@ export function TimelineCalendarView() {
           ) : (
             <Sparkles className="h-4 w-4" />
           )}
-          {isKyroRunning ? 'Optimizing...' : 'Reflow Schedule'}
+          {isKyroRunning ? 'Optimizing Schedule...' : 'Reflow Schedule'}
         </button>
       </div>
 
@@ -148,8 +266,8 @@ export function TimelineCalendarView() {
           slotMaxTime="23:59:59"
           datesSet={(arg) => setCurrentDate(arg.start)}
           eventContent={(arg) => {
-            const isFixed = arg.event.extendedProps.isFixed
-            const type = arg.event.extendedProps.type
+            const isFixed = arg.event.extendedProps?.isFixed
+            const type = arg.event.extendedProps?.type
             
             return (
               <div className="flex flex-col overflow-hidden leading-tight text-white h-full justify-start text-[11px] pt-1 px-0.5">

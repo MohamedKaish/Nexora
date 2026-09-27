@@ -1,109 +1,184 @@
 'use server'
 
-import { createClient } from '@/lib/supabase/server'
+import { createClient, getUser } from '@/lib/supabase/server'
 import { revalidatePath } from 'next/cache'
+import { habitSchema, calculateHabitStreak } from '@/lib/validations/habits'
 
 export async function getHabits() {
   const supabase = await createClient()
-  const { data: { user }, error: userError } = await supabase.auth.getUser()
-  if (userError || !user) throw new Error('Unauthorized')
+  const { data: { user } } = await getUser()
+  if (!user) throw new Error('Unauthorized')
 
   const { data, error } = await supabase
     .from('habits')
     .select('*, habit_completions(*)')
+    .eq('user_id', user.id)
     .is('deleted_at', null)
     .order('created_at', { ascending: false })
 
   if (error) {
-    if (error.code === 'PGRST205' || error.code === '42P01') return [];
-    throw new Error(error.message);
+    if (error.code === 'PGRST205' || error.code === '42P01') return []
+    throw new Error(error.message)
   }
-  return data || [];
+  return data || []
 }
 
 export async function createHabit(name: string, frequency: 'daily' | 'weekly' | 'weekdays', color: string) {
   const supabase = await createClient()
-  const { data: { user }, error: userError } = await supabase.auth.getUser()
-  if (userError || !user) throw new Error('Unauthorized')
+  const { data: { user } } = await getUser()
+  if (!user) throw new Error('Unauthorized')
+
+  const validated = habitSchema.parse({ name: name.trim(), frequency, color })
 
   const { data, error } = await supabase
     .from('habits')
     .insert({
       user_id: user.id,
-      name,
-      frequency,
-      color
+      name: validated.name,
+      frequency: validated.frequency,
+      color: validated.color,
+      streak: 0,
     })
-    .select()
+    .select('*, habit_completions(*)')
     .single()
 
   if (error) throw new Error(error.message)
-  
+
+  revalidatePath('/', 'layout')
+  return {
+    ...data,
+    habit_completions: data.habit_completions || [],
+  }
+}
+
+export async function updateHabit(
+  id: string,
+  input: Partial<{ name: string; frequency: 'daily' | 'weekly' | 'weekdays'; color: string }>
+) {
+  const supabase = await createClient()
+  const { data: { user } } = await getUser()
+  if (!user) throw new Error('Unauthorized')
+
+  const validated = habitSchema.partial().parse(input)
+
+  const { data, error } = await supabase
+    .from('habits')
+    .update({
+      ...validated,
+      updated_at: new Date().toISOString(),
+    })
+    .eq('id', id)
+    .eq('user_id', user.id)
+    .select('*, habit_completions(*)')
+    .single()
+
+  if (error) throw new Error(error.message)
+
   revalidatePath('/', 'layout')
   return data
 }
 
 export async function toggleHabitCompletion(habitId: string, dateStr: string) {
   const supabase = await createClient()
-  const { data: { user }, error: userError } = await supabase.auth.getUser()
-  if (userError || !user) throw new Error('Unauthorized')
+  const { data: { user } } = await getUser()
+  if (!user) throw new Error('Unauthorized')
 
-  // Check if exists
+  // 1. Verify habit ownership
+  const { data: habit, error: habitError } = await supabase
+    .from('habits')
+    .select('id, streak')
+    .eq('id', habitId)
+    .eq('user_id', user.id)
+    .is('deleted_at', null)
+    .single()
+
+  if (habitError || !habit) {
+    throw new Error('Habit not found or unauthorized')
+  }
+
+  // 2. Check existing completion for date
   const { data: existing } = await supabase
     .from('habit_completions')
     .select('id')
     .eq('habit_id', habitId)
+    .eq('user_id', user.id)
     .eq('completed_date', dateStr)
     .single()
 
-  let increment = 0
+  let isCompletedNow = false
 
   if (existing) {
-    await supabase.from('habit_completions').delete().eq('id', existing.id)
-    increment = -1
+    const { error: delError } = await supabase
+      .from('habit_completions')
+      .delete()
+      .eq('id', existing.id)
+      .eq('user_id', user.id)
+    if (delError) throw new Error(delError.message)
+    isCompletedNow = false
   } else {
-    await supabase.from('habit_completions').insert({
-      user_id: user.id,
-      habit_id: habitId,
-      completed_date: dateStr
-    })
-    increment = 1
+    const { error: insError } = await supabase
+      .from('habit_completions')
+      .insert({
+        user_id: user.id,
+        habit_id: habitId,
+        completed_date: dateStr,
+      })
+    if (insError) throw new Error(insError.message)
+    isCompletedNow = true
   }
 
-  // Update streak logic
-  const { data: habit } = await supabase.from('habits').select('streak').eq('id', habitId).single()
-  if (habit) {
-    await supabase.from('habits').update({ streak: Math.max(0, habit.streak + increment) }).eq('id', habitId)
-  }
-
-  // Update analytics
-  const { data: analytics } = await supabase
-    .from('analytics')
-    .select('id, habits_completed')
+  // 3. Compute real streak from all stored completions
+  const { data: allCompletions } = await supabase
+    .from('habit_completions')
+    .select('completed_date')
+    .eq('habit_id', habitId)
     .eq('user_id', user.id)
-    .eq('date', dateStr)
-    .single()
-    
-  if (analytics) {
-    await supabase.from('analytics').update({
-      habits_completed: Math.max(0, analytics.habits_completed + increment)
-    }).eq('id', analytics.id)
-  } else if (increment > 0) {
-    await supabase.from('analytics').insert({
-      user_id: user.id,
-      date: dateStr,
-      habits_completed: 1
-    })
+
+  const completedDates = (allCompletions || []).map((c) => c.completed_date)
+  const newStreak = calculateHabitStreak(completedDates)
+
+  await supabase
+    .from('habits')
+    .update({ streak: newStreak, updated_at: new Date().toISOString() })
+    .eq('id', habitId)
+    .eq('user_id', user.id)
+
+  // 4. Update analytics safely
+  try {
+    const { data: analytics } = await supabase
+      .from('analytics')
+      .select('id, habits_completed')
+      .eq('user_id', user.id)
+      .eq('date', dateStr)
+      .single()
+
+    const diff = isCompletedNow ? 1 : -1
+    if (analytics) {
+      await supabase
+        .from('analytics')
+        .update({
+          habits_completed: Math.max(0, analytics.habits_completed + diff),
+        })
+        .eq('id', analytics.id)
+    } else if (isCompletedNow) {
+      await supabase.from('analytics').insert({
+        user_id: user.id,
+        date: dateStr,
+        habits_completed: 1,
+      })
+    }
+  } catch (analyticsErr) {
+    console.warn('Analytics update skipped:', analyticsErr)
   }
 
   revalidatePath('/', 'layout')
-  return { success: true }
+  return { success: true, isCompleted: isCompletedNow, streak: newStreak }
 }
 
 export async function deleteHabit(id: string) {
   const supabase = await createClient()
-  const { data: { user }, error: userError } = await supabase.auth.getUser()
-  if (userError || !user) throw new Error('Unauthorized')
+  const { data: { user } } = await getUser()
+  if (!user) throw new Error('Unauthorized')
 
   const { error } = await supabase
     .from('habits')
@@ -112,7 +187,7 @@ export async function deleteHabit(id: string) {
     .eq('user_id', user.id)
 
   if (error) throw new Error(error.message)
-  
+
   revalidatePath('/', 'layout')
   return { success: true }
 }

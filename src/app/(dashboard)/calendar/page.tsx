@@ -9,13 +9,29 @@ export const metadata = {
   title: 'Calendar - Nexora',
 }
 
-export default async function CalendarPage() {
-  const tasks = await getTasks()
-  const projects = await getProjects()
-  const events = await getCalendarEvents()
-  const timetableSlots = await getTimetableSlots()
-  const habits = await getHabits()
+import { Suspense } from 'react'
 
+async function CalendarContent() {
+  const [tasks, projects, events, timetableSlots, habits] = await Promise.all([
+    getTasks(),
+    getProjects(),
+    getCalendarEvents(),
+    getTimetableSlots(),
+    getHabits()
+  ])
+
+  return (
+    <FullCalendarView 
+      tasks={tasks} 
+      projects={projects} 
+      events={events} 
+      timetableSlots={timetableSlots}
+      habits={habits}
+    />
+  )
+}
+
+export default function CalendarPage() {
   return (
     <div className="flex-1 space-y-6 p-8 pt-8 max-w-7xl mx-auto w-full">
       <div className="flex flex-col md:flex-row md:items-end justify-between space-y-5 md:space-y-0 mb-8">
@@ -26,13 +42,9 @@ export default async function CalendarPage() {
       </div>
       
       <div className="mt-6 w-full relative z-0">
-        <FullCalendarView 
-          tasks={tasks} 
-          projects={projects} 
-          events={events} 
-          timetableSlots={timetableSlots}
-          habits={habits}
-        />
+        <Suspense fallback={<div className="animate-pulse h-[800px] w-full bg-secondary/30 rounded-2xl" />}>
+          <CalendarContent />
+        </Suspense>
       </div>
     </div>
   )

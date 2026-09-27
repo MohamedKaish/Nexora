@@ -1,6 +1,26 @@
 import { createServerClient } from '@supabase/ssr'
 import { NextResponse, type NextRequest } from 'next/server'
 
+async function clockSkewResilientFetch(
+  input: RequestInfo | URL,
+  init?: RequestInit
+): Promise<Response> {
+  const res = await fetch(input, init)
+  if (res.status === 401) {
+    try {
+      const clone = res.clone()
+      const text = await clone.text()
+      if (text.includes('JWT issued at future')) {
+        await new Promise((resolve) => setTimeout(resolve, 600))
+        return await fetch(input, init)
+      }
+    } catch {
+      // ignore
+    }
+  }
+  return res
+}
+
 export async function updateSession(request: NextRequest) {
   let supabaseResponse = NextResponse.next({
     request,
@@ -24,12 +44,14 @@ export async function updateSession(request: NextRequest) {
           )
         },
       },
+      global: {
+        fetch: clockSkewResilientFetch,
+      },
     }
   )
 
   // IMPORTANT: Avoid writing any logic between createServerClient and
-  // supabase.auth.getUser(). A simple mistake could make it very hard to debug
-  // issues with cross-site tracking piercing.
+  // supabase.auth.getUser().
   const {
     data: { user },
   } = await supabase.auth.getUser()
@@ -43,24 +65,34 @@ export async function updateSession(request: NextRequest) {
     request.nextUrl.pathname !== '/' &&
     !request.nextUrl.pathname.startsWith('/api')
   ) {
-    // no user, potentially respond by redirecting the user to the login page
     const url = request.nextUrl.clone()
     url.pathname = '/login'
-    return NextResponse.redirect(url)
+    const redirectResponse = NextResponse.redirect(url)
+    // Preserve cookies that may have been updated by Supabase (e.g. refreshed tokens)
+    supabaseResponse.cookies.getAll().forEach((cookie) => {
+      redirectResponse.cookies.set(cookie.name, cookie.value, cookie)
+    })
+    return redirectResponse
   }
 
   if (user && isAuthRoute) {
-    // If user is already logged in and tries to access login/register, redirect to dashboard
     const url = request.nextUrl.clone()
     url.pathname = '/dashboard'
-    return NextResponse.redirect(url)
+    const redirectResponse = NextResponse.redirect(url)
+    supabaseResponse.cookies.getAll().forEach((cookie) => {
+      redirectResponse.cookies.set(cookie.name, cookie.value, cookie)
+    })
+    return redirectResponse
   }
   
-  // If user accesses root and is logged in, redirect to dashboard
   if (user && request.nextUrl.pathname === '/') {
     const url = request.nextUrl.clone()
     url.pathname = '/dashboard'
-    return NextResponse.redirect(url)
+    const redirectResponse = NextResponse.redirect(url)
+    supabaseResponse.cookies.getAll().forEach((cookie) => {
+      redirectResponse.cookies.set(cookie.name, cookie.value, cookie)
+    })
+    return redirectResponse
   }
 
   return supabaseResponse

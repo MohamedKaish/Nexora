@@ -6,9 +6,14 @@ export const metadata = {
   title: 'Projects - Nexora',
 }
 
-export default async function ProjectsPage() {
-  const projects = await getProjects()
+import { Suspense } from 'react'
 
+async function ProjectsContent() {
+  const projects = await getProjects()
+  return <ProjectList initialProjects={projects} />
+}
+
+export default function ProjectsPage() {
   return (
     <div className="flex-1 space-y-6 p-8 pt-8 max-w-7xl mx-auto w-full">
       <div className="flex flex-col md:flex-row md:items-end justify-between space-y-5 md:space-y-0 mb-8">
@@ -22,7 +27,9 @@ export default async function ProjectsPage() {
       </div>
       
       <div className="mt-6 w-full">
-        <ProjectList initialProjects={projects} />
+        <Suspense fallback={<div className="animate-pulse h-64 bg-secondary/30 rounded-2xl w-full" />}>
+          <ProjectsContent />
+        </Suspense>
       </div>
     </div>
   )

@@ -3,10 +3,13 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
-    "dev": "next dev",
-    "build": "next build --webpack",
-    "start": "next start",
-    "lint": "eslint"
+    "dev": "node scripts/launcher.js dev",
+    "build": "node scripts/launcher.js build --webpack",
+    "start": "node scripts/launcher.js start",
+    "lint": "eslint",
+    "test": "vitest run",
+    "typecheck": "tsc --noEmit",
+    "verify": "tsc --noEmit && vitest run"
   },
   "dependencies": {
     "@base-ui/react": "^1.6.0",

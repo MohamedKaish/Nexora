@@ -94,13 +94,10 @@ export async function loginAsDeveloper() {
   const { data, error } = await supabase.auth.signInAnonymously()
   
   if (error || !data.user) {
-    console.error('Anonymous sign-in failed. Please enable Anonymous Sign-ins in Supabase Auth.', error)
-    throw new Error('Failed to create developer session. Ensure Anonymous Sign-ins are enabled in Supabase.')
+    console.error('Anonymous sign-in failed:', error)
+    return { success: false, error: error?.message || 'Failed to create developer session. Ensure Anonymous Sign-ins are enabled in Supabase.' }
   }
 
-  // Redirect to a specific API route to seed data in the background, or do it immediately if fast enough.
-  // Actually, we can seed data here on the server side securely.
-  
   revalidatePath('/', 'layout')
-  redirect('/api/seed-dev-data') // We will create this route to handle seeding and then redirecting to /dashboard
+  redirect('/api/seed-dev-data')
 }
