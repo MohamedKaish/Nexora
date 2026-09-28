@@ -2,6 +2,7 @@ import { createServerClient } from '@supabase/ssr'
 import { cookies } from 'next/headers'
 import { Database } from '@/types/database.types'
 import { cache } from 'react'
+import { getSupabaseUrl, getSupabaseAnonKey } from '@/lib/supabase/config'
 
 /**
  * Resilient fetch that gracefully handles transient cloud clock-skew ("JWT issued at future")
@@ -31,12 +32,8 @@ async function clockSkewResilientFetch(
 export const createClient = cache(async () => {
   const cookieStore = await cookies()
 
-  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
-  const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
-
-  if (!supabaseUrl || !supabaseAnonKey) {
-    throw new Error('Supabase environment variables NEXT_PUBLIC_SUPABASE_URL and NEXT_PUBLIC_SUPABASE_ANON_KEY are missing.')
-  }
+  const supabaseUrl = getSupabaseUrl()
+  const supabaseAnonKey = getSupabaseAnonKey()
 
   return createServerClient<Database>(
     supabaseUrl,
@@ -69,13 +66,14 @@ export const getUser = cache(async () => {
   try {
     const supabase = await createClient()
     return await supabase.auth.getUser()
-  } catch (error: any) {
+  } catch (error: unknown) {
     // Let Next.js internal control-flow exceptions (dynamic bailout, redirects, not-found) propagate
+    const errObj = error as { digest?: string } | null | undefined
     if (
-      error &&
-      typeof error === 'object' &&
-      (error.digest === 'DYNAMIC_SERVER_USAGE' ||
-        (typeof error.digest === 'string' && error.digest.startsWith('NEXT_')))
+      errObj &&
+      typeof errObj === 'object' &&
+      (errObj.digest === 'DYNAMIC_SERVER_USAGE' ||
+        (typeof errObj.digest === 'string' && errObj.digest.startsWith('NEXT_')))
     ) {
       throw error
     }

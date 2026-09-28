@@ -73,7 +73,11 @@ describe('NEXORA REAL SUPABASE INTEGRATION & AGENT REALITY SUITE [PROJECT: rruav
         setAll: (cookiesToSet) => cookiesToSet.forEach(({ name, value }) => testCookieStore.set(name, value))
       }
     })
-    const authSsrA = await ssrClientA.auth.signInAnonymously()
+    let authSsrA = await ssrClientA.auth.signInAnonymously()
+    if (authSsrA.error) {
+      await new Promise((resolve) => setTimeout(resolve, 1000))
+      authSsrA = await ssrClientA.auth.signInAnonymously()
+    }
     expect(authSsrA.error).toBeNull()
     expect(authSsrA.data.user).toBeDefined()
     expect(authSsrA.data.session).toBeDefined()
