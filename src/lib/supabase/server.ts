@@ -31,9 +31,16 @@ async function clockSkewResilientFetch(
 export const createClient = cache(async () => {
   const cookieStore = await cookies()
 
+  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
+  const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
+
+  if (!supabaseUrl || !supabaseAnonKey) {
+    throw new Error('Supabase environment variables NEXT_PUBLIC_SUPABASE_URL and NEXT_PUBLIC_SUPABASE_ANON_KEY are missing.')
+  }
+
   return createServerClient<Database>(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+    supabaseUrl,
+    supabaseAnonKey,
     {
       cookies: {
         getAll() {
@@ -59,6 +66,20 @@ export const createClient = cache(async () => {
 })
 
 export const getUser = cache(async () => {
-  const supabase = await createClient()
-  return await supabase.auth.getUser()
+  try {
+    const supabase = await createClient()
+    return await supabase.auth.getUser()
+  } catch (error: any) {
+    // Let Next.js internal control-flow exceptions (dynamic bailout, redirects, not-found) propagate
+    if (
+      error &&
+      typeof error === 'object' &&
+      (error.digest === 'DYNAMIC_SERVER_USAGE' ||
+        (typeof error.digest === 'string' && error.digest.startsWith('NEXT_')))
+    ) {
+      throw error
+    }
+    console.error('Failed to get user in getUser():', error)
+    return { data: { user: null }, error }
+  }
 })

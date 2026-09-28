@@ -4,7 +4,7 @@
   "private": true,
   "scripts": {
     "dev": "node scripts/launcher.js dev",
-    "build": "node scripts/launcher.js build --webpack",
+    "build": "next build",
     "start": "node scripts/launcher.js start",
     "lint": "eslint",
     "test": "vitest run",
