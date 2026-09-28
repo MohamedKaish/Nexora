@@ -3,22 +3,28 @@
 import { useState } from 'react'
 import Link from 'next/link'
 import { register } from '@/features/auth/actions'
-import { Loader2, AlertCircle } from 'lucide-react'
+import { Loader2, AlertCircle, Mail } from 'lucide-react'
 
 export default function RegisterPage() {
   const [error, setError] = useState<string | null>(null)
+  const [successMessage, setSuccessMessage] = useState<string | null>(null)
   const [loading, setLoading] = useState(false)
 
   async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault()
     setError(null)
+    setSuccessMessage(null)
     setLoading(true)
 
     const formData = new FormData(e.currentTarget)
     try {
       const result = await register(formData)
-      if (result && !result.success && result.error) {
-        setError(result.error)
+      if (result) {
+        if (!result.success && result.error) {
+          setError(result.error)
+        } else if (result.success && result.requiresVerification) {
+          setSuccessMessage(result.message || 'Account created! Please check your email to verify your account.')
+        }
       }
     } catch (err: unknown) {
       const isRedirect = err && typeof err === 'object' && 'digest' in err && typeof (err as { digest: string }).digest === 'string' && (err as { digest: string }).digest.startsWith('NEXT_REDIRECT')
@@ -60,58 +66,83 @@ export default function RegisterPage() {
           </div>
         )}
 
-        <form onSubmit={handleSubmit} className="mt-8 space-y-5">
-          <div className="space-y-4">
-            <div>
-              <label htmlFor="name" className="block text-sm font-medium text-foreground mb-1.5">Full Name</label>
-              <input
-                id="name"
-                name="name"
-                type="text"
-                autoComplete="name"
-                disabled={loading}
-                className="block w-full rounded-xl border border-border/80 bg-secondary/50 py-2.5 px-4 text-foreground placeholder:text-muted-foreground focus:ring-2 focus:ring-brand-emerald focus:border-brand-emerald sm:text-sm transition-all outline-none disabled:opacity-50"
-                placeholder="John Doe"
-              />
+        {successMessage ? (
+          <div className="space-y-6 animate-in fade-in-50 text-center py-4">
+            <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-brand-emerald/10 text-brand-emerald">
+              <Mail className="h-8 w-8" />
             </div>
-            <div>
-              <label htmlFor="email" className="block text-sm font-medium text-foreground mb-1.5">Email address</label>
-              <input
-                id="email"
-                name="email"
-                type="email"
-                autoComplete="email"
-                required
-                disabled={loading}
-                className="block w-full rounded-xl border border-border/80 bg-secondary/50 py-2.5 px-4 text-foreground placeholder:text-muted-foreground focus:ring-2 focus:ring-brand-emerald focus:border-brand-emerald sm:text-sm transition-all outline-none disabled:opacity-50"
-                placeholder="you@example.com"
-              />
+            <div className="space-y-2">
+              <h3 className="text-xl font-bold text-foreground">Check your email</h3>
+              <p className="text-sm text-muted-foreground leading-relaxed">
+                {successMessage}
+              </p>
             </div>
-            <div>
-              <label htmlFor="password" className="block text-sm font-medium text-foreground mb-1.5">Password</label>
-              <input
-                id="password"
-                name="password"
-                type="password"
-                autoComplete="new-password"
-                required
-                disabled={loading}
-                className="block w-full rounded-xl border border-border/80 bg-secondary/50 py-2.5 px-4 text-foreground placeholder:text-muted-foreground focus:ring-2 focus:ring-brand-emerald focus:border-brand-emerald sm:text-sm transition-all outline-none disabled:opacity-50"
-                placeholder="••••••••"
-              />
+            <div className="pt-2">
+              <Link
+                href="/login"
+                className="inline-flex w-full justify-center items-center gap-2 rounded-xl bg-primary px-4 py-2.5 text-sm font-bold text-primary-foreground shadow-sm hover:bg-primary/90 transition-all"
+              >
+                Proceed to Sign In
+              </Link>
             </div>
           </div>
-          <div>
-            <button
-              type="submit"
-              disabled={loading}
-              className="flex w-full justify-center items-center gap-2 rounded-xl bg-brand-emerald px-4 py-2.5 text-sm font-bold text-white shadow-[0_0_15px_rgba(16,185,129,0.3)] hover:bg-brand-emerald/90 hover:shadow-[0_0_20px_rgba(16,185,129,0.4)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-emerald transition-all disabled:opacity-60"
-            >
-              {loading && <Loader2 className="h-4 w-4 animate-spin" />}
-              {loading ? 'Creating account...' : 'Sign up'}
-            </button>
-          </div>
-        </form>
+        ) : (
+          <form onSubmit={handleSubmit} className="mt-8 space-y-5">
+            <div className="space-y-4">
+              <div>
+                <label htmlFor="name" className="block text-sm font-medium text-foreground mb-1.5">Full Name</label>
+                <input
+                  id="name"
+                  name="name"
+                  type="text"
+                  autoComplete="name"
+                  required
+                  disabled={loading}
+                  className="block w-full rounded-xl border border-border/80 bg-secondary/50 py-2.5 px-4 text-foreground placeholder:text-muted-foreground focus:ring-2 focus:ring-brand-emerald focus:border-brand-emerald sm:text-sm transition-all outline-none disabled:opacity-50"
+                  placeholder="Jane Doe"
+                />
+              </div>
+              <div>
+                <label htmlFor="email" className="block text-sm font-medium text-foreground mb-1.5">Email address</label>
+                <input
+                  id="email"
+                  name="email"
+                  type="email"
+                  autoComplete="email"
+                  required
+                  disabled={loading}
+                  className="block w-full rounded-xl border border-border/80 bg-secondary/50 py-2.5 px-4 text-foreground placeholder:text-muted-foreground focus:ring-2 focus:ring-brand-emerald focus:border-brand-emerald sm:text-sm transition-all outline-none disabled:opacity-50"
+                  placeholder="you@example.com"
+                />
+              </div>
+              <div>
+                <label htmlFor="password" className="block text-sm font-medium text-foreground mb-1.5">Password</label>
+                <input
+                  id="password"
+                  name="password"
+                  type="password"
+                  autoComplete="new-password"
+                  required
+                  minLength={6}
+                  disabled={loading}
+                  className="block w-full rounded-xl border border-border/80 bg-secondary/50 py-2.5 px-4 text-foreground placeholder:text-muted-foreground focus:ring-2 focus:ring-brand-emerald focus:border-brand-emerald sm:text-sm transition-all outline-none disabled:opacity-50"
+                  placeholder="••••••••"
+                />
+                <p className="mt-1 text-xs text-muted-foreground">Minimum 6 characters</p>
+              </div>
+            </div>
+            <div>
+              <button
+                type="submit"
+                disabled={loading}
+                className="flex w-full justify-center items-center gap-2 rounded-xl bg-brand-emerald px-4 py-2.5 text-sm font-bold text-white shadow-[0_0_15px_rgba(16,185,129,0.3)] hover:bg-brand-emerald/90 hover:shadow-[0_0_20px_rgba(16,185,129,0.4)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-emerald transition-all disabled:opacity-60"
+              >
+                {loading && <Loader2 className="h-4 w-4 animate-spin" />}
+                {loading ? 'Creating account...' : 'Sign up'}
+              </button>
+            </div>
+          </form>
+        )}
       </div>
     </div>
   )

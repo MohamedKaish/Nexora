@@ -62,13 +62,19 @@ export async function updateSession(request: NextRequest) {
     } = await supabase.auth.getUser()
 
     // Protected routes condition
-    const isAuthRoute = request.nextUrl.pathname.startsWith('/login') || request.nextUrl.pathname.startsWith('/register')
+    const pathname = request.nextUrl.pathname
+    const isPublicAuthRoute = 
+      pathname.startsWith('/login') || 
+      pathname.startsWith('/register') || 
+      pathname.startsWith('/forgot-password') ||
+      pathname.startsWith('/reset-password') ||
+      pathname.startsWith('/auth')
     
     if (
       !user &&
-      !isAuthRoute &&
-      request.nextUrl.pathname !== '/' &&
-      !request.nextUrl.pathname.startsWith('/api')
+      !isPublicAuthRoute &&
+      pathname !== '/' &&
+      !pathname.startsWith('/api')
     ) {
       const url = request.nextUrl.clone()
       url.pathname = '/login'
@@ -80,7 +86,14 @@ export async function updateSession(request: NextRequest) {
       return redirectResponse
     }
 
-    if (user && isAuthRoute) {
+    // Only redirect authenticated users away from login, register, and forgot-password
+    // (Allow /reset-password and /auth/callback so recovery flow can complete)
+    const shouldRedirectLoggedIn =
+      pathname.startsWith('/login') ||
+      pathname.startsWith('/register') ||
+      pathname.startsWith('/forgot-password')
+
+    if (user && shouldRedirectLoggedIn) {
       const url = request.nextUrl.clone()
       url.pathname = '/dashboard'
       const redirectResponse = NextResponse.redirect(url)
