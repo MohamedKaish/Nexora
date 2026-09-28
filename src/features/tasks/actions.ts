@@ -100,9 +100,10 @@ export async function updateTask(id: string, input: Partial<TaskInput>) {
     .eq('id', id)
     .eq('user_id', user.id)
     .select('*, subtasks(*)')
-    .single()
+    .maybeSingle()
 
   if (error) throw new Error(error.message)
+  if (!data) throw new Error(`Task with ID ${id} not found or access denied`)
   
   revalidatePath('/', 'layout')
   return data

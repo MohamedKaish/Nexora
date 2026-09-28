@@ -1,12 +1,16 @@
-import { describe, it, expect, beforeAll, afterAll, vi } from 'vitest'
+import { describe, it, expect, beforeAll, beforeEach, afterAll, vi } from 'vitest'
 import { createServerClient } from '@supabase/ssr'
 import { createClient as createSupabaseClient, SupabaseClient } from '@supabase/supabase-js'
 import fs from 'fs'
 import path from 'path'
+import dns from 'node:dns'
 import { AgentOrchestrator } from '../core/AgentOrchestrator'
 import { VerificationEngine } from '../verification/VerificationEngine'
 import { AgentPlanSchema, ConversationTurn } from '../types/plan'
 import { Database } from '@/types/database.types'
+
+// Prioritize IPv4 on Windows to prevent undici timeouts
+dns.setDefaultResultOrder('ipv4first')
 
 // Read live environment configuration from .env.local
 const envFile = fs.readFileSync(path.resolve(process.cwd(), '.env.local'), 'utf8')
@@ -51,6 +55,7 @@ import { updatePreferences } from '../../settings/actions'
 describe('NEXORA REAL SUPABASE INTEGRATION & AGENT REALITY SUITE [PROJECT: rruavarqxdotdsbbjvck]', () => {
   let userAClient: SupabaseClient<Database>
   let userBClient: SupabaseClient<Database>
+  let ssrClientA: ReturnType<typeof createServerClient<Database>>
   let userAId: string
   let userBId: string
   const createdTaskIds: string[] = []
@@ -62,12 +67,28 @@ describe('NEXORA REAL SUPABASE INTEGRATION & AGENT REALITY SUITE [PROJECT: rruav
   const createdFocusSessionIds: string[] = []
   const createdTimetableSlotIds: string[] = []
 
+  const refreshUserASession = async () => {
+    if (ssrClientA) {
+      const { data } = await ssrClientA.auth.getSession()
+      if (!data?.session) {
+        const res = await ssrClientA.auth.signInAnonymously()
+        if (res.data?.session) {
+          userAId = res.data.user!.id
+          userAClient = createSupabaseClient<Database>(supabaseUrl, supabaseAnonKey, {
+            auth: { persistSession: false },
+            global: { headers: { Authorization: `Bearer ${res.data.session.access_token}` } }
+          })
+        }
+      }
+    }
+  }
+
   beforeAll(async () => {
     expect(supabaseUrl).toContain('supabase.co')
     expect(supabaseAnonKey).toBeDefined()
 
     // 1. Establish User A session via SSR serverClient to populate testCookieStore for server actions
-    const ssrClientA = createServerClient<Database>(supabaseUrl, supabaseAnonKey, {
+    ssrClientA = createServerClient<Database>(supabaseUrl, supabaseAnonKey, {
       cookies: {
         getAll: () => Array.from(testCookieStore.entries()).map(([name, value]) => ({ name, value })),
         setAll: (cookiesToSet) => cookiesToSet.forEach(({ name, value }) => testCookieStore.set(name, value))
@@ -100,36 +121,44 @@ describe('NEXORA REAL SUPABASE INTEGRATION & AGENT REALITY SUITE [PROJECT: rruav
     })
 
     expect(userAId).not.toBe(userBId)
-  }, 30000)
+  }, 45000)
+
+  beforeEach(async () => {
+    await refreshUserASession()
+  })
 
   afterAll(async () => {
-    // Systematic cleanup of all created test records
-    for (const id of createdTaskIds) {
-      await userAClient.from('tasks').delete().eq('id', id)
+    // Systematic cleanup of all created test records using batch deletes
+    try {
+      if (createdTaskIds.length > 0) {
+        await userAClient.from('tasks').delete().in('id', createdTaskIds)
+      }
+      if (createdProjectIds.length > 0) {
+        await userAClient.from('projects').delete().in('id', createdProjectIds)
+      }
+      if (createdGoalIds.length > 0) {
+        await userAClient.from('goals').delete().in('id', createdGoalIds)
+      }
+      if (createdTimelineBlockIds.length > 0) {
+        await userAClient.from('timeline_blocks').delete().in('id', createdTimelineBlockIds)
+      }
+      if (createdHabitIds.length > 0) {
+        await userAClient.from('habit_completions').delete().in('habit_id', createdHabitIds)
+        await userAClient.from('habits').delete().in('id', createdHabitIds)
+      }
+      if (createdNotificationIds.length > 0) {
+        await userAClient.from('notifications').delete().in('id', createdNotificationIds)
+      }
+      if (createdFocusSessionIds.length > 0) {
+        await userAClient.from('focus_sessions').delete().in('id', createdFocusSessionIds)
+      }
+      if (createdTimetableSlotIds.length > 0) {
+        await userAClient.from('timetable_slots').delete().in('id', createdTimetableSlotIds)
+      }
+    } catch (e) {
+      console.warn('Test cleanup notice:', e)
     }
-    for (const id of createdProjectIds) {
-      await userAClient.from('projects').delete().eq('id', id)
-    }
-    for (const id of createdGoalIds) {
-      await userAClient.from('goals').delete().eq('id', id)
-    }
-    for (const id of createdTimelineBlockIds) {
-      await userAClient.from('timeline_blocks').delete().eq('id', id)
-    }
-    for (const id of createdHabitIds) {
-      await userAClient.from('habit_completions').delete().eq('habit_id', id)
-      await userAClient.from('habits').delete().eq('id', id)
-    }
-    for (const id of createdNotificationIds) {
-      await userAClient.from('notifications').delete().eq('id', id)
-    }
-    for (const id of createdFocusSessionIds) {
-      await userAClient.from('focus_sessions').delete().eq('id', id)
-    }
-    for (const id of createdTimetableSlotIds) {
-      await userAClient.from('timetable_slots').delete().eq('id', id)
-    }
-  }, 30000)
+  }, 45000)
 
   // ==========================================================================
   // SECTION 4: REAL DATABASE TESTING (17 CAPABILITIES)
@@ -615,7 +644,19 @@ describe('NEXORA REAL SUPABASE INTEGRATION & AGENT REALITY SUITE [PROJECT: rruav
   // SCENARIO C — UPDATE
   it('SEC-5.C: [AGENT REALITY] SCENARIO C — UPDATE: "Make that task urgent." dynamically resolves task and updates DB record', async () => {
     const orchestrator = new AgentOrchestrator()
-    const finishNexoraId = createdTaskIds[createdTaskIds.length - 1]
+    let finishNexoraId = createdTaskIds[createdTaskIds.length - 1]
+    if (!finishNexoraId) {
+      const task = await createTask({
+        title: 'Finish Nexora',
+        priority: 'high',
+        status: 'todo',
+        is_schedule_for_today: false,
+        is_urgent: false,
+        is_important: false
+      })
+      finishNexoraId = task.id
+      createdTaskIds.push(task.id)
+    }
     expect(finishNexoraId).toBeDefined()
 
     const history: ConversationTurn[] = [
@@ -829,6 +870,7 @@ describe('NEXORA REAL SUPABASE INTEGRATION & AGENT REALITY SUITE [PROJECT: rruav
     )
 
     // Turn 3: USER: "Move it to tomorrow."
+    await refreshUserASession()
     const turn3Report = await orchestrator.handleUserQuery('Move it to tomorrow.', history)
     expect(turn3Report.requiresUserConfirmation).toBe(true)
     expect(turn3Report.pendingPlan?.tools[0].parameters.id).toBe(task1.id)
@@ -850,5 +892,5 @@ describe('NEXORA REAL SUPABASE INTEGRATION & AGENT REALITY SUITE [PROJECT: rruav
     expect(finalDbRow!.title).toBe('Finish Nexora')
     expect(finalDbRow!.priority).toBe('high')
     expect(finalDbRow!.due_date).not.toBeNull()
-  })
+  }, 120000)
 })
