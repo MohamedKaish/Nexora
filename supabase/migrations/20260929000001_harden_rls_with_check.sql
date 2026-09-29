@@ -9,7 +9,7 @@ BEGIN
     FOR tbl IN 
         SELECT unnest(ARRAY[
             'tasks', 'projects', 'habits', 'habit_completions', 'timeline_blocks', 
-            'analytics', 'notifications', 'user_preferences', 'focus_sessions', 
+            'analytics', 'notifications', 'focus_sessions', 
             'goals', 'subtasks', 'categories', 'tags',
             'timetable_slots', 'calendar_events'
         ])
@@ -49,5 +49,18 @@ BEGIN
     EXECUTE 'CREATE POLICY "delete_own_task_tags" ON task_tags FOR DELETE USING (
         EXISTS (SELECT 1 FROM tasks WHERE tasks.id = task_tags.task_id AND tasks.user_id = auth.uid())
     );';
+
+    -- Special case for user_preferences (uses id instead of user_id)
+    EXECUTE 'ALTER TABLE IF EXISTS user_preferences ENABLE ROW LEVEL SECURITY;';
+    EXECUTE 'DROP POLICY IF EXISTS user_preferences_user_isolation ON user_preferences;';
+    EXECUTE 'DROP POLICY IF EXISTS "Users can view own data in user_preferences" ON user_preferences;';
+    EXECUTE 'DROP POLICY IF EXISTS "Users can insert own data in user_preferences" ON user_preferences;';
+    EXECUTE 'DROP POLICY IF EXISTS "Users can update own data in user_preferences" ON user_preferences;';
+    EXECUTE 'DROP POLICY IF EXISTS "Users can delete own data in user_preferences" ON user_preferences;';
+    
+    EXECUTE 'CREATE POLICY "select_own_user_preferences" ON user_preferences FOR SELECT USING (auth.uid() = id);';
+    EXECUTE 'CREATE POLICY "insert_own_user_preferences" ON user_preferences FOR INSERT WITH CHECK (auth.uid() = id);';
+    EXECUTE 'CREATE POLICY "update_own_user_preferences" ON user_preferences FOR UPDATE USING (auth.uid() = id) WITH CHECK (auth.uid() = id);';
+    EXECUTE 'CREATE POLICY "delete_own_user_preferences" ON user_preferences FOR DELETE USING (auth.uid() = id);';
 
 END $$;

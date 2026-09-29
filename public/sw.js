@@ -2,7 +2,7 @@ const CACHE_VERSION = 'v1'
 const CACHE_NAME = `nexora-cache-${CACHE_VERSION}`
 
 const STATIC_ASSETS = [
-  '/dashboard',
+  '/',
   '/manifest.webmanifest',
   '/icon'
 ]

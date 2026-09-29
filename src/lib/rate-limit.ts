@@ -1,11 +1,15 @@
 /**
  * Lightweight in-memory rate limiter for Vercel serverless functions.
  * 
- * Uses a sliding window approach with in-memory storage.
- * On Vercel, each serverless function instance has its own memory, so this provides
- * per-instance protection. For ~1000 users this is sufficient.
+ * IMPORTANT SECURITY NOTICE:
+ * This is a BEST-EFFORT, SECONDARY protection layer. Because Vercel serverless
+ * functions are distributed and scale horizontally, each instance maintains its own
+ * isolated memory. This rate limiter does NOT provide a global security boundary.
  * 
- * No Redis or external infrastructure required.
+ * Primary abuse prevention relies on:
+ * 1. Supabase Auth's native rate limits
+ * 2. Cloudflare Turnstile CAPTCHA
+ * 3. Email verification and OAuth controls
  */
 
 interface RateLimitEntry {

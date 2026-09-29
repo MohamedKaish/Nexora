@@ -33,6 +33,7 @@ export default function LoginPage() {
     const params = new URLSearchParams(window.location.search)
     const urlError = params.get('error')
     if (urlError) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setError(decodeURIComponent(urlError))
     }
   }, [])
