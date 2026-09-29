@@ -12,20 +12,22 @@ export default async function DashboardLayout({
   const supabase = await createClient()
   const { data: { user } } = await getUser()
 
-  if (!user) {
-    redirect('/login')
+  let accentColor = '#6366f1'
+  
+  if (user) {
+    const { data: prefs } = await supabase
+      .from('user_preferences')
+      .select('accent_color')
+      .eq('id', user.id)
+      .single()
+      
+    if (prefs?.accent_color) {
+      accentColor = prefs.accent_color
+    }
   }
 
-  const { data: prefs } = await supabase
-    .from('user_preferences')
-    .select('accent_color')
-    .eq('id', user.id)
-    .single()
-
-  const accentColor = prefs?.accent_color || '#6366f1'
-
   return (
-    <AppShell accentColor={accentColor} header={<Header userEmail={user.email} />}>
+    <AppShell accentColor={accentColor} header={<Header userEmail={user?.email} />}>
       {children}
       <GlobalTimer />
     </AppShell>

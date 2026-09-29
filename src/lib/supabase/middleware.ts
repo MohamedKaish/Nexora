@@ -70,12 +70,9 @@ export async function updateSession(request: NextRequest) {
       pathname.startsWith('/reset-password') ||
       pathname.startsWith('/auth')
     
-    if (
-      !user &&
-      !isPublicAuthRoute &&
-      pathname !== '/' &&
-      !pathname.startsWith('/api')
-    ) {
+    const isGuestAllowedRoute = pathname === '/' || pathname === '/dashboard' || pathname.startsWith('/api')
+    
+    if (!user && !isPublicAuthRoute && !isGuestAllowedRoute) {
       const url = request.nextUrl.clone()
       url.pathname = '/login'
       const redirectResponse = NextResponse.redirect(url)

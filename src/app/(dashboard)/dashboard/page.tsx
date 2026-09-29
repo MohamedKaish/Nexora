@@ -52,7 +52,16 @@ async function AdvisorSection() {
   return <IntelligentAdvisorWidget initialReport={report} />
 }
 
-export default function DashboardPage() {
+import { getUser } from '@/lib/supabase/server'
+import { GuestDashboardView } from '@/features/dashboard/components/GuestDashboardView'
+
+export default async function DashboardPage() {
+  const { data: { user } } = await getUser()
+
+  if (!user) {
+    return <GuestDashboardView />
+  }
+
   return (
     <div className="flex-1 space-y-6 p-8 pt-8 max-w-7xl mx-auto">
       <div className="flex flex-col md:flex-row md:items-end justify-between space-y-5 md:space-y-0 mb-2">

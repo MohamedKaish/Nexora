@@ -2,6 +2,7 @@ import { logout } from '@/features/auth/actions'
 import { NotificationBell } from '@/features/notifications/components/NotificationBell'
 import { SyncStatusIndicator } from '@/components/layout/SyncStatusIndicator'
 import { MobileNav } from '@/components/layout/MobileNav'
+import { HeaderUserProfile } from '@/components/layout/HeaderUserProfile'
 
 export function Header({ userEmail }: { userEmail?: string }) {
   return (
@@ -11,19 +12,7 @@ export function Header({ userEmail }: { userEmail?: string }) {
         <div className="ml-auto flex items-center space-x-6">
           <SyncStatusIndicator />
           <NotificationBell />
-          <div className="flex items-center gap-3 border-l border-border pl-6">
-            <span className="text-sm font-medium text-muted-foreground hidden md:inline-block">
-              {userEmail}
-            </span>
-            <form action={logout}>
-              <button
-                type="submit"
-                className="rounded-full border border-border bg-secondary px-4 py-1.5 text-sm font-medium text-foreground shadow-sm hover:bg-secondary/80 transition-colors focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2 focus:ring-offset-background"
-              >
-                Sign out
-              </button>
-            </form>
-          </div>
+          <HeaderUserProfile userEmail={userEmail} />
         </div>
       </div>
     </header>
