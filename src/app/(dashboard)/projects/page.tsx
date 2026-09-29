@@ -8,8 +8,11 @@ export const metadata = {
 
 import { Suspense } from 'react'
 
+import { getUser } from '@/lib/supabase/server'
+
 async function ProjectsContent() {
-  const projects = await getProjects()
+  const { data: { user } } = await getUser()
+  const projects = user ? await getProjects() : []
   return <ProjectList initialProjects={projects} />
 }
 

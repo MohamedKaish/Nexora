@@ -9,8 +9,11 @@ export const metadata: Metadata = {
 
 import { Suspense } from 'react'
 
+import { getUser } from '@/lib/supabase/server'
+
 async function GoalsContent() {
-  const goals = await getGoals()
+  const { data: { user } } = await getUser()
+  const goals = user ? await getGoals() : []
   return <GoalsDashboard initialGoals={goals} />
 }
 

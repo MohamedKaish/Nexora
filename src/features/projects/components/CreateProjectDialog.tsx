@@ -7,8 +7,8 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
-import { createProject } from '../actions'
-import { useProjectStore, Project } from '@/store/useProjectStore'
+import { useWorkspace } from '@/hooks/useWorkspace'
+import { Project } from '@/store/useProjectStore'
 import { toast } from 'sonner'
 import { Plus } from 'lucide-react'
 
@@ -16,7 +16,7 @@ export function CreateProjectDialog() {
   const [open, setOpen] = useState(false)
   const [loading, setLoading] = useState(false)
   const [color, setColor] = useState('#3B82F6')
-  const addProject = useProjectStore((state) => state.addProject)
+  const { createProject } = useWorkspace()
 
   async function onSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault()
@@ -41,7 +41,7 @@ export function CreateProjectDialog() {
     }
 
     try {
-      const result = await createProject({
+      await createProject({
         name,
         description: (formData.get('description') as string) || null,
         color: color || '#3B82F6',
@@ -49,7 +49,6 @@ export function CreateProjectDialog() {
         due_date: dueDateIso,
       })
 
-      addProject(result as unknown as Project)
       toast.success('Project created successfully')
       setOpen(false)
     } catch (error: unknown) {

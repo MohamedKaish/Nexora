@@ -8,8 +8,7 @@ import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Checkbox } from '@/components/ui/checkbox'
-import { updateTask } from '../actions'
-import { useTaskStore } from '@/store/useTaskStore'
+import { useWorkspace } from '@/hooks/useWorkspace'
 import { Database } from '@/types/database.types'
 import { toast } from 'sonner'
 
@@ -49,7 +48,7 @@ function EditTaskForm({
   const [isUrgent, setIsUrgent] = useState(Boolean(task.is_urgent))
   const [isImportant, setIsImportant] = useState(Boolean(task.is_important))
 
-  const updateStoreTask = useTaskStore((state) => state.updateTask)
+  const { updateTaskFields } = useWorkspace()
 
   async function onSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault()
@@ -71,7 +70,7 @@ function EditTaskForm({
     const estMins = estimatedTime ? parseInt(estimatedTime, 10) : null
 
     try {
-      const updated = await updateTask(task.id, {
+      await updateTaskFields(task.id, {
         title: title.trim(),
         description: description || null,
         priority,
@@ -84,9 +83,8 @@ function EditTaskForm({
         estimated_time_minutes: Number.isFinite(estMins) ? estMins : null,
       })
 
-      updateStoreTask(task.id, updated)
       if (onTaskUpdated) {
-        onTaskUpdated(updated as TaskWithSubtasks)
+        onTaskUpdated({ ...task, title: title.trim(), description: description || null, priority, status, project_id: projectId === 'none' ? null : projectId, due_date: dueDateIso, is_schedule_for_today: isScheduledForToday, is_urgent: isUrgent, is_important: isImportant, estimated_time_minutes: Number.isFinite(estMins) ? estMins : null })
       }
       toast.success('Task updated successfully')
       onOpenChange(false)

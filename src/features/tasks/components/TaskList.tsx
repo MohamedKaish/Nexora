@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react'
 import { useTaskStore } from '@/store/useTaskStore'
-import { toggleTaskStatus, deleteTask } from '../actions'
+import { useWorkspace } from '@/hooks/useWorkspace'
 import { Checkbox } from '@/components/ui/checkbox'
 import { Badge } from '@/components/ui/badge'
 import { Database } from '@/types/database.types'
@@ -27,7 +27,8 @@ interface TaskListProps {
 }
 
 export function TaskList({ initialTasks, projects = [] }: TaskListProps) {
-  const { tasks, setTasks, toggleStatus, removeTask } = useTaskStore()
+  const { tasks, setTasks } = useTaskStore()
+  const { updateTaskStatus, deleteTask } = useWorkspace()
   const [expandedTasks, setExpandedTasks] = useState<Set<string>>(new Set())
   const [search, setSearch] = useState('')
   const [sortBy, setSortBy] = useState<'default' | 'smart' | 'dueDate'>('default')
@@ -35,30 +36,27 @@ export function TaskList({ initialTasks, projects = [] }: TaskListProps) {
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false)
 
   useEffect(() => {
-    setTasks(initialTasks)
+    if (initialTasks && initialTasks.length > 0) {
+      setTasks(initialTasks)
+    }
   }, [initialTasks, setTasks])
 
   const handleToggle = async (id: string, currentStatus: 'todo' | 'in_progress' | 'done') => {
-    // Optimistic update
-    toggleStatus(id)
+    const newStatus = currentStatus === 'done' ? 'todo' : 'done'
     try {
-      await toggleTaskStatus(id, currentStatus)
+      await updateTaskStatus(id, newStatus)
     } catch (err) {
       console.error(err)
-      toggleStatus(id)
       toast.error('Failed to update task status')
     }
   }
 
   const handleDelete = async (id: string) => {
-    const previousTasks = [...tasks]
-    removeTask(id)
     try {
       await deleteTask(id)
       toast.success('Task deleted')
     } catch (err) {
       console.error(err)
-      setTasks(previousTasks as TaskWithSubtasks[])
       toast.error('Failed to delete task')
     }
   }

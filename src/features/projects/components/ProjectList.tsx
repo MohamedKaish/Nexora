@@ -9,7 +9,6 @@ import { Input } from '@/components/ui/input'
 import { Trash2, Search, FolderKanban, Edit2 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { useRouter } from 'next/navigation'
-import { deleteProject } from '../actions'
 import {
   AlertDialog,
   AlertDialogAction,
@@ -24,15 +23,21 @@ import {
 import { EditProjectDialog } from './EditProjectDialog'
 import { toast } from 'sonner'
 
+import { useWorkspace } from '@/hooks/useWorkspace'
+
 export function ProjectList({ initialProjects }: { initialProjects: Project[] }) {
   const { projects, setProjects, isLoading } = useProjectStore()
+  const { deleteProject } = useWorkspace()
   const [search, setSearch] = useState('')
   const [editingProject, setEditingProject] = useState<Project | null>(null)
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false)
   const router = useRouter()
 
   useEffect(() => {
-    setProjects(initialProjects)
+    // Only set if we haven't loaded local data or if it's the first render
+    if (initialProjects && initialProjects.length > 0) {
+      setProjects(initialProjects)
+    }
   }, [initialProjects, setProjects])
 
   if (isLoading) {
@@ -65,14 +70,11 @@ export function ProjectList({ initialProjects }: { initialProjects: Project[] })
 
   const handleDelete = async (e: React.MouseEvent, id: string) => {
     e.stopPropagation()
-    const prev = [...projects]
-    setProjects(projects.filter((p) => p.id !== id))
     try {
       await deleteProject(id)
       toast.success('Project and associated tasks deleted')
     } catch (err) {
       console.error(err)
-      setProjects(prev)
       toast.error('Failed to delete project')
     }
   }

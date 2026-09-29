@@ -1,13 +1,14 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Target, CheckCircle2, XCircle, Trash2, Plus, RotateCcw, Edit2 } from 'lucide-react'
 import { Database } from '@/types/database.types'
-import { createGoal, updateGoalStatus, updateGoal, deleteGoal } from '../actions'
+import { useWorkspace } from '@/hooks/useWorkspace'
+import { useGoalStore } from '@/store/useGoalStore'
 import { toast } from 'sonner'
 import {
   Dialog,
@@ -21,7 +22,16 @@ import { Label } from '@/components/ui/label'
 type Goal = Database['public']['Tables']['goals']['Row']
 
 export function GoalsDashboard({ initialGoals }: { initialGoals: Goal[] }) {
-  const [goals, setGoals] = useState(initialGoals)
+  const { createNewGoal, updateGoalStatusOnly, updateGoalFields, removeGoalById } = useWorkspace()
+  const { goals, setGoals } = useGoalStore()
+  
+  // Set initial goals on first load (but only if we don't have them in the store to avoid flashing local data)
+  useEffect(() => {
+    if (initialGoals && initialGoals.length > 0) {
+      setGoals(initialGoals)
+    }
+  }, [initialGoals, setGoals])
+
   const [loading, setLoading] = useState(false)
   const [newTitle, setNewTitle] = useState('')
   const [newType, setNewType] = useState<'daily' | 'weekly' | 'monthly'>('daily')
@@ -47,13 +57,12 @@ export function GoalsDashboard({ initialGoals }: { initialGoals: Goal[] }) {
         end.setMonth(today.getMonth() + 1)
       }
 
-      const goal = await createGoal(
+      await createNewGoal(
         newTitle.trim(),
         newType,
         today.toISOString().split('T')[0],
         end.toISOString().split('T')[0]
       )
-      setGoals([goal, ...goals])
       setNewTitle('')
       toast.success('Goal added')
     } catch (err: unknown) {
@@ -66,28 +75,21 @@ export function GoalsDashboard({ initialGoals }: { initialGoals: Goal[] }) {
   }
 
   const handleUpdateStatus = async (id: string, status: 'active' | 'completed' | 'failed') => {
-    const prev = [...goals]
-    setGoals(goals.map((g) => (g.id === id ? { ...g, status } : g)))
     try {
-      const updated = await updateGoalStatus(id, status)
-      setGoals(goals.map((g) => (g.id === id ? updated : g)))
+      await updateGoalStatusOnly(id, status)
       toast.success(`Goal marked as ${status}`)
     } catch (err: unknown) {
       console.error(err)
-      setGoals(prev)
       toast.error('Failed to update goal status')
     }
   }
 
   const handleDelete = async (id: string) => {
-    const prev = [...goals]
-    setGoals(goals.filter((g) => g.id !== id))
     try {
-      await deleteGoal(id)
+      await removeGoalById(id)
       toast.success('Goal deleted')
     } catch (err: unknown) {
       console.error(err)
-      setGoals(prev)
       toast.error('Failed to delete goal')
     }
   }
@@ -106,11 +108,10 @@ export function GoalsDashboard({ initialGoals }: { initialGoals: Goal[] }) {
     }
 
     try {
-      const updated = await updateGoal(editingGoal.id, {
+      await updateGoalFields(editingGoal.id, {
         title: editTitle.trim(),
         type: editType,
       })
-      setGoals(goals.map((g) => (g.id === editingGoal.id ? updated : g)))
       toast.success('Goal updated')
       setIsEditDialogOpen(false)
     } catch (err: unknown) {

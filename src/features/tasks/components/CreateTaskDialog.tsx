@@ -8,8 +8,7 @@ import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Checkbox } from '@/components/ui/checkbox'
-import { createTask } from '../actions'
-import { useTaskStore } from '@/store/useTaskStore'
+import { useWorkspace } from '@/hooks/useWorkspace'
 import { Database } from '@/types/database.types'
 import { toast } from 'sonner'
 
@@ -21,7 +20,8 @@ export function CreateTaskDialog({ projects = [] }: { projects?: Project[] }) {
   const [isScheduledForToday, setIsScheduledForToday] = useState(false)
   const [isUrgent, setIsUrgent] = useState(false)
   const [isImportant, setIsImportant] = useState(false)
-  const addTask = useTaskStore((state) => state.addTask)
+  
+  const { createTask } = useWorkspace()
 
   async function onSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault()
@@ -50,7 +50,7 @@ export function CreateTaskDialog({ projects = [] }: { projects?: Project[] }) {
     const estTime = estTimeRaw ? parseInt(estTimeRaw, 10) : null
 
     try {
-      const result = await createTask({
+      await createTask({
         title,
         description: (formData.get('description') as string) || null,
         priority: (formData.get('priority') as 'low' | 'medium' | 'high' | 'urgent') || 'medium',
@@ -63,7 +63,6 @@ export function CreateTaskDialog({ projects = [] }: { projects?: Project[] }) {
         estimated_time_minutes: Number.isFinite(estTime) ? estTime : null,
       })
 
-      addTask(result)
       toast.success('Task created successfully')
       setOpen(false)
       setIsScheduledForToday(false)

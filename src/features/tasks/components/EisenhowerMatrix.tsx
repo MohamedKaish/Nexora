@@ -1,16 +1,18 @@
 'use client'
 
 import { useTaskStore } from '@/store/useTaskStore'
+import { useWorkspace } from '@/hooks/useWorkspace'
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card'
 import { Database } from '@/types/database.types'
 import { Checkbox } from '@/components/ui/checkbox'
-import { toggleTaskStatus } from '../actions'
 import { AlertCircle, Target, Zap, Coffee } from 'lucide-react'
+import { toast } from 'sonner'
 
 type Task = Database['public']['Tables']['tasks']['Row']
 
 export function EisenhowerMatrix() {
-  const { tasks, toggleStatus } = useTaskStore()
+  const { tasks } = useTaskStore()
+  const { updateTaskStatus } = useWorkspace()
 
   // Group tasks
   const doFirst = tasks.filter(t => t.is_urgent && t.is_important && t.status !== 'done')
@@ -19,11 +21,11 @@ export function EisenhowerMatrix() {
   const dontDo = tasks.filter(t => !t.is_urgent && !t.is_important && t.status !== 'done')
 
   const handleToggle = async (id: string, currentStatus: 'todo' | 'in_progress' | 'done') => {
-    toggleStatus(id)
+    const newStatus = currentStatus === 'done' ? 'todo' : 'done'
     try {
-      await toggleTaskStatus(id, currentStatus)
+      await updateTaskStatus(id, newStatus)
     } catch {
-      toggleStatus(id)
+      toast.error('Failed to update task status')
     }
   }
 

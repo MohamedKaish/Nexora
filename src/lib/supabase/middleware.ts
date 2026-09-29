@@ -70,8 +70,14 @@ export async function updateSession(request: NextRequest) {
       pathname.startsWith('/reset-password') ||
       pathname.startsWith('/auth')
     
-    const isGuestAllowedRoute = pathname === '/' || pathname === '/dashboard' || pathname.startsWith('/api')
+    const productivityRoutes = [
+      '/dashboard', '/tasks', '/projects', '/goals', '/habits', 
+      '/focus', '/timeline', '/timetable', '/calendar', '/settings',
+      '/agent', '/analytics', '/notifications'
+    ]
+    const isProductivityRoute = productivityRoutes.some(r => pathname === r || pathname.startsWith(r + '/'))
     
+    const isGuestAllowedRoute = pathname === '/' || pathname.startsWith('/api') || isProductivityRoute
     if (!user && !isPublicAuthRoute && !isGuestAllowedRoute) {
       const url = request.nextUrl.clone()
       url.pathname = '/login'

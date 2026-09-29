@@ -1,4 +1,5 @@
 import { create } from 'zustand'
+import { persist } from 'zustand/middleware'
 import { Database } from '@/types/database.types'
 
 type BaseProject = Database['public']['Tables']['projects']['Row']
@@ -15,15 +16,23 @@ interface ProjectState {
   removeProject: (id: string) => void
 }
 
-export const useProjectStore = create<ProjectState>((set) => ({
-  projects: [],
-  isLoading: true,
-  setProjects: (projects) => set({ projects, isLoading: false }),
-  addProject: (project) => set((state) => ({ projects: [project, ...state.projects] })),
-  updateProject: (id, updates) => set((state) => ({
-    projects: state.projects.map((p) => p.id === id ? { ...p, ...updates } : p)
-  })),
-  removeProject: (id) => set((state) => ({
-    projects: state.projects.filter((p) => p.id !== id)
-  })),
-}))
+export const useProjectStore = create<ProjectState>()(
+  persist(
+    (set) => ({
+      projects: [],
+      isLoading: true,
+      setProjects: (projects) => set({ projects, isLoading: false }),
+      addProject: (project) => set((state) => ({ projects: [project, ...state.projects] })),
+      updateProject: (id, updates) => set((state) => ({
+        projects: state.projects.map((p) => p.id === id ? { ...p, ...updates } : p)
+      })),
+      removeProject: (id) => set((state) => ({
+        projects: state.projects.filter((p) => p.id !== id)
+      })),
+    }),
+    {
+      name: 'nexora_guest_projects',
+      partialize: (state) => ({ projects: state.projects }),
+    }
+  )
+)

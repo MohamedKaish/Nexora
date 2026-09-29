@@ -10,11 +10,14 @@ export const metadata = {
   title: 'Tasks - Nexora',
 }
 
+import { getUser } from '@/lib/supabase/server'
+
 async function TasksContent() {
-  const [tasks, projects] = await Promise.all([
+  const { data: { user } } = await getUser()
+  const [tasks, projects] = user ? await Promise.all([
     getTasks(),
     getProjects(),
-  ])
+  ]) : [[], []]
 
   return (
     <>

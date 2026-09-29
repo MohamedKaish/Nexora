@@ -7,8 +7,8 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
-import { updateProject } from '../actions'
-import { useProjectStore, Project } from '@/store/useProjectStore'
+import { useWorkspace } from '@/hooks/useWorkspace'
+import { Project } from '@/store/useProjectStore'
 import { toast } from 'sonner'
 
 interface EditProjectDialogProps {
@@ -34,7 +34,7 @@ function EditProjectForm({
   const [status, setStatus] = useState<'active' | 'archived' | 'completed'>(project.status || 'active')
   const [dueDate, setDueDate] = useState(project.due_date ? project.due_date.split('T')[0] : '')
 
-  const updateStoreProject = useProjectStore((state) => state.updateProject)
+  const { editProject } = useWorkspace()
 
   async function onSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault()
@@ -55,7 +55,7 @@ function EditProjectForm({
     }
 
     try {
-      const updated = await updateProject(project.id, {
+      await editProject(project.id, {
         name: name.trim(),
         description: description || null,
         color,
@@ -63,12 +63,10 @@ function EditProjectForm({
         due_date: dueDateIso,
       })
 
-      if (updated) {
-        updateStoreProject(project.id, updated as unknown as Partial<Project>)
-        if (onProjectUpdated) {
-          onProjectUpdated(updated as unknown as Project)
-        }
+      if (onProjectUpdated) {
+        onProjectUpdated({ ...project, name: name.trim(), description: description || null, color, status, due_date: dueDateIso })
       }
+      
       toast.success('Project updated successfully')
       onOpenChange(false)
     } catch (error: unknown) {

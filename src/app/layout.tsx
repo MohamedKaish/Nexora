@@ -3,6 +3,8 @@ import { Geist, Geist_Mono } from "next/font/google";
 import "../styles/globals.css";
 import { ThemeProvider } from "@/components/theme-provider";
 import { Toaster } from 'sonner'
+import { AuthProvider } from '@/providers/AuthProvider'
+import { getUser } from '@/lib/supabase/server'
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -34,12 +36,13 @@ export const viewport = {
   themeColor: '#6366F1'
 };
 
-export default function RootLayout({
+export default async function RootLayout({
   children,
 }: Readonly<{
   children: React.ReactNode;
 }>) {
   const isDev = process.env.NODE_ENV === 'development';
+  const { data: { user } } = await getUser();
 
   return (
     <html
@@ -48,15 +51,17 @@ export default function RootLayout({
       suppressHydrationWarning
     >
       <body className="min-h-full flex flex-col">
-        <ThemeProvider
-          attribute="class"
-          defaultTheme="dark"
-          enableSystem={false}
-          disableTransitionOnChange
-        >
-          {children}
-          <Toaster richColors position="top-right" theme="system" />
-        </ThemeProvider>
+        <AuthProvider initialUser={user}>
+          <ThemeProvider
+            attribute="class"
+            defaultTheme="dark"
+            enableSystem={false}
+            disableTransitionOnChange
+          >
+            {children}
+            <Toaster richColors position="top-right" theme="system" />
+          </ThemeProvider>
+        </AuthProvider>
         <script
           dangerouslySetInnerHTML={{
             __html: isDev
