@@ -32,6 +32,19 @@ export async function createGoal(
   const { data: { user } } = await getUser()
   if (!user) throw new Error('Unauthorized')
 
+  // Resource limit: max 50 active goals per user
+  const { count, error: countError } = await supabase
+    .from('goals')
+    .select('*', { count: 'exact', head: true })
+    .eq('user_id', user.id)
+    .neq('status', 'completed')
+    .neq('status', 'failed')
+
+  if (countError) throw new Error(countError.message)
+  if (count !== null && count >= 50) {
+    throw new Error('You have reached the maximum limit of 50 active goals. Please complete or delete some goals before creating new ones.')
+  }
+
   const validated = goalSchema.parse({
     title: title.trim(),
     type,

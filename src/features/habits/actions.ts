@@ -28,6 +28,18 @@ export async function createHabit(name: string, frequency: 'daily' | 'weekly' | 
   const { data: { user } } = await getUser()
   if (!user) throw new Error('Unauthorized')
 
+  // Resource limit: max 50 active habits per user
+  const { count, error: countError } = await supabase
+    .from('habits')
+    .select('*', { count: 'exact', head: true })
+    .eq('user_id', user.id)
+    .is('deleted_at', null)
+
+  if (countError) throw new Error(countError.message)
+  if (count !== null && count >= 50) {
+    throw new Error('You have reached the maximum limit of 50 active habits. Please delete some habits before creating new ones.')
+  }
+
   const validated = habitSchema.parse({ name: name.trim(), frequency, color })
 
   const { data, error } = await supabase

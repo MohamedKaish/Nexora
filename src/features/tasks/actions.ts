@@ -59,6 +59,19 @@ export async function createTask(input: TaskInput) {
   const { data: { user } } = await getUser()
   if (!user) throw new Error('Unauthorized')
 
+  // Resource limit: max 500 active tasks per user
+  const { count, error: countError } = await supabase
+    .from('tasks')
+    .select('*', { count: 'exact', head: true })
+    .eq('user_id', user.id)
+    .is('deleted_at', null)
+    .neq('status', 'done')
+
+  if (countError) throw new Error(countError.message)
+  if (count !== null && count >= 500) {
+    throw new Error('You have reached the maximum limit of 500 active tasks. Please complete or delete some tasks before creating new ones.')
+  }
+
   const parsed = taskSchema.parse(input)
 
   const { data, error } = await supabase

@@ -35,9 +35,11 @@ export default function ErrorBoundary({
           Try Again
         </Button>
       </div>
-      <p className="text-xs text-muted-foreground font-mono bg-secondary/30 p-2 rounded max-w-lg truncate">
-        {error.message || 'Unknown error occurred'}
-      </p>
+      {error.digest && (
+        <p className="text-xs text-muted-foreground font-mono bg-secondary/30 p-2 rounded max-w-lg truncate">
+          Error reference: {error.digest}
+        </p>
+      )}
     </div>
   )
 }

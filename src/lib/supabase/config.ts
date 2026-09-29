@@ -1,21 +1,37 @@
 /**
  * Canonical Supabase configuration for Nexora.
- * Ensures consistent project URL and valid JWT anon key across server, client, and middleware.
+ * 
+ * In production: NEXT_PUBLIC_SUPABASE_URL and NEXT_PUBLIC_SUPABASE_ANON_KEY
+ * must be set as Vercel environment variables.
+ * 
+ * In development: Set them in .env.local.
  */
 
-export const DEFAULT_SUPABASE_URL = 'https://rruavarqxdotdsbbjvck.supabase.co'
-export const DEFAULT_SUPABASE_ANON_KEY =
-  'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InJydWF2YXJxeGRvdGRzYmJqdmNrIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODU1NzM5MjQsImV4cCI6MjEwMTE0OTkyNH0.3SLbaEOaOWxnSqgiSXvLNwiSt6OJPdAzVQMyk2wmpKA'
-
 export function getSupabaseUrl(): string {
-  return process.env.NEXT_PUBLIC_SUPABASE_URL?.trim() || DEFAULT_SUPABASE_URL
+  const url = process.env.NEXT_PUBLIC_SUPABASE_URL?.trim()
+  if (!url) {
+    throw new Error(
+      'Missing NEXT_PUBLIC_SUPABASE_URL environment variable. ' +
+      'Set it in .env.local for development or in Vercel for production.'
+    )
+  }
+  return url
 }
 
 export function getSupabaseAnonKey(): string {
   const key = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY?.trim()
-  // PostgREST requires a valid JWT for the anon role; fallback if missing or publishable-only format
-  if (!key || key.startsWith('sb_publishable_')) {
-    return DEFAULT_SUPABASE_ANON_KEY
+  if (!key) {
+    throw new Error(
+      'Missing NEXT_PUBLIC_SUPABASE_ANON_KEY environment variable. ' +
+      'Set it in .env.local for development or in Vercel for production.'
+    )
+  }
+  // Reject publishable-format keys that aren't valid JWTs
+  if (key.startsWith('sb_publishable_')) {
+    throw new Error(
+      'NEXT_PUBLIC_SUPABASE_ANON_KEY appears to be a publishable key format. ' +
+      'PostgREST requires the JWT-format anon key from Supabase Dashboard → Settings → API.'
+    )
   }
   return key
 }

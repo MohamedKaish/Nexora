@@ -28,6 +28,17 @@ export async function createCalendarEvent(title: string, start_time: string, end
   const { data: { user } } = await getUser()
   if (!user) throw new Error('Unauthorized')
 
+  // Resource limit: max 200 calendar events per user
+  const { count, error: countError } = await supabase
+    .from('calendar_events')
+    .select('*', { count: 'exact', head: true })
+    .eq('user_id', user.id)
+
+  if (countError) throw new Error(countError.message)
+  if (count !== null && count >= 200) {
+    throw new Error('You have reached the maximum limit of 200 calendar events. Please delete some before creating new ones.')
+  }
+
   const { data, error } = await supabase
     .from('calendar_events')
     .insert({ title, start_time, end_time, is_all_day, user_id: user.id })

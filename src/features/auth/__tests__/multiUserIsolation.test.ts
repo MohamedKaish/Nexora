@@ -1,11 +1,11 @@
 import { describe, it, expect, beforeAll, afterAll } from 'vitest'
 import { createClient as createSupabaseClient, SupabaseClient } from '@supabase/supabase-js'
 import { Database } from '@/types/database.types'
-import { DEFAULT_SUPABASE_URL, DEFAULT_SUPABASE_ANON_KEY, getSupabaseUrl, getSupabaseAnonKey } from '@/lib/supabase/config'
+import { getSupabaseUrl, getSupabaseAnonKey } from '@/lib/supabase/config'
 
 describe('NEXORA REAL MULTI-USER ISOLATION & RLS VERIFICATION', () => {
-  const supabaseUrl = getSupabaseUrl() || DEFAULT_SUPABASE_URL
-  const supabaseAnonKey = getSupabaseAnonKey() || DEFAULT_SUPABASE_ANON_KEY
+  const supabaseUrl = getSupabaseUrl()
+  const supabaseAnonKey = getSupabaseAnonKey()
 
   let userAClient: SupabaseClient<Database>
   let userBClient: SupabaseClient<Database>

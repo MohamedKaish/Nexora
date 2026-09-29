@@ -26,6 +26,17 @@ export async function createTimetableSlot(input: { day_of_week: number, start_ti
     throw new Error('day_of_week must be between 0 (Sunday) and 6 (Saturday)')
   }
 
+  // Resource limit: max 50 timetable slots per user
+  const { count, error: countError } = await supabase
+    .from('timetable_slots')
+    .select('*', { count: 'exact', head: true })
+    .eq('user_id', user.id)
+
+  if (countError) throw new Error(countError.message)
+  if (count !== null && count >= 50) {
+    throw new Error('You have reached the maximum limit of 50 timetable slots. Please delete some before creating new ones.')
+  }
+
   const { data, error } = await supabase
     .from('timetable_slots')
     .insert({
