@@ -32,6 +32,9 @@ function getCallbackUrl(nextPath = '/dashboard'): string {
  * Prevents leaking internal implementation details.
  */
 function sanitizeAuthError(error: { message: string; code?: string; status?: number }): string {
+  // Log the raw error on the server for debugging
+  console.error('[Auth Error]', error)
+
   const msg = error.message?.toLowerCase() || ''
   const code = error.code || ''
 
@@ -44,21 +47,31 @@ function sanitizeAuthError(error: { message: string; code?: string; status?: num
   if (msg.includes('already registered') || code === 'user_already_exists') {
     return 'An account with this email already exists. Please sign in or reset your password.'
   }
-  if (msg.includes('rate limit') || code === 'over_email_send_rate_limit' || msg.includes('too many requests')) {
+  if (msg.includes('rate limit') || code === 'over_email_send_rate_limit' || msg.includes('too many requests') || error.status === 429) {
     return 'Too many attempts. Please wait a few minutes and try again.'
   }
-  if (msg.includes('email_address_invalid') || msg.includes('invalid email')) {
-    return 'Please enter a valid email address.'
+  if (msg.includes('email_address_invalid') || msg.includes('invalid email') || msg.includes('disposable email')) {
+    return 'Please enter a valid, non-disposable email address.'
   }
-  if (msg.includes('weak_password') || msg.includes('password')) {
+  if (msg.includes('weak_password') || msg.includes('password') || msg.includes('should contain at least')) {
     return 'Password does not meet requirements. Please use at least 6 characters.'
   }
   if (msg.includes('captcha') || msg.includes('turnstile')) {
     return 'CAPTCHA verification failed. Please try again.'
   }
-  if (msg.includes('signup_disabled')) {
+  if (msg.includes('signup_disabled') || msg.includes('signups not allowed')) {
     return 'New account registration is currently disabled.'
   }
+  if (msg.includes('database error') || msg.includes('saving new user')) {
+    return 'There was a system error setting up your account. Please try again later.'
+  }
+  if (msg.includes('validation_failed')) {
+    return 'Invalid information provided. Please check your details and try again.'
+  }
+  if (msg.includes('provider is not enabled')) {
+    return 'This sign-in method is currently disabled.'
+  }
+  
   // Generic safe fallback — never expose raw Supabase error internals
   return 'An unexpected error occurred. Please try again.'
 }
