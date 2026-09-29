@@ -51,7 +51,7 @@ export default function Home() {
               <span className="text-sm font-medium text-white/80">Nexora 2.0</span>
             </div>
             
-            <h1 className="text-5xl sm:text-7xl font-bold tracking-tight text-white leading-tight">
+            <h1 className="text-5xl sm:text-7xl font-serif font-semibold tracking-tight text-white leading-tight">
               Your work,<br />
               <span className="text-transparent bg-clip-text bg-gradient-to-r from-white/90 to-white/40">
                 without the friction.
@@ -66,7 +66,7 @@ export default function Home() {
             <div className="pt-8">
               <Button 
                 onClick={() => setStep('onboarding')}
-                className="h-14 px-8 rounded-full bg-white text-[#0C0A09] hover:bg-white/90 font-semibold text-lg transition-all hover:scale-105"
+                className="h-14 px-10 rounded-xl bg-accent text-white hover:bg-accent/90 shadow-[0_4px_14px_0_rgba(161,98,7,0.39)] hover:shadow-[0_6px_20px_rgba(161,98,7,0.23)] hover:-translate-y-0.5 font-medium text-lg transition-all duration-300"
               >
                 Enter Nexora
               </Button>
@@ -75,7 +75,7 @@ export default function Home() {
         ) : (
           <div className="w-full max-w-md space-y-8 animate-in fade-in slide-in-from-bottom-8 duration-500 ease-out">
             <div className="space-y-4 text-center">
-              <h2 className="text-4xl font-bold tracking-tight text-white">Welcome to Nexora.</h2>
+              <h2 className="text-4xl font-serif font-bold tracking-tight text-white">Welcome to Nexora.</h2>
               <p className="text-white/60 text-lg">What should we call you?</p>
             </div>
             
@@ -98,7 +98,7 @@ export default function Home() {
               <div className="pt-4">
                 <Button 
                   type="submit" 
-                  className="w-full h-14 rounded-2xl bg-white text-[#0C0A09] hover:bg-white/90 font-semibold text-lg transition-all"
+                  className="w-full h-14 rounded-xl bg-accent text-white hover:bg-accent/90 shadow-[0_4px_14px_0_rgba(161,98,7,0.39)] hover:shadow-[0_6px_20px_rgba(161,98,7,0.23)] hover:-translate-y-0.5 font-medium text-lg transition-all duration-300"
                 >
                   Continue
                 </Button>
