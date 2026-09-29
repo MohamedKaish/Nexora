@@ -48,7 +48,7 @@ function sanitizeAuthError(error: { message: string; code?: string; status?: num
     return 'An account with this email already exists. Please sign in or reset your password.'
   }
   if (msg.includes('rate limit') || code === 'over_email_send_rate_limit' || msg.includes('too many requests') || error.status === 429) {
-    return 'Too many attempts. Please wait a few minutes and try again.'
+    return 'Too many attempts (Supabase Limit). Please wait a few minutes and try again.'
   }
   if (msg.includes('email_address_invalid') || msg.includes('invalid email') || msg.includes('disposable email')) {
     return 'Please enter a valid, non-disposable email address.'
@@ -93,7 +93,7 @@ export async function login(formData: FormData) {
 
   const rateLimit = rateLimits.auth(email)
   if (!rateLimit.allowed) {
-    return { success: false, error: 'Too many attempts. Please wait a few minutes and try again.' }
+    return { success: false, error: 'Too many attempts (App Limit). Please wait a few minutes and try again.' }
   }
 
   // Build sign-in options with optional CAPTCHA token
@@ -135,7 +135,7 @@ export async function register(formData: FormData) {
 
   const rateLimit = rateLimits.auth(email)
   if (!rateLimit.allowed) {
-    return { success: false, error: 'Too many attempts. Please wait a few minutes and try again.' }
+    return { success: false, error: 'Too many attempts (App Limit). Please wait a few minutes and try again.' }
   }
 
   const emailRedirectTo = getCallbackUrl('/dashboard')
