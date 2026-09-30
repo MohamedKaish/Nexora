@@ -7,11 +7,10 @@ import { useEffect } from 'react'
 import { toast } from 'sonner'
 import { saveFocusSession } from '../actions'
 
-interface FocusDashboardProps {
-  tasks?: { id: string; title: string }[]
-}
+import { useTaskStore } from '@/store/useTaskStore'
 
-export function FocusDashboard({ tasks = [] }: FocusDashboardProps) {
+export function FocusDashboard() {
+  const tasks = useTaskStore(s => s.tasks.filter(t => !t.deletedAt && t.status !== 'done'))
   const {
     mode,
     duration,

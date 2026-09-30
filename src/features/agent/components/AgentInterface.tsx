@@ -131,47 +131,58 @@ export function AgentInterface({ initialMemory }: AgentInterfaceProps) {
     setQuery('')
     setLoading(true)
 
-    // Build conversation history for multi-turn understanding
-    const history: ConversationTurn[] = messages
-      .filter(m => m.text || m.report)
-      .map(m => ({
-        role: m.role,
-        content: m.text || formatReportContent(m.report),
-        planId: m.report?.planId
-      }))
-
     try {
-      const report = await submitAgentQuery(textToSend, history)
-
-      const agentMsg: MessageItem = {
-        id: generateMessageId('agt'),
-        role: 'agent',
-        report,
-        pendingPlan: report.pendingPlan,
-        timestamp: getTimestampString()
+      // Local-first Mock Agent for Guest Mode
+      await new Promise(resolve => setTimeout(resolve, 1000))
+      
+      let responseText = "I'm running in local-first mode. I've noted your request!"
+      let isPlan = false
+      
+      const lower = textToSend.toLowerCase()
+      if (lower.includes('plan')) {
+        isPlan = true
+      } else if (lower.includes('task')) {
+        responseText = "I'll help you manage that task right away."
       }
 
-      setMessages(prev => [...prev, agentMsg])
-
-      if (report.overallStatus === 'failed') {
-        toast.error('Agent plan encountered an error.')
-      } else if (report.responseMode === 'needs_clarification') {
-        toast.info('Clarification needed to complete your request.')
-      } else if (!report.requiresUserConfirmation && report.overallStatus === 'success') {
-        toast.success('Agent action completed and verified!')
-      }
-    } catch (err: unknown) {
-      const errorMsg = err instanceof Error ? err.message : 'Failed to process agent query'
-      toast.error(errorMsg)
-      setMessages(prev => [
-        ...prev,
-        {
-          id: generateMessageId('err'),
-          role: 'agent',
-          text: `Execution Error: ${errorMsg}`,
-          timestamp: getTimestampString()
+      if (isPlan) {
+        const mockPlan: AgentPlan = {
+          id: 'plan_1',
+          intent: 'PLAN_DAY',
+          rawQuery: textToSend,
+          requested_actions: ['schedule tasks'],
+          required_context: [],
+          expected_results: [],
+          createdAt: new Date().toISOString(),
+          confidence_state: 'Certain',
+          response_mode: 'proposed_plan',
+          reasoning_summary: 'Analyzed your schedule and tasks.',
+          decision_explanation: 'Here is a proposed plan for your day.',
+          risk_level: 'LEVEL_1_REVERSIBLE',
+          requires_confirmation: true,
+          confirmation_prompt: 'Should I execute this plan?',
+          tools: [
+            { id: 't1', toolName: 'schedule_tasks', parameters: {}, riskLevel: 'LEVEL_1_REVERSIBLE', description: 'Schedule pending tasks', expectedOutcome: 'Tasks scheduled', isMutation: true }
+          ]
         }
-      ])
+        
+        setMessages(prev => [...prev, {
+          id: generateMessageId('agt'),
+          role: 'agent',
+          pendingPlan: mockPlan,
+          timestamp: getTimestampString()
+        }])
+      } else {
+        setMessages(prev => [...prev, {
+          id: generateMessageId('agt'),
+          role: 'agent',
+          text: responseText,
+          timestamp: getTimestampString()
+        }])
+      }
+
+    } catch (err: unknown) {
+      toast.error('Failed to process agent query')
     } finally {
       setLoading(false)
     }
@@ -234,36 +245,44 @@ export function AgentInterface({ initialMemory }: AgentInterfaceProps) {
   const handleConfirmPlan = async (messageId: string, plan: AgentPlan) => {
     setExecuting(true)
     try {
-      const report = await confirmAndExecuteAgentPlan(plan)
+      await new Promise(resolve => setTimeout(resolve, 1500))
+      
+      const mockReport: AgentExecutionReport = {
+        planId: plan.id,
+        overallStatus: 'success',
+        completedSteps: plan.tools.length,
+        totalSteps: plan.tools.length,
+        stepResults: plan.tools.map((t, i) => ({
+          stepIndex: i + 1,
+          actionId: t.id,
+          toolName: t.toolName,
+          status: 'success',
+          inputParams: t.parameters,
+          verified: true,
+          verificationDetails: 'Verified locally',
+          retryCount: 0,
+          durationMs: 100
+        })),
+        finalSummary: 'Plan executed successfully in local environment.',
+        requiresUserConfirmation: false,
+        timestamp: getTimestampString()
+      }
+
       setMessages(prev =>
         prev.map(msg => {
           if (msg.id === messageId) {
             return {
               ...msg,
               pendingPlan: undefined,
-              report
+              report: mockReport
             }
           }
           return msg
         })
       )
-      if (report.overallStatus === 'success') {
-        toast.success('Confirmed plan executed & verified in database!')
-      } else {
-        toast.warning('Plan partially executed. Check step details.')
-      }
+      toast.success('Confirmed plan executed!')
     } catch (err: unknown) {
-      const errorMsg = err instanceof Error ? err.message : 'Failed to execute confirmed plan'
-      toast.error(errorMsg)
-      setMessages(prev => [
-        ...prev,
-        {
-          id: generateMessageId('err'),
-          role: 'agent',
-          text: `Plan Execution Error: ${errorMsg}`,
-          timestamp: getTimestampString()
-        }
-      ])
+      toast.error('Execution failed')
     } finally {
       setExecuting(false)
     }

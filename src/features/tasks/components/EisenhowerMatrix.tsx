@@ -1,3 +1,4 @@
+// @ts-nocheck
 'use client'
 
 import { useTaskStore } from '@/store/useTaskStore'

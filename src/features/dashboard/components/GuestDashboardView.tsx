@@ -20,7 +20,7 @@ export function GuestDashboardView() {
   const { habits } = useHabitStore()
 
   // Compute stats
-  const todayTasks = tasks.filter(t => t.due_date && isToday(parseISO(t.due_date)))
+  const todayTasks = tasks.filter(t => t.dueDate && isToday(parseISO(t.dueDate)))
   const completedToday = todayTasks.filter(t => t.status === 'done').length
   const pendingToday = todayTasks.length - completedToday
   const activeProjects = projects.filter(p => p.status === 'active').length

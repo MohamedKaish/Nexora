@@ -1,20 +1,12 @@
 import type { Metadata } from "next";
-import { Bodoni_Moda, Jost } from "next/font/google";
 import "../styles/globals.css";
 import { ThemeProvider } from "@/components/theme-provider";
 import { Toaster } from 'sonner'
 import { AuthProvider } from '@/providers/AuthProvider'
 import { getUser } from '@/lib/supabase/server'
+import { HydrationProvider } from '@/providers/HydrationProvider'
 
-const bodoniModa = Bodoni_Moda({
-  variable: "--font-serif",
-  subsets: ["latin"],
-});
 
-const jost = Jost({
-  variable: "--font-sans",
-  subsets: ["latin"],
-});
 
 export const metadata: Metadata = {
   title: "Nexora - Personal Productivity OS",
@@ -47,7 +39,7 @@ export default async function RootLayout({
   return (
     <html
       lang="en"
-      className={`${jost.variable} ${bodoniModa.variable} font-sans h-full antialiased`}
+      className={`font-sans h-full antialiased`}
       suppressHydrationWarning
     >
       <body className="min-h-full flex flex-col">
@@ -58,7 +50,9 @@ export default async function RootLayout({
             enableSystem={false}
             disableTransitionOnChange
           >
-            {children}
+            <HydrationProvider>
+              {children}
+            </HydrationProvider>
             <Toaster richColors position="top-right" theme="system" />
           </ThemeProvider>
         </AuthProvider>

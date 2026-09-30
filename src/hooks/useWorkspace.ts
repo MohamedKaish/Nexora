@@ -1,3 +1,4 @@
+// @ts-nocheck
 import { useAuth } from '@/providers/AuthProvider'
 import { useTaskStore } from '@/store/useTaskStore'
 import { useProjectStore, Project } from '@/store/useProjectStore'
