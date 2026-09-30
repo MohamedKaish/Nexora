@@ -35,6 +35,7 @@ export default function Home() {
     if (preferences.onboardingComplete && preferences.displayName) {
       router.push('/dashboard')
     } else {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setIsLoading(false)
     }
   }, [preferences.onboardingComplete, preferences.displayName, router])

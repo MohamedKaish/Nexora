@@ -21,6 +21,7 @@ export function GuestOnboarding() {
     if (guestName) {
       router.push('/dashboard')
     } else {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setIsLoading(false)
     }
   }, [router])

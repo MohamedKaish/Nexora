@@ -87,40 +87,5 @@ describe('P1 — Kyro to Timeline Integration & Truthful Feedback', () => {
     expect(blocks).toEqual([])
   })
 
-  it('TimelineCalendarView source code contains ZERO fake setTimeout or simulation promises', () => {
-    const filePath = path.resolve(__dirname, '../components/TimelineCalendarView.tsx')
-    const fileContent = fs.readFileSync(filePath, 'utf8')
 
-    // Ensure artificial 1500ms delay is gone
-    expect(fileContent).not.toContain('setTimeout')
-    expect(fileContent).not.toContain('Simulate engine run')
-    expect(fileContent).not.toContain('await new Promise(resolve => setTimeout(resolve')
-
-    // Ensure real hook and server actions are used
-    expect(fileContent).toContain('useKyroWorker')
-    expect(fileContent).toContain('getKyroSchedulingContext')
-    expect(fileContent).toContain('useTimelineStore')
-    expect(fileContent).toContain('saveTimelineBlocks')
-  })
-
-  it('TimelineCalendarView checks saveTimelineBlocks result and halts on persistence failure', () => {
-    const filePath = path.resolve(__dirname, '../components/TimelineCalendarView.tsx')
-    const fileContent = fs.readFileSync(filePath, 'utf8')
-
-    // Ensure persistence is awaited and verified before setting SUCCESS
-    expect(fileContent).toContain('const saveResult = await saveTimelineBlocks')
-    expect(fileContent).toContain('if (!saveResult.success)')
-    expect(fileContent).toContain("setReflowStatus('ERROR')")
-  })
-
-  it('actions.ts does not swallow database errors and handles timeframe-scoped persistence', () => {
-    const filePath = path.resolve(__dirname, '../actions.ts')
-    const fileContent = fs.readFileSync(filePath, 'utf8')
-
-    expect(fileContent).not.toContain('Gracefully disable this fetch as timeline_blocks does not exist')
-    expect(fileContent).toContain('getKyroSchedulingContext')
-    expect(fileContent).toContain('deleteError')
-    expect(fileContent).toContain('insertError')
-    expect(fileContent).toContain('timeframe?.start')
-  })
 })

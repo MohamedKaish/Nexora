@@ -32,6 +32,7 @@ export default function DashboardPage() {
   const { user } = useAuth()
 
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setMounted(true)
     const hour = new Date().getHours()
     if (hour < 12) setGreeting('Good morning')

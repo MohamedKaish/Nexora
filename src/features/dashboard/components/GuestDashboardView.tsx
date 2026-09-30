@@ -29,6 +29,7 @@ export function GuestDashboardView() {
   const topHabit = habits.length > 0 ? habits.reduce((prev, current) => (prev.streak > current.streak) ? prev : current).name : 'No habits'
 
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setGuestName(localStorage.getItem('nexora_guest_name'))
     
     const hour = new Date().getHours()

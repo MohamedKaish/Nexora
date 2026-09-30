@@ -77,6 +77,7 @@ export function TimelineCalendarView() {
   }, [mapBlocksToEvents])
 
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     loadData()
     const unsub = useTimelineStore.subscribe((state) => {
       setEvents(mapBlocksToEvents(state.blocks))

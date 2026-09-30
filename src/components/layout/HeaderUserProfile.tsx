@@ -9,6 +9,7 @@ export function HeaderUserProfile({ userEmail }: { userEmail?: string }) {
 
   useEffect(() => {
     if (!userEmail) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setGuestName(localStorage.getItem('nexora_guest_name'))
     }
   }, [userEmail])

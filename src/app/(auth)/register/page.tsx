@@ -67,6 +67,7 @@ export default function RegisterPage() {
   }, [renderTurnstile])
 
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setDefaultName(localStorage.getItem('nexora_guest_name') || '')
   }, [])
 

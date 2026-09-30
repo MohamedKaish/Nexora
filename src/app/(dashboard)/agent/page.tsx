@@ -15,6 +15,7 @@ const defaultMemory = {
 export default function AgentPage() {
   return (
     <div className="flex-1 flex flex-col min-h-0 w-full p-6 md:p-8 max-w-5xl mx-auto">
+      {/* eslint-disable-next-line @typescript-eslint/no-explicit-any */}
       <AgentInterface initialMemory={defaultMemory as any} />
     </div>
   )

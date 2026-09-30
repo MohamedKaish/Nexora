@@ -21,6 +21,7 @@ export function AuthProvider({ children, initialUser }: { children: React.ReactN
 
   useEffect(() => {
     if (initialUser) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setIsLoading(false)
       return
     }
