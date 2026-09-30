@@ -176,7 +176,7 @@ export const DEFAULT_CHARACTER_CONFIG: CharacterConfig = {
   hair: 'short_01',
   hairColor: '#1C1917',
   face: 'face_01',
-  outfit: 'casual',
+  outfit: 'casual_01',
   outfitColor: '#6366F1',
   accessory: 'none',
   glasses: 'none',

@@ -99,7 +99,7 @@ export default function CharacterPage() {
             </CardContent>
           </Card>
 
-          {/* Body & Outfit */}
+          {/* Body & Hair */}
           <Card className="border-border/40 bg-card/60 rounded-2xl">
             <CardHeader className="pb-3">
               <CardTitle className="text-base font-bold flex items-center gap-2">
@@ -108,7 +108,7 @@ export default function CharacterPage() {
             </CardHeader>
             <CardContent className="space-y-4">
               <div className="space-y-2">
-                <Label className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Character</Label>
+                <Label className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Body</Label>
                 <div className="flex flex-wrap gap-2">
                   {CHARACTER_BODIES.map(b => (
                     <button key={b.id} onClick={() => setBody(b.id)} className={`px-3 py-1.5 rounded-lg text-sm font-medium border transition-all cursor-pointer ${config.body === b.id ? 'bg-accent/10 border-accent/30 text-accent' : 'border-border/50 text-muted-foreground hover:border-border'}`}>
@@ -118,11 +118,86 @@ export default function CharacterPage() {
                 </div>
               </div>
               <div className="space-y-2">
-                <Label className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Outfit</Label>
+                <Label className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Hair Style</Label>
                 <div className="flex flex-wrap gap-2">
-                  {CHARACTER_OUTFITS.map(o => (
-                    <button key={o.id} onClick={() => setOutfit(o.id)} className={`px-3 py-1.5 rounded-lg text-sm font-medium border transition-all cursor-pointer ${config.outfit === o.id ? 'bg-accent/10 border-accent/30 text-accent' : 'border-border/50 text-muted-foreground hover:border-border'}`}>
-                      {o.label}
+                  {CHARACTER_HAIR.map(h => (
+                    <button key={h.id} onClick={() => setHair(h.id)} className={`px-3 py-1.5 rounded-lg text-sm font-medium border transition-all cursor-pointer ${config.hair === h.id ? 'bg-accent/10 border-accent/30 text-accent' : 'border-border/50 text-muted-foreground hover:border-border'}`}>
+                      {h.label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+              <div className="space-y-2">
+                <Label className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Hair Color</Label>
+                <div className="flex flex-wrap gap-2">
+                  {HAIR_COLORS.map(c => (
+                    <button key={c} onClick={() => setHair(config.hair, c)} className={`w-7 h-7 rounded-full border-2 transition-all cursor-pointer ${config.hairColor === c ? 'border-accent scale-110' : 'border-border/40 hover:scale-105'}`} style={{ backgroundColor: c }} aria-label={`Hair color ${c}`} />
+                  ))}
+                </div>
+              </div>
+              <div className="space-y-2">
+                <Label className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Expression</Label>
+                <div className="flex flex-wrap gap-2">
+                  {CHARACTER_EXPRESSIONS.map(e => (
+                    <button key={e.id} onClick={() => setExpression(e.id)} className={`px-3 py-1.5 rounded-lg text-sm font-medium border transition-all cursor-pointer ${config.expression === e.id ? 'bg-accent/10 border-accent/30 text-accent' : 'border-border/50 text-muted-foreground hover:border-border'}`}>
+                      {e.label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Outfit */}
+          <Card className="border-border/40 bg-card/60 rounded-2xl">
+            <CardHeader className="pb-3">
+              <CardTitle className="text-base font-bold flex items-center gap-2">
+                <Shirt className="w-4 h-4 text-accent" /> Outfit
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="flex flex-wrap gap-2">
+                {CHARACTER_OUTFITS.map(o => (
+                  <button key={o.id} onClick={() => setOutfit(o.id)} className={`px-3 py-1.5 rounded-lg text-sm font-medium border transition-all cursor-pointer ${config.outfit === o.id ? 'bg-accent/10 border-accent/30 text-accent' : 'border-border/50 text-muted-foreground hover:border-border'}`}>
+                    {o.label}
+                  </button>
+                ))}
+              </div>
+              <div className="space-y-2">
+                <Label className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Outfit Color</Label>
+                <div className="flex flex-wrap gap-2">
+                  {OUTFIT_COLORS.map(c => (
+                    <button key={c} onClick={() => setOutfit(config.outfit, c)} className={`w-7 h-7 rounded-full border-2 transition-all cursor-pointer ${config.outfitColor === c ? 'border-accent scale-110' : 'border-border/40 hover:scale-105'}`} style={{ backgroundColor: c }} aria-label={`Outfit color ${c}`} />
+                  ))}
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Accessories */}
+          <Card className="border-border/40 bg-card/60 rounded-2xl">
+            <CardHeader className="pb-3">
+              <CardTitle className="text-base font-bold flex items-center gap-2">
+                <Glasses className="w-4 h-4 text-accent" /> Accessories
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="space-y-2">
+                <Label className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Accessory</Label>
+                <div className="flex flex-wrap gap-2">
+                  {CHARACTER_ACCESSORIES.map(a => (
+                    <button key={a.id} onClick={() => setAccessory(a.id)} className={`px-3 py-1.5 rounded-lg text-sm font-medium border transition-all cursor-pointer ${config.accessory === a.id ? 'bg-accent/10 border-accent/30 text-accent' : 'border-border/50 text-muted-foreground hover:border-border'}`}>
+                      {a.label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+              <div className="space-y-2">
+                <Label className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Glasses</Label>
+                <div className="flex flex-wrap gap-2">
+                  {CHARACTER_GLASSES.map(g => (
+                    <button key={g.id} onClick={() => setGlasses(g.id)} className={`px-3 py-1.5 rounded-lg text-sm font-medium border transition-all cursor-pointer ${config.glasses === g.id ? 'bg-accent/10 border-accent/30 text-accent' : 'border-border/50 text-muted-foreground hover:border-border'}`}>
+                      {g.label}
                     </button>
                   ))}
                 </div>

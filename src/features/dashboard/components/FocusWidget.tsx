@@ -1,14 +1,45 @@
-import { getTodayTasks } from '@/features/tasks/actions'
+'use client'
+
+import { useTaskStore } from '@/store/useTaskStore'
 import { Checkbox } from '@/components/ui/checkbox'
 import { Badge } from '@/components/ui/badge'
-import { CheckCircle2 } from 'lucide-react'
+import { CheckCircle2, Loader2 } from 'lucide-react'
 import Link from 'next/link'
+import { isToday, parseISO } from 'date-fns'
+import { useState, useEffect } from 'react'
 
-export async function FocusWidget() {
-  const todayTasks = await getTodayTasks()
+export function FocusWidget() {
+  const [mounted, setMounted] = useState(false)
+  const tasks = useTaskStore(s => s.tasks)
+
+  useEffect(() => {
+    setMounted(true)
+  }, [])
+
+  if (!mounted) {
+    return (
+      <div className="col-span-4 rounded-[20px] glass-card p-7 flex flex-col h-full border-white/5 animate-pulse min-h-[300px]">
+        <div className="h-8 bg-secondary/30 rounded-lg w-48 mb-6" />
+        <div className="flex-1 bg-secondary/20 rounded-xl" />
+      </div>
+    )
+  }
+
+  const todayTasks = tasks.filter(t => {
+    const rawT = t as unknown as Record<string, unknown>
+    if (t.dueDate || rawT.due_date) {
+      const d = (t.dueDate || rawT.due_date) as string
+      try { return isToday(parseISO(d)) } catch { return false }
+    }
+    return false
+  }).sort((a, b) => {
+    if (a.priority === 'urgent' && b.priority !== 'urgent') return -1
+    if (b.priority === 'urgent' && a.priority !== 'urgent') return 1
+    return 0
+  })
 
   return (
-    <div className="col-span-4 rounded-[20px] glass-card p-7 flex flex-col h-full border-white/5">
+    <div className="col-span-4 rounded-[20px] glass-card p-7 flex flex-col h-full border-white/5 min-h-[300px]">
       <div className="flex items-center justify-between mb-6">
         <div className="space-y-1">
           <h3 className="text-xl font-bold tracking-tight text-foreground">Today&apos;s Focus</h3>
@@ -17,12 +48,12 @@ export async function FocusWidget() {
             Kyro Recommended
           </p>
         </div>
-        <Link href="/dashboard/tasks" className="text-sm text-primary hover:text-primary/80 font-semibold transition-colors bg-primary/10 hover:bg-primary/15 px-4 py-1.5 rounded-full">View all</Link>
+        <Link href="/tasks" className="text-sm text-primary hover:text-primary/80 font-semibold transition-colors bg-primary/10 hover:bg-primary/15 px-4 py-1.5 rounded-full">View all</Link>
       </div>
       
       <div className="flex-1 overflow-y-auto custom-scrollbar pr-2">
         {todayTasks.length === 0 ? (
-          <div className="flex flex-col items-center justify-center h-full min-h-[200px] text-center border-2 border-dashed border-border/60 rounded-xl">
+          <div className="flex flex-col items-center justify-center h-full min-h-[160px] text-center border-2 border-dashed border-border/60 rounded-xl">
             <div className="h-10 w-10 rounded-full bg-secondary/50 flex items-center justify-center mb-3">
               <CheckCircle2 className="h-5 w-5 text-muted-foreground" />
             </div>
