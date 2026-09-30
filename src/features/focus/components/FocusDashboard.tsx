@@ -11,7 +11,8 @@ import { useTaskStore } from '@/store/useTaskStore'
 
 export function FocusDashboard() {
   const [mounted, setMounted] = useState(false)
-  const tasks = useTaskStore(s => Array.isArray(s.tasks) ? s.tasks.filter(t => t && !t.deletedAt && t.status !== 'done') : [])
+  const rawTasks = useTaskStore(s => s.tasks)
+  const tasks = Array.isArray(rawTasks) ? rawTasks.filter(t => t && !t.deletedAt && t.status !== 'done') : []
   const {
     mode,
     duration,

@@ -15,9 +15,13 @@ function CalendarContent() {
   const [data, setData] = useState<any>(null)
   
   // Local stores for Guest mode
-  const localTasks = useTaskStore(s => Array.isArray(s.tasks) ? s.tasks : [])
-  const localProjects = useProjectStore(s => Array.isArray(s.projects) ? s.projects : [])
-  const localHabits = useHabitStore(s => Array.isArray(s.habits) ? s.habits : [])
+  const rawTasks = useTaskStore(s => s.tasks)
+  const rawProjects = useProjectStore(s => s.projects)
+  const rawHabits = useHabitStore(s => s.habits)
+  
+  const localTasks = Array.isArray(rawTasks) ? rawTasks : []
+  const localProjects = Array.isArray(rawProjects) ? rawProjects : []
+  const localHabits = Array.isArray(rawHabits) ? rawHabits : []
 
   useEffect(() => {
     async function fetchData() {
