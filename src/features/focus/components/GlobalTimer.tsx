@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect } from 'react'
+import { useEffect, useState } from 'react'
 import { useFocusStore } from '@/store/useFocusStore'
 import { Play, Pause, Square, ExternalLink } from 'lucide-react'
 import { Button } from '@/components/ui/button'
@@ -12,6 +12,11 @@ import { saveFocusSession } from '../actions'
 export function GlobalTimer() {
   const { isActive, timeLeft, mode, taskId, duration, start, pause, reset, tick } = useFocusStore()
   const pathname = usePathname()
+  const [mounted, setMounted] = useState(false)
+
+  useEffect(() => {
+    setMounted(true)
+  }, [])
 
   // The timer tick effect
   useEffect(() => {
@@ -44,6 +49,9 @@ export function GlobalTimer() {
 
   // Do not show the floating timer if we are on the dedicated /focus page
   if (pathname === '/focus') return null
+
+  // Also don't show on auth pages or before mounting
+  if (!mounted || pathname === '/login' || pathname === '/register' || pathname === '/') return null
 
   // Also don't show on auth pages
   if (pathname === '/login' || pathname === '/register' || pathname === '/') return null

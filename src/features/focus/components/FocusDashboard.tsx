@@ -3,13 +3,14 @@
 import { useFocusStore } from '@/store/useFocusStore'
 import { Play, Pause, Square, Maximize, Minimize, SkipForward, CheckCircle2 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
-import { useEffect } from 'react'
+import { useEffect, useState } from 'react'
 import { toast } from 'sonner'
 import { saveFocusSession } from '../actions'
 
 import { useTaskStore } from '@/store/useTaskStore'
 
 export function FocusDashboard() {
+  const [mounted, setMounted] = useState(false)
   const tasks = useTaskStore(s => s.tasks.filter(t => !t.deletedAt && t.status !== 'done'))
   const {
     mode,
@@ -32,6 +33,11 @@ export function FocusDashboard() {
 
   // Timer Effect
   useEffect(() => {
+    setMounted(true)
+  }, [])
+
+  useEffect(() => {
+    if (!mounted) return
     let interval: NodeJS.Timeout
     if (isActive && (timeLeft > 0 || mode === 'stopwatch')) {
       interval = setInterval(() => {
@@ -90,6 +96,10 @@ export function FocusDashboard() {
   const circleCircumference = 2 * Math.PI * circleRadius
   const strokeDashoffset =
     mode === 'stopwatch' ? 0 : circleCircumference - (progress / 100) * circleCircumference
+
+  if (!mounted) {
+    return <div className="flex items-center justify-center min-h-[70vh]"><div className="animate-pulse w-80 h-80 rounded-full bg-secondary/30" /></div>
+  }
 
   return (
     <div className="flex flex-col items-center justify-center min-h-[70vh] animate-in fade-in zoom-in-95 duration-500">

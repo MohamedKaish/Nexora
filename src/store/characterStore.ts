@@ -79,9 +79,8 @@ export const useCharacterStore = create<CharacterState>()(
 // ─── Character Asset Catalog ───
 
 export const CHARACTER_BODIES = [
-  { id: 'base_01', label: 'Classic' },
-  { id: 'base_02', label: 'Slim' },
-  { id: 'base_03', label: 'Athletic' },
+  { id: 'boy', label: 'Boy' },
+  { id: 'girl', label: 'Girl' },
 ]
 
 export const CHARACTER_HAIR = [
@@ -94,11 +93,8 @@ export const CHARACTER_HAIR = [
 ]
 
 export const CHARACTER_OUTFITS = [
-  { id: 'casual_01', label: 'Casual Tee' },
-  { id: 'formal_01', label: 'Business' },
-  { id: 'hoodie_01', label: 'Hoodie' },
-  { id: 'jacket_01', label: 'Jacket' },
-  { id: 'athletic_01', label: 'Athletic' },
+  { id: 'casual', label: 'Casual' },
+  { id: 'suit', label: 'Suit' },
 ]
 
 export const CHARACTER_ACCESSORIES = [

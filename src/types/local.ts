@@ -172,11 +172,11 @@ export interface CharacterConfig {
 
 export const DEFAULT_CHARACTER_CONFIG: CharacterConfig = {
   id: 'default-character',
-  body: 'base_01',
+  body: 'boy',
   hair: 'short_01',
   hairColor: '#1C1917',
   face: 'face_01',
-  outfit: 'casual_01',
+  outfit: 'casual',
   outfitColor: '#6366F1',
   accessory: 'none',
   glasses: 'none',
