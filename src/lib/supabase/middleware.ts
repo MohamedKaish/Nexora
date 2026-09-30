@@ -73,7 +73,7 @@ export async function updateSession(request: NextRequest) {
     const productivityRoutes = [
       '/dashboard', '/tasks', '/projects', '/goals', '/habits', 
       '/focus', '/timeline', '/timetable', '/calendar', '/settings',
-      '/agent', '/analytics', '/notifications'
+      '/agent', '/analytics', '/notifications', '/character'
     ]
     const isProductivityRoute = productivityRoutes.some(r => pathname === r || pathname.startsWith(r + '/'))
     

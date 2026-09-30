@@ -74,6 +74,11 @@ const GREETINGS: Record<AgentPersonality, string[]> = {
     'You\'re building something great.',
     'Progress, not perfection.',
   ],
+  loyal: [
+    'Ready for your orders, Chief!',
+    'Awaiting your command, Chief!',
+    'What is our next move, Chief?',
+  ],
 }
 
 const TASK_COMPLETE: Record<AgentPersonality, string[]> = {
@@ -83,6 +88,7 @@ const TASK_COMPLETE: Record<AgentPersonality, string[]> = {
   energetic: ['BOOM! Crushed it! 💪', 'Another one down! Keep going!'],
   minimal: ['Done.', '✓'],
   motivational: ['That\'s momentum. Keep it going.', 'Every completion counts.'],
+  loyal: ['Brilliantly executed, Chief!', 'Task eliminated as ordered, Chief!', 'Victory is ours, Chief!'],
 }
 
 const FOCUS_START: Record<AgentPersonality, string[]> = {
@@ -92,6 +98,7 @@ const FOCUS_START: Record<AgentPersonality, string[]> = {
   energetic: ['LET\'S FOCUS! No distractions! 🔥'],
   minimal: ['Focus.'],
   motivational: ['Deep work is where the magic happens.'],
+  loyal: ['Shields up! Commencing deep focus for the Chief!', 'Protecting your focus, Chief!', 'All distractions blocked, Chief!'],
 }
 
 export function getAgentMessage(type: 'greeting' | 'taskComplete' | 'focusStart', personality: AgentPersonality): string {

@@ -90,7 +90,7 @@ export default function CharacterPage() {
                 <Select value={agentConfig.personality} onValueChange={v => setPersonality(v as AgentPersonality)}>
                   <SelectTrigger className="rounded-xl"><SelectValue /></SelectTrigger>
                   <SelectContent>
-                    {(['professional','friendly','calm','energetic','minimal','motivational'] as AgentPersonality[]).map(p => (
+                    {(['professional','friendly','calm','energetic','minimal','motivational','loyal'] as AgentPersonality[]).map(p => (
                       <SelectItem key={p} value={p} className="capitalize">{p}</SelectItem>
                     ))}
                   </SelectContent>

@@ -127,7 +127,7 @@ export interface LocalFocusSession {
 
 // ─── Agent Configuration ───
 
-export type AgentPersonality = 'professional' | 'friendly' | 'calm' | 'energetic' | 'minimal' | 'motivational'
+export type AgentPersonality = 'professional' | 'friendly' | 'calm' | 'energetic' | 'minimal' | 'motivational' | 'loyal'
 
 export interface AgentConfig {
   id: string
