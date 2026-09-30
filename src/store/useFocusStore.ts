@@ -73,11 +73,13 @@ export const useFocusStore = create<FocusState>()(
         if (!state.isActive) return state
         
         if (state.mode === 'stopwatch') {
-          return { elapsedTime: state.elapsedTime + 1, timeLeft: state.elapsedTime + 1 }
+          const currentElapsed = state.elapsedTime || 0
+          return { elapsedTime: currentElapsed + 1, timeLeft: currentElapsed + 1 }
         }
         
-        if (state.timeLeft <= 0) return state
-        return { timeLeft: state.timeLeft - 1 }
+        const currentLeft = state.timeLeft || 0
+        if (currentLeft <= 0) return state
+        return { timeLeft: currentLeft - 1 }
       }),
       toggleFullScreen: () => set((state) => ({ isFullScreen: !state.isFullScreen })),
       skipBreak: () => set(() => ({
@@ -91,12 +93,12 @@ export const useFocusStore = create<FocusState>()(
         const newSession: FocusSession = {
           id: crypto.randomUUID(),
           mode: state.mode,
-          duration: state.mode === 'stopwatch' ? state.elapsedTime : state.duration,
+          duration: state.mode === 'stopwatch' ? (state.elapsedTime || 0) : (state.duration || 1500),
           completedAt: new Date().toISOString()
         }
         
         const isWork = state.mode === 'pomodoro' || state.mode === 'deep_work' || state.mode === 'custom' || state.mode === 'stopwatch'
-        const newSessionsCompleted = isWork ? state.sessionsCompleted + 1 : state.sessionsCompleted
+        const newSessionsCompleted = isWork ? (state.sessionsCompleted || 0) + 1 : (state.sessionsCompleted || 0)
         
         // Determine next mode automatically
         let nextMode: FocusMode = 'pomodoro'
@@ -125,7 +127,7 @@ export const useFocusStore = create<FocusState>()(
           timeLeft: nextDuration,
           elapsedTime: 0,
           sessionsCompleted: newSessionsCompleted,
-          history: [...state.history, newSession]
+          history: [...(state.history || []), newSession]
         }
       })
     }),

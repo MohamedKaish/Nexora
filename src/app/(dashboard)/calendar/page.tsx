@@ -1,32 +1,66 @@
+'use client'
+
+import { useEffect, useState, Suspense } from 'react'
 import { getTasks } from '@/features/tasks/actions'
 import { getProjects } from '@/features/projects/actions'
 import { getCalendarEvents } from '@/features/timeline/actions'
 import { getTimetableSlots } from '@/features/timeline/timetable-actions'
 import { getHabits } from '@/features/habits/actions'
 import { FullCalendarView } from '@/features/timeline/components/FullCalendarWrapper'
+import { useTaskStore } from '@/store/useTaskStore'
+import { useProjectStore } from '@/store/useProjectStore'
+import { useHabitStore } from '@/store/useHabitStore'
 
-export const metadata = {
-  title: 'Calendar - Nexora',
-}
+function CalendarContent() {
+  const [data, setData] = useState<any>(null)
+  
+  // Local stores for Guest mode
+  const localTasks = useTaskStore(s => Array.isArray(s.tasks) ? s.tasks : [])
+  const localProjects = useProjectStore(s => Array.isArray(s.projects) ? s.projects : [])
+  const localHabits = useHabitStore(s => Array.isArray(s.habits) ? s.habits : [])
 
-import { Suspense } from 'react'
+  useEffect(() => {
+    async function fetchData() {
+      try {
+        const [tasks, projects, events, timetableSlots, habits] = await Promise.all([
+          getTasks().catch(() => []),
+          getProjects().catch(() => []),
+          getCalendarEvents().catch(() => []),
+          getTimetableSlots().catch(() => []),
+          getHabits().catch(() => [])
+        ])
+        
+        setData({
+          tasks: tasks.length > 0 ? tasks : localTasks,
+          projects: projects.length > 0 ? projects : localProjects,
+          events,
+          timetableSlots,
+          habits: habits.length > 0 ? habits : localHabits
+        })
+      } catch (error) {
+        // Fallback to local guest data
+        setData({
+          tasks: localTasks,
+          projects: localProjects,
+          events: [],
+          timetableSlots: [],
+          habits: localHabits
+        })
+      }
+    }
+    
+    fetchData()
+  }, [localTasks, localProjects, localHabits])
 
-async function CalendarContent() {
-  const [tasks, projects, events, timetableSlots, habits] = await Promise.all([
-    getTasks(),
-    getProjects(),
-    getCalendarEvents(),
-    getTimetableSlots(),
-    getHabits()
-  ])
+  if (!data) return <div className="animate-pulse h-[800px] w-full bg-secondary/30 rounded-2xl" />
 
   return (
     <FullCalendarView 
-      tasks={tasks} 
-      projects={projects} 
-      events={events} 
-      timetableSlots={timetableSlots}
-      habits={habits}
+      tasks={data.tasks} 
+      projects={data.projects} 
+      events={data.events} 
+      timetableSlots={data.timetableSlots}
+      habits={data.habits}
     />
   )
 }
