@@ -11,7 +11,7 @@ import { useTaskStore } from '@/store/useTaskStore'
 
 export function FocusDashboard() {
   const [mounted, setMounted] = useState(false)
-  const tasks = useTaskStore(s => s.tasks.filter(t => !t.deletedAt && t.status !== 'done'))
+  const tasks = useTaskStore(s => Array.isArray(s.tasks) ? s.tasks.filter(t => !t.deletedAt && t.status !== 'done') : [])
   const {
     mode,
     duration,
@@ -68,9 +68,9 @@ export function FocusDashboard() {
     return () => clearInterval(interval)
   }, [isActive, timeLeft, tick, pause, duration, mode, taskId, completeSession])
 
-  const displayTime = mode === 'stopwatch' ? elapsedTime : timeLeft
-  const minutes = Math.floor(displayTime / 60)
-  const seconds = displayTime % 60
+  const displayTime = (mode === 'stopwatch' ? elapsedTime : timeLeft) || 0
+  const minutes = Math.floor(displayTime / 60) || 0
+  const seconds = displayTime % 60 || 0
   const formattedTime = `${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`
 
   const handleStopwatchComplete = () => {
@@ -91,11 +91,12 @@ export function FocusDashboard() {
   }
 
   // Calculate progress circle stroke dasharray
-  const progress = mode === 'stopwatch' ? 100 : (timeLeft / duration) * 100
+  const safeDuration = duration && duration > 0 ? duration : 1
+  const rawProgress = mode === 'stopwatch' ? 100 : (timeLeft / safeDuration) * 100
+  const progress = isNaN(rawProgress) || !isFinite(rawProgress) ? 0 : rawProgress
   const circleRadius = 120
   const circleCircumference = 2 * Math.PI * circleRadius
-  const strokeDashoffset =
-    mode === 'stopwatch' ? 0 : circleCircumference - (progress / 100) * circleCircumference
+  const strokeDashoffset = mode === 'stopwatch' ? 0 : circleCircumference - (progress / 100) * circleCircumference
 
   if (!mounted) {
     return <div className="flex items-center justify-center min-h-[70vh]"><div className="animate-pulse w-80 h-80 rounded-full bg-secondary/30" /></div>
