@@ -20,19 +20,22 @@ export function GlobalTimer() {
 
   // The timer tick effect
   useEffect(() => {
+    // If we are on the focus page, let FocusDashboard handle the ticking to avoid double ticks
+    if (pathname === '/focus') return
+
     let interval: NodeJS.Timeout
-    if (isActive && timeLeft > 0) {
+    if (isActive && (timeLeft > 0 || mode === 'stopwatch')) {
       interval = setInterval(() => {
         tick()
       }, 1000)
-    } else if (isActive && timeLeft <= 0) {
+    } else if (isActive && timeLeft <= 0 && mode !== 'stopwatch') {
       // Session finished logic
       pause()
       const durationMinutes = Math.floor(duration / 60)
       
       saveFocusSession(durationMinutes, mode, taskId)
         .then(() => {
-          if (mode === 'pomodoro' || mode === 'deep_work') {
+          if (mode === 'pomodoro' || mode === 'deep_work' || mode === 'custom') {
             toast.success(`Session Complete!`, {
               description: `You focused for ${durationMinutes} minutes. Great job!`
             })
@@ -41,11 +44,12 @@ export function GlobalTimer() {
               description: 'Time to get back to work.'
             })
           }
+          useFocusStore.getState().completeSession()
         })
         .catch(console.error)
     }
     return () => clearInterval(interval)
-  }, [isActive, timeLeft, tick, pause, duration, mode, taskId])
+  }, [isActive, timeLeft, tick, pause, duration, mode, taskId, pathname])
 
   // Do not show the floating timer if we are on the dedicated /focus page
   if (pathname === '/focus') return null
