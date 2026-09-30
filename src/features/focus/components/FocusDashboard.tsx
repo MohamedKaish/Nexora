@@ -107,11 +107,11 @@ export function FocusDashboard() {
   return (
     <div className="flex flex-col items-center justify-center min-h-[70vh] animate-in fade-in zoom-in-95 duration-500">
       {/* Mode Selector */}
-      <div className="flex bg-secondary/30 p-1.5 rounded-full mb-8 backdrop-blur-xl border border-white/5 shadow-sm flex-wrap justify-center">
+      <div className="flex bg-secondary/30 p-1.5 rounded-3xl md:rounded-full mb-8 backdrop-blur-xl border border-white/5 shadow-sm flex-wrap justify-center gap-1 md:gap-0">
         <Button
           variant={mode === 'pomodoro' ? 'default' : 'ghost'}
           onClick={() => setMode('pomodoro')}
-          className={`rounded-full px-6 transition-all duration-300 font-bold ${
+          className={`rounded-full px-3 py-1 text-xs sm:text-sm md:px-6 transition-all duration-300 font-bold ${
             mode === 'pomodoro'
               ? 'bg-primary text-primary-foreground shadow-[0_4px_14px_0_rgba(99,102,241,0.39)]'
               : 'text-muted-foreground hover:text-foreground hover:bg-secondary/50'
@@ -122,7 +122,7 @@ export function FocusDashboard() {
         <Button
           variant={mode === 'short_break' ? 'default' : 'ghost'}
           onClick={() => setMode('short_break')}
-          className={`rounded-full px-6 transition-all duration-300 font-bold ${
+          className={`rounded-full px-3 py-1 text-xs sm:text-sm md:px-6 transition-all duration-300 font-bold ${
             mode === 'short_break'
               ? 'bg-brand-emerald text-white shadow-[0_4px_14px_0_rgba(16,185,129,0.39)] hover:bg-brand-emerald/90'
               : 'text-muted-foreground hover:text-foreground hover:bg-secondary/50'
@@ -133,7 +133,7 @@ export function FocusDashboard() {
         <Button
           variant={mode === 'long_break' ? 'default' : 'ghost'}
           onClick={() => setMode('long_break')}
-          className={`rounded-full px-6 transition-all duration-300 font-bold ${
+          className={`rounded-full px-3 py-1 text-xs sm:text-sm md:px-6 transition-all duration-300 font-bold ${
             mode === 'long_break'
               ? 'bg-brand-blue text-white shadow-[0_4px_14px_0_rgba(59,130,246,0.39)] hover:bg-brand-blue/90'
               : 'text-muted-foreground hover:text-foreground hover:bg-secondary/50'
@@ -144,7 +144,7 @@ export function FocusDashboard() {
         <Button
           variant={mode === 'deep_work' ? 'default' : 'ghost'}
           onClick={() => setMode('deep_work')}
-          className={`rounded-full px-6 transition-all duration-300 font-bold ${
+          className={`rounded-full px-3 py-1 text-xs sm:text-sm md:px-6 transition-all duration-300 font-bold ${
             mode === 'deep_work'
               ? 'bg-brand-purple text-white shadow-[0_4px_14px_0_rgba(168,85,247,0.39)] hover:bg-brand-purple/90'
               : 'text-muted-foreground hover:text-foreground hover:bg-secondary/50'
@@ -155,7 +155,7 @@ export function FocusDashboard() {
         <Button
           variant={mode === 'stopwatch' ? 'default' : 'ghost'}
           onClick={() => setMode('stopwatch')}
-          className={`rounded-full px-6 transition-all duration-300 font-bold ${
+          className={`rounded-full px-3 py-1 text-xs sm:text-sm md:px-6 transition-all duration-300 font-bold ${
             mode === 'stopwatch'
               ? 'bg-amber-500 text-white shadow-[0_4px_14px_0_rgba(245,158,11,0.39)] hover:bg-amber-600/90'
               : 'text-muted-foreground hover:text-foreground hover:bg-secondary/50'
@@ -187,8 +187,8 @@ export function FocusDashboard() {
       )}
 
       {/* Timer Circle Display */}
-      <div className="relative w-80 h-80 flex items-center justify-center mb-12 group">
-        <svg className="absolute inset-0 w-full h-full transform -rotate-90">
+      <div className="relative w-64 h-64 sm:w-80 sm:h-80 flex items-center justify-center mb-8 md:mb-12 group">
+        <svg className="absolute inset-0 w-full h-full transform -rotate-90" viewBox="0 0 320 320">
           <circle cx="160" cy="160" r={circleRadius} className="stroke-secondary fill-none" strokeWidth="8" />
           <circle
             cx="160"
@@ -214,10 +214,10 @@ export function FocusDashboard() {
           />
         </svg>
         <div className="flex flex-col items-center justify-center z-10">
-          <h1 className="text-7xl font-bold tracking-tighter text-foreground mb-2 drop-shadow-sm">
+          <h1 className="text-5xl sm:text-7xl font-bold tracking-tighter text-foreground mb-1 sm:mb-2 drop-shadow-sm">
             {formattedTime}
           </h1>
-          <span className="text-sm font-medium text-muted-foreground uppercase tracking-widest">
+          <span className="text-xs sm:text-sm font-medium text-muted-foreground uppercase tracking-widest">
             {mode ? mode.replace('_', ' ') : 'POMODORO'}
           </span>
         </div>
