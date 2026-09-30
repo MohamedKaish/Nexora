@@ -11,7 +11,7 @@ import { useTaskStore } from '@/store/useTaskStore'
 
 export function FocusDashboard() {
   const [mounted, setMounted] = useState(false)
-  const tasks = useTaskStore(s => Array.isArray(s.tasks) ? s.tasks.filter(t => !t.deletedAt && t.status !== 'done') : [])
+  const tasks = useTaskStore(s => Array.isArray(s.tasks) ? s.tasks.filter(t => t && !t.deletedAt && t.status !== 'done') : [])
   const {
     mode,
     duration,
@@ -45,7 +45,7 @@ export function FocusDashboard() {
       }, 1000)
     } else if (isActive && timeLeft <= 0 && mode !== 'stopwatch') {
       pause()
-      const durationMinutes = Math.floor(duration / 60)
+      const durationMinutes = Math.floor((duration || 0) / 60)
 
       saveFocusSession(durationMinutes, mode, taskId)
         .then(() => {
@@ -67,16 +67,16 @@ export function FocusDashboard() {
         })
     }
     return () => clearInterval(interval)
-  }, [isActive, timeLeft, tick, pause, duration, mode, taskId, completeSession])
+  }, [isActive, timeLeft, tick, pause, duration, mode, taskId, completeSession, mounted])
 
   const displayTime = (mode === 'stopwatch' ? elapsedTime : timeLeft) || 0
   const minutes = Math.floor(displayTime / 60) || 0
   const seconds = displayTime % 60 || 0
-  const formattedTime = `${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`
+  const formattedTime = `${(minutes || 0).toString().padStart(2, '0')}:${(seconds || 0).toString().padStart(2, '0')}`
 
   const handleStopwatchComplete = () => {
     pause()
-    const durationMinutes = Math.floor(elapsedTime / 60)
+    const durationMinutes = Math.floor((elapsedTime || 0) / 60)
     saveFocusSession(durationMinutes, mode, taskId)
       .then(() => {
         toast.success('Stopwatch Session Complete!', {
@@ -93,7 +93,7 @@ export function FocusDashboard() {
 
   // Calculate progress circle stroke dasharray
   const safeDuration = duration && duration > 0 ? duration : 1
-  const rawProgress = mode === 'stopwatch' ? 100 : (timeLeft / safeDuration) * 100
+  const rawProgress = mode === 'stopwatch' ? 100 : ((timeLeft || 0) / safeDuration) * 100
   const progress = isNaN(rawProgress) || !isFinite(rawProgress) ? 0 : rawProgress
   const circleRadius = 120
   const circleCircumference = 2 * Math.PI * circleRadius
@@ -178,7 +178,7 @@ export function FocusDashboard() {
             </option>
             {tasks.map((t) => (
               <option key={t.id} value={t.id} className="bg-card text-foreground">
-                {t.title}
+                {t?.title || 'Untitled Task'}
               </option>
             ))}
           </select>
@@ -217,7 +217,7 @@ export function FocusDashboard() {
             {formattedTime}
           </h1>
           <span className="text-sm font-medium text-muted-foreground uppercase tracking-widest">
-            {mode.replace('_', ' ')}
+            {mode ? mode.replace('_', ' ') : 'POMODORO'}
           </span>
         </div>
       </div>

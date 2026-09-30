@@ -61,9 +61,9 @@ export function GlobalTimer() {
   if (pathname === '/login' || pathname === '/register' || pathname === '/') return null
 
   // Format time (MM:SS)
-  const minutes = Math.floor(timeLeft / 60)
-  const seconds = timeLeft % 60
-  const formattedTime = `${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`
+  const minutes = Math.floor((timeLeft || 0) / 60)
+  const seconds = (timeLeft || 0) % 60
+  const formattedTime = `${(minutes || 0).toString().padStart(2, '0')}:${(seconds || 0).toString().padStart(2, '0')}`
 
   // Only show if user has interacted with it or we want it persistent. 
   // For Sprint 2: Global floating mini timer that persists.
@@ -76,7 +76,7 @@ export function GlobalTimer() {
         <div className="flex items-center gap-3 bg-secondary/50 rounded-full py-1.5 px-4 font-mono">
           <div className="flex flex-col">
             <span className="text-xs text-muted-foreground uppercase tracking-wider font-semibold leading-none mb-1">
-              {mode.replace('_', ' ')}
+              {mode ? mode.replace('_', ' ') : 'POMODORO'}
             </span>
             <span className={`text-lg font-bold leading-none ${isActive ? 'text-primary animate-pulse' : 'text-foreground'}`}>
               {formattedTime}
