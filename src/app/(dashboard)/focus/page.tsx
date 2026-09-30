@@ -1,4 +1,5 @@
 import { FocusDashboard } from '@/features/focus/components/FocusDashboard'
+import { ErrorBoundary } from '@/components/ErrorBoundary'
 import { Metadata } from 'next'
 
 export const metadata: Metadata = {
@@ -17,7 +18,9 @@ export default function FocusPage() {
       </div>
 
       <div className="max-w-4xl mx-auto mt-10">
-        <FocusDashboard />
+        <ErrorBoundary>
+          <FocusDashboard />
+        </ErrorBoundary>
       </div>
     </div>
   )
