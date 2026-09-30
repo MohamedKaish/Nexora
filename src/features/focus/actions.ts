@@ -7,7 +7,7 @@ import type { FocusMode } from './types'
 export async function getFocusSessions(limit = 20) {
   const supabase = await createClient()
   const { data: { user } } = await getUser()
-  if (!user) throw new Error('Unauthorized')
+  if (!user) return []
 
   const { data, error } = await supabase
     .from('focus_sessions')
@@ -26,7 +26,7 @@ export async function getFocusSessions(limit = 20) {
 export async function getFocusStats() {
   const supabase = await createClient()
   const { data: { user } } = await getUser()
-  if (!user) throw new Error('Unauthorized')
+  if (!user) return { todayMinutes: 0, todaySessions: 0, totalMinutes: 0 }
 
   const todayStr = new Date().toISOString().split('T')[0]
 
@@ -71,7 +71,9 @@ export async function saveFocusSession(
 
   const supabase = await createClient()
   const { data: { user } } = await getUser()
-  if (!user) throw new Error('Unauthorized')
+  if (!user) {
+    return { success: true, durationMinutes: mins, guest: true }
+  }
 
   const date = new Date().toISOString().split('T')[0]
 
