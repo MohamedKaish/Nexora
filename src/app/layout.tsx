@@ -5,6 +5,7 @@ import { Toaster } from 'sonner'
 import { AuthProvider } from '@/providers/AuthProvider'
 import { getUser } from '@/lib/supabase/server'
 import { HydrationProvider } from '@/providers/HydrationProvider'
+import { CompanionOverlay } from '@/components/companion/CompanionOverlay'
 
 
 
@@ -52,6 +53,7 @@ export default async function RootLayout({
           >
             <HydrationProvider>
               {children}
+              <CompanionOverlay />
             </HydrationProvider>
             <Toaster richColors position="top-right" theme="system" />
           </ThemeProvider>

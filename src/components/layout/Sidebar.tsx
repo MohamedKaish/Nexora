@@ -41,7 +41,7 @@ export function Sidebar() {
   const pathname = usePathname()
   const agentName = useAgentStore((s) => s.config.name)
 
-  const renderNavItem = (item: { href: string; label: string; icon: React.ElementType }) => {
+  const renderNavItem = (item: { href: string; label: string; icon: React.ElementType<{ className?: string }> }) => {
     const isActive = pathname === item.href || pathname.startsWith(`${item.href}/`)
     const label = item.href === '/agent' ? agentName : item.label
 
