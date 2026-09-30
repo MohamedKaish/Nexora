@@ -111,11 +111,11 @@ export const useFocusStore = create<FocusState>()(
           } else {
             nextMode = 'short_break'
           }
-          autoStart = true
+          autoStart = false
         } else {
           // Break just finished, start work
           nextMode = 'pomodoro'
-          autoStart = true
+          autoStart = false
         }
         
         const nextDuration = DEFAULT_DURATIONS[nextMode]

@@ -44,6 +44,7 @@ export function FocusDashboard() {
         tick()
       }, 1000)
     } else if (isActive && timeLeft <= 0 && mode !== 'stopwatch') {
+      pause()
       const durationMinutes = Math.floor(duration / 60)
 
       saveFocusSession(durationMinutes, mode, taskId)
