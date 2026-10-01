@@ -12,7 +12,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Checkbox } from '@/components/ui/checkbox'
 import {
   Plus, Search, CheckCircle2, Circle, Trash2, Edit2,
-  Calendar, Flag, ListTodo, LayoutGrid
+  Calendar, Flag, ListTodo, LayoutGrid, Repeat
 } from 'lucide-react'
 import { useTaskStore } from '@/store/useTaskStore'
 import { useProjectStore } from '@/store/useProjectStore'
@@ -50,12 +50,14 @@ export default function TasksPage() {
   const [newPriority, setNewPriority] = useState<TaskPriority>('medium')
   const [newDueDate, setNewDueDate] = useState('')
   const [newProjectId, setNewProjectId] = useState<string>('')
+  const [newRecurrence, setNewRecurrence] = useState<string>('none')
 
   // Edit form state
   const [editTitle, setEditTitle] = useState('')
   const [editDescription, setEditDescription] = useState('')
   const [editPriority, setEditPriority] = useState<TaskPriority>('medium')
   const [editDueDate, setEditDueDate] = useState('')
+  const [editRecurrence, setEditRecurrence] = useState<string>('none')
 
   const activeTasks = tasks.filter(t => !t.deletedAt)
 
@@ -93,12 +95,14 @@ export default function TasksPage() {
       priority: newPriority,
       dueDate: newDueDate || null,
       projectId: newProjectId || null,
+      recurrenceRule: newRecurrence === 'none' ? null : newRecurrence,
     })
     setNewTitle('')
     setNewDescription('')
     setNewPriority('medium')
     setNewDueDate('')
     setNewProjectId('')
+    setNewRecurrence('none')
     setIsCreateOpen(false)
   }
 
@@ -109,6 +113,7 @@ export default function TasksPage() {
     setEditDescription(task.description || '')
     setEditPriority(task.priority)
     setEditDueDate(task.dueDate || (task as unknown as Record<string, unknown>).due_date as string || '')
+    setEditRecurrence(task.recurrenceRule || 'none')
     setEditingTask(taskId)
   }
 
@@ -119,6 +124,7 @@ export default function TasksPage() {
       description: editDescription.trim() || null,
       priority: editPriority,
       dueDate: editDueDate || null,
+      recurrenceRule: editRecurrence === 'none' ? null : editRecurrence,
     })
     setEditingTask(null)
   }
@@ -137,9 +143,11 @@ export default function TasksPage() {
           </p>
         </div>
         <Dialog open={isCreateOpen} onOpenChange={setIsCreateOpen}>
-          <DialogTrigger render={<Button className="rounded-xl bg-accent text-white hover:bg-accent/90 font-medium gap-1.5 cursor-pointer transition-all" />}>
-            <Plus className="w-4 h-4" />
-            New Task
+          <DialogTrigger asChild>
+            <Button className="rounded-xl bg-accent text-white hover:bg-accent/90 font-medium gap-1.5 cursor-pointer transition-all">
+              <Plus className="w-4 h-4" />
+              New Task
+            </Button>
           </DialogTrigger>
           <DialogContent className="rounded-2xl">
             <DialogHeader>
@@ -160,17 +168,28 @@ export default function TasksPage() {
                 </Select>
                 <Input type="date" value={newDueDate} onChange={e => setNewDueDate(e.target.value)} className="rounded-xl" />
               </div>
-              {projects.length > 0 && (
-                <Select value={newProjectId} onValueChange={(v) => setNewProjectId(v || '')}>
-                  <SelectTrigger className="rounded-xl"><SelectValue placeholder="Project (optional)" /></SelectTrigger>
+              <div className="grid grid-cols-2 gap-3">
+                <Select value={newRecurrence} onValueChange={v => setNewRecurrence(v)}>
+                  <SelectTrigger className="rounded-xl"><SelectValue placeholder="Recurrence" /></SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="none">No project</SelectItem>
-                    {projects.map(p => (
-                      <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>
-                    ))}
+                    <SelectItem value="none">One-time</SelectItem>
+                    <SelectItem value="daily">Daily</SelectItem>
+                    <SelectItem value="weekly">Weekly</SelectItem>
+                    <SelectItem value="monthly">Monthly</SelectItem>
                   </SelectContent>
                 </Select>
-              )}
+                {projects.length > 0 && (
+                  <Select value={newProjectId} onValueChange={(v) => setNewProjectId(v || '')}>
+                    <SelectTrigger className="rounded-xl"><SelectValue placeholder="Project (optional)" /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="none">No project</SelectItem>
+                      {projects.map(p => (
+                        <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                )}
+              </div>
             </div>
             <DialogFooter>
               <Button onClick={handleCreate} className="rounded-xl bg-accent text-white hover:bg-accent/90 cursor-pointer">Create Task</Button>
@@ -250,9 +269,14 @@ export default function TasksPage() {
 
                 {/* Content */}
                 <div className="flex-1 min-w-0">
-                  <p className={`text-sm font-semibold truncate ${task.status === 'done' ? 'line-through text-muted-foreground' : 'text-foreground'}`}>
-                    {task.title}
-                  </p>
+                  <div className="flex items-center gap-2">
+                    <p className={`text-sm font-semibold truncate ${task.status === 'done' ? 'line-through text-muted-foreground' : 'text-foreground'}`}>
+                      {task.title}
+                    </p>
+                    {task.recurrenceRule && task.status !== 'done' && (
+                      <Repeat className="w-3.5 h-3.5 text-muted-foreground" title={`Repeats ${task.recurrenceRule}`} />
+                    )}
+                  </div>
                   {task.description && (
                     <p className="text-xs text-muted-foreground truncate mt-0.5">{task.description}</p>
                   )}
@@ -301,6 +325,17 @@ export default function TasksPage() {
                 </SelectContent>
               </Select>
               <Input type="date" value={editDueDate} onChange={e => setEditDueDate(e.target.value)} className="rounded-xl" />
+            </div>
+            <div className="grid grid-cols-1 gap-3">
+              <Select value={editRecurrence} onValueChange={v => setEditRecurrence(v)}>
+                <SelectTrigger className="rounded-xl"><SelectValue placeholder="Recurrence" /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="none">One-time</SelectItem>
+                  <SelectItem value="daily">Daily</SelectItem>
+                  <SelectItem value="weekly">Weekly</SelectItem>
+                  <SelectItem value="monthly">Monthly</SelectItem>
+                </SelectContent>
+              </Select>
             </div>
           </div>
           <DialogFooter>
