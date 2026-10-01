@@ -12,7 +12,6 @@ import { updateProject } from '@/features/projects/actions'
 import { EventClickArg, EventDropArg, DateSelectArg } from '@fullcalendar/core'
 import { EventResizeDoneArg, Draggable, EventReceiveArg } from '@fullcalendar/interaction'
 import { useEffect, useRef, useState } from 'react'
-import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card'
 import { detectConflicts } from '../utils/conflictDetector'
 import { TimelineBlock } from '@/types/timeline'
 
@@ -38,13 +37,13 @@ export function FullCalendarView({ tasks, projects, events, timetableSlots, habi
   useEffect(() => {
     if (externalEventsRef.current) {
       new Draggable(externalEventsRef.current, {
-        itemSelector: '.fc-event',
+        itemSelector: '.fc-event-drag',
         eventData: function(eventEl) {
           return {
             id: eventEl.getAttribute('data-id'),
             title: eventEl.innerText,
-            backgroundColor: '#F59E0B',
-            borderColor: '#D97706',
+            backgroundColor: '#D4A853',
+            borderColor: '#B07D2F',
             create: true
           }
         }
@@ -54,7 +53,6 @@ export function FullCalendarView({ tasks, projects, events, timetableSlots, habi
 
   const unscheduledTasks = tasks.filter(t => !t.due_date && t.status !== 'done')
 
-  // Map data to FullCalendar events
   const calendarEvents = [
     ...events.map(e => ({
       id: `event-${e.id}`,
@@ -62,47 +60,42 @@ export function FullCalendarView({ tasks, projects, events, timetableSlots, habi
       start: e.start_time,
       end: e.end_time,
       allDay: e.is_all_day,
-      backgroundColor: '#6366F1',
-      borderColor: '#4F46E5'
+      backgroundColor: '#60A5FA',
+      borderColor: '#3B82F6'
     })),
     ...tasks.filter(t => t.due_date).map(t => ({
       id: `task-${t.id}`,
       title: t.title,
       start: t.due_date as string,
       allDay: true,
-      backgroundColor: t.status === 'done' ? '#10B981' : '#F59E0B',
-      borderColor: t.status === 'done' ? '#059669' : '#D97706'
+      backgroundColor: t.status === 'done' ? '#34D399' : '#D4A853',
+      borderColor: t.status === 'done' ? '#10B981' : '#B07D2F'
     })),
     ...projects.filter(p => p.due_date).map(p => ({
       id: `project-${p.id}`,
       title: `Project: ${p.name}`,
       start: p.due_date as string,
       allDay: true,
-      backgroundColor: p.color || '#3B82F6',
-      borderColor: p.color || '#2563EB'
+      backgroundColor: p.color || '#A78BFA',
+      borderColor: p.color || '#8B5CF6'
     })),
-    ...timetableSlots.map(s => {
-      // Map dayOfWeek (0 = Monday in our DB usually? Or 0 = Sunday)
-      // FullCalendar: 0=Sunday, 1=Monday
-      // Assuming DB day_of_week is 0-6 where 0=Sunday
-      return {
-        id: `timetable-${s.id}`,
-        title: s.label,
-        start: s.start_time,
-        end: s.end_time,
-        daysOfWeek: [s.day_of_week],
-        backgroundColor: s.color || '#8B5CF6',
-        borderColor: s.color || '#7C3AED'
-      }
-    }),
+    ...timetableSlots.map(s => ({
+      id: `timetable-${s.id}`,
+      title: s.label,
+      start: s.start_time,
+      end: s.end_time,
+      daysOfWeek: [s.day_of_week],
+      backgroundColor: s.color || '#A78BFA',
+      borderColor: s.color || '#8B5CF6'
+    })),
     ...habits.flatMap(h => 
       h.habit_completions.map(c => ({
         id: `habit-${c.id}`,
         title: `Habit: ${h.name}`,
         start: c.completed_date,
         allDay: true,
-        backgroundColor: h.color || '#10B981',
-        borderColor: h.color || '#059669'
+        backgroundColor: h.color || '#34D399',
+        borderColor: h.color || '#10B981'
       }))
     )
   ]
@@ -123,7 +116,7 @@ export function FullCalendarView({ tasks, projects, events, timetableSlots, habi
     if (conflicts[e.id]) {
       return {
         ...e,
-        borderColor: '#EF4444', // destructive red
+        borderColor: '#FB7185', 
         classNames: ['border-2', 'border-destructive', 'animate-pulse']
       }
     }
@@ -140,150 +133,133 @@ export function FullCalendarView({ tasks, projects, events, timetableSlots, habi
   }, [])
 
   return (
-    <div className="flex flex-col lg:flex-row gap-6">
+    <div className="flex flex-col lg:flex-row gap-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
       
       {/* External Events Sidebar */}
       <div className="w-full lg:w-64 shrink-0 space-y-4">
-        <Card className="bg-card/40 border-border/50 shadow-sm backdrop-blur-sm">
-          <CardHeader className="pb-3">
-            <CardTitle className="text-lg font-semibold">Unscheduled Tasks</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div ref={externalEventsRef} className="space-y-2">
-              {unscheduledTasks.length === 0 ? (
-                <p className="text-sm text-muted-foreground text-center py-4">All tasks scheduled!</p>
-              ) : (
-                unscheduledTasks.map(task => (
-                  <div 
-                    key={task.id}
-                    className="fc-event p-2 rounded-lg bg-orange-500/10 border border-orange-500/20 text-orange-600 text-sm font-medium cursor-grab active:cursor-grabbing hover:bg-orange-500/20 transition-colors"
-                    data-id={`task-${task.id}`}
-                  >
-                    {task.title}
-                  </div>
-                ))
-              )}
-            </div>
-          </CardContent>
-        </Card>
+        <div className="world-card p-5">
+          <div className="pb-3 border-b border-border/30 mb-3">
+            <h2 className="text-sm font-bold text-foreground">Unscheduled Tasks</h2>
+          </div>
+          <div ref={externalEventsRef} className="space-y-2 max-h-[300px] lg:max-h-[700px] overflow-y-auto custom-scrollbar pr-1">
+            {unscheduledTasks.length === 0 ? (
+              <p className="text-sm text-muted-foreground font-medium text-center py-4">All tasks scheduled!</p>
+            ) : (
+              unscheduledTasks.map(task => (
+                <div 
+                  key={task.id}
+                  className="fc-event-drag p-3 rounded-xl bg-accent/5 border border-accent/20 text-accent text-sm font-semibold cursor-grab active:cursor-grabbing hover:bg-accent/10 transition-colors shadow-sm"
+                  data-id={`task-${task.id}`}
+                >
+                  {task.title}
+                </div>
+              ))
+            )}
+          </div>
+        </div>
       </div>
 
       {/* Calendar */}
-      <div className="flex-1 glass-card bg-card/40 border-border/50 p-6 rounded-2xl shadow-sm h-[800px] fc-theme-standard" style={{
-      '--fc-border-color': 'var(--border)',
-      '--fc-page-bg-color': 'transparent',
-      '--fc-neutral-bg-color': 'var(--secondary)',
-      '--fc-neutral-text-color': 'var(--foreground)',
-      '--fc-today-bg-color': 'rgba(99, 102, 241, 0.1)',
-      '--fc-button-text-color': 'var(--foreground)',
-      '--fc-button-bg-color': 'var(--secondary)',
-      '--fc-button-border-color': 'var(--border)',
-      '--fc-button-hover-bg-color': 'var(--secondary)',
-      '--fc-button-hover-border-color': 'var(--border)',
-      '--fc-button-active-bg-color': 'rgba(99, 102, 241, 0.2)',
-      '--fc-button-active-border-color': 'var(--primary)',
-    } as React.CSSProperties}>
-      <FullCalendar
-        plugins={[dayGridPlugin, timeGridPlugin, interactionPlugin, listPlugin]}
-        initialView={isMobile ? "listWeek" : "timeGridWeek"}
-        headerToolbar={{
-          left: 'prev,next today',
-          center: 'title',
-          right: isMobile ? 'listWeek,timeGridDay' : 'dayGridMonth,timeGridWeek,timeGridDay,listWeek'
-        }}
-        events={finalCalendarEvents}
-        selectable={true}
-        selectMirror={true}
-        editable={true}
-        droppable={true}
-        eventReceive={async (info: EventReceiveArg) => {
-          const id = info.event.id
-          if (id.startsWith('task-')) {
-            try {
-              await updateTask(id.replace('task-', ''), {
-                due_date: info.event.startStr
-              })
-            } catch (err) {
-              console.error(err)
-              info.revert()
-              alert('Failed to schedule task')
-            }
-          }
-        }}
-        select={async (info: DateSelectArg) => {
-          const title = prompt('Please enter a new title for your event')
-          if (title) {
-            try {
-              await createCalendarEvent(title, info.startStr, info.endStr, info.allDay)
-            } catch (err) {
-              console.error(err)
-              alert('Failed to create event')
-            }
-          }
-        }}
-        eventDrop={async (info: EventDropArg) => {
-          const { event } = info
-          const id = event.id
-          try {
-            if (id.startsWith('event-')) {
-              await updateCalendarEvent(id.replace('event-', ''), {
-                start_time: event.startStr,
-                end_time: event.endStr || event.startStr,
-                is_all_day: event.allDay
-              })
-            } else if (id.startsWith('task-')) {
-              await updateTask(id.replace('task-', ''), {
-                due_date: event.startStr
-              })
-            } else if (id.startsWith('project-')) {
-              await updateProject(id.replace('project-', ''), {
-                due_date: event.startStr
-              })
-            }
-          } catch (err) {
-            console.error(err)
-            info.revert()
-            alert('Failed to move event')
-          }
-        }}
-        eventResize={async (info: EventResizeDoneArg) => {
-          const { event } = info
-          const id = event.id
-          try {
-            if (id.startsWith('event-')) {
-              await updateCalendarEvent(id.replace('event-', ''), {
-                start_time: event.startStr,
-                end_time: event.endStr || event.startStr,
-                is_all_day: event.allDay
-              })
-            } else {
-              // Tasks and Projects only have a due date (start), resize doesn't apply well, but we can update due_date
-              info.revert()
-              alert('Cannot resize tasks or projects. Drag them to change due date.')
-            }
-          } catch (err) {
-            console.error(err)
-            info.revert()
-          }
-        }}
-        eventClick={async (info: EventClickArg) => {
-          const id = info.event.id
-          if (id.startsWith('event-')) {
-            if (confirm(`Are you sure you want to delete the event '${info.event.title}'?`)) {
+      <div className="flex-1 world-card p-4 md:p-6 h-[600px] lg:h-[800px] fc-theme-standard">
+        <FullCalendar
+          plugins={[dayGridPlugin, timeGridPlugin, interactionPlugin, listPlugin]}
+          initialView={isMobile ? "listWeek" : "timeGridWeek"}
+          headerToolbar={{
+            left: 'prev,next today',
+            center: 'title',
+            right: isMobile ? 'listWeek,timeGridDay' : 'dayGridMonth,timeGridWeek,timeGridDay,listWeek'
+          }}
+          events={finalCalendarEvents}
+          selectable={true}
+          selectMirror={true}
+          editable={true}
+          droppable={true}
+          eventReceive={async (info: EventReceiveArg) => {
+            const id = info.event.id
+            if (id.startsWith('task-')) {
               try {
-                await deleteCalendarEvent(id.replace('event-', ''))
+                await updateTask(id.replace('task-', ''), {
+                  due_date: info.event.startStr
+                })
               } catch (err) {
                 console.error(err)
-                alert('Failed to delete event')
+                info.revert()
+                alert('Failed to schedule task')
               }
             }
-          } else {
-            // For tasks/projects, could route to details or open modal
-            alert(`This is a ${id.split('-')[0]}. Go to the respective page to edit details.`)
-          }
-        }}
-      />
-    </div>
+          }}
+          select={async (info: DateSelectArg) => {
+            const title = prompt('Please enter a new title for your event')
+            if (title) {
+              try {
+                await createCalendarEvent(title, info.startStr, info.endStr, info.allDay)
+              } catch (err) {
+                console.error(err)
+                alert('Failed to create event')
+              }
+            }
+          }}
+          eventDrop={async (info: EventDropArg) => {
+            const { event } = info
+            const id = event.id
+            try {
+              if (id.startsWith('event-')) {
+                await updateCalendarEvent(id.replace('event-', ''), {
+                  start_time: event.startStr,
+                  end_time: event.endStr || event.startStr,
+                  is_all_day: event.allDay
+                })
+              } else if (id.startsWith('task-')) {
+                await updateTask(id.replace('task-', ''), {
+                  due_date: event.startStr
+                })
+              } else if (id.startsWith('project-')) {
+                await updateProject(id.replace('project-', ''), {
+                  due_date: event.startStr
+                })
+              }
+            } catch (err) {
+              console.error(err)
+              info.revert()
+              alert('Failed to move event')
+            }
+          }}
+          eventResize={async (info: EventResizeDoneArg) => {
+            const { event } = info
+            const id = event.id
+            try {
+              if (id.startsWith('event-')) {
+                await updateCalendarEvent(id.replace('event-', ''), {
+                  start_time: event.startStr,
+                  end_time: event.endStr || event.startStr,
+                  is_all_day: event.allDay
+                })
+              } else {
+                info.revert()
+                alert('Cannot resize tasks or projects. Drag them to change due date.')
+              }
+            } catch (err) {
+              console.error(err)
+              info.revert()
+            }
+          }}
+          eventClick={async (info: EventClickArg) => {
+            const id = info.event.id
+            if (id.startsWith('event-')) {
+              if (confirm(`Are you sure you want to delete the event '${info.event.title}'?`)) {
+                try {
+                  await deleteCalendarEvent(id.replace('event-', ''))
+                } catch (err) {
+                  console.error(err)
+                  alert('Failed to delete event')
+                }
+              }
+            } else {
+              alert(`This is a ${id.split('-')[0]}. Go to the respective page to edit details.`)
+            }
+          }}
+        />
+      </div>
     </div>
   )
 }

@@ -5,12 +5,9 @@ import FullCalendar from '@fullcalendar/react'
 import timeGridPlugin from '@fullcalendar/timegrid'
 import dayGridPlugin from '@fullcalendar/daygrid'
 import listPlugin from '@fullcalendar/list'
-import { getTimelineBlocksForCalendar, getKyroSchedulingContext, saveTimelineBlocks } from '../actions'
 import { useKyroWorker } from '@/features/kyro/hooks/useKyroWorker'
 import { useTimelineStore } from '@/store/timelineStore'
 import { TimelineBlock } from '@/types/timeline'
-import { startOfWeek, endOfWeek } from 'date-fns'
-import { Card } from '@/components/ui/card'
 import { CalendarDays, ShieldAlert, Sparkles, AlertCircle } from 'lucide-react'
 import { toast } from 'sonner'
 
@@ -18,6 +15,7 @@ export type ReflowStatus = 'IDLE' | 'LOADING' | 'SUCCESS' | 'NO_CHANGE' | 'ERROR
 
 export function TimelineCalendarView() {
   const [events, setEvents] = useState<Record<string, unknown>[]>([])
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const [currentDate, setCurrentDate] = useState(new Date())
   const [isMobile, setIsMobile] = useState(false)
   const [isKyroRunning, setIsKyroRunning] = useState(false)
@@ -37,20 +35,20 @@ export function TimelineCalendarView() {
   const mapBlocksToEvents = React.useCallback((blocks: TimelineBlock[]): Record<string, unknown>[] => {
     return blocks.map(block => {
       const isFixed = block.type === 'calendar' || block.isFixed === true
-      let bg = '#6366F1'
-      let border = '#4F46E5'
+      let bg = 'var(--color-brand-blue)'
+      let border = 'var(--color-brand-blue)'
 
       if (isFixed) {
-        bg = 'hsl(var(--brand-emerald, 158 64% 52%))'
-        border = 'hsl(var(--brand-emerald, 158 64% 42%))'
+        bg = 'var(--color-brand-emerald)'
+        border = 'var(--color-brand-emerald)'
       } else if (block.type === 'task') {
         const priority = (block as unknown as { priority?: string }).priority
         if (priority === 'urgent' || priority === 'high') {
-          bg = '#EF4444'
-          border = '#DC2626'
+          bg = 'var(--color-brand-rose)'
+          border = 'var(--color-brand-rose)'
         } else if (priority === 'low') {
-          bg = '#10B981'
-          border = '#059669'
+          bg = 'var(--color-brand-amber)'
+          border = 'var(--color-brand-amber)'
         }
       }
 
@@ -71,7 +69,6 @@ export function TimelineCalendarView() {
   }, [])
 
   const loadData = React.useCallback(() => {
-    // Just use store blocks for events
     const calendarEvents = mapBlocksToEvents(useTimelineStore.getState().blocks)
     setEvents(calendarEvents)
   }, [mapBlocksToEvents])
@@ -90,14 +87,6 @@ export function TimelineCalendarView() {
     setReflowStatus('LOADING')
 
     try {
-      // 1. Gather local context
-      const context = {
-        tasks: [], // Would get from useTaskStore.getState().tasks
-        calendarBlocks: [],
-        habitBlocks: []
-      }
-
-      // 2. Mock Kyro Engine execution (since worker depends on server context)
       await new Promise(resolve => setTimeout(resolve, 1500))
       
       const computedBlocks = useTimelineStore.getState().blocks
@@ -113,9 +102,7 @@ export function TimelineCalendarView() {
       const taskBlocks = computedBlocks.filter(b => b.type === 'task')
       const calBlocks = computedBlocks.filter(b => b.type === 'calendar')
 
-      // Update Zustand state
       setStoreBlocks(computedBlocks)
-      
       setReflowStatus('SUCCESS')
       
       if (taskBlocks.length > 0) {
@@ -140,12 +127,12 @@ export function TimelineCalendarView() {
   }
 
   return (
-    <div className="flex flex-col gap-6 w-full animate-in fade-in zoom-in-95 duration-500">
+    <div className="flex flex-col gap-6 w-full animate-in fade-in slide-in-from-bottom-4 duration-500">
       
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
           <h2 className="text-3xl font-black tracking-tight flex items-center gap-2">
-            <CalendarDays className="h-8 w-8 text-primary" />
+            <CalendarDays className="h-8 w-8 text-accent" />
             Kyro Timeline
           </h2>
           <p className="text-muted-foreground font-medium mt-1">Your mathematically optimized schedule.</p>
@@ -155,10 +142,10 @@ export function TimelineCalendarView() {
           disabled={isKyroRunning}
           data-testid="kyro-reflow-button"
           data-status={reflowStatus}
-          className="bg-primary text-primary-foreground font-bold px-6 py-2.5 rounded-full shadow-[0_4px_14px_0_rgba(99,102,241,0.39)] hover:bg-primary/90 hover:scale-105 transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+          className="bg-accent text-accent-foreground font-bold px-6 py-2.5 rounded-2xl shadow-sm hover:bg-accent/90 hover:scale-105 transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2 cursor-pointer"
         >
           {isKyroRunning ? (
-            <div className="h-4 w-4 rounded-full border-2 border-white border-t-transparent animate-spin" />
+            <div className="h-4 w-4 rounded-full border-2 border-white/20 border-t-accent-foreground animate-spin" />
           ) : (
             <Sparkles className="h-4 w-4" />
           )}
@@ -166,26 +153,14 @@ export function TimelineCalendarView() {
         </button>
       </div>
 
-      <Card className="glass-card bg-card/40 border-border/50 p-6 rounded-2xl shadow-[0_8px_32px_rgba(0,0,0,0.1)] min-h-[700px] fc-theme-standard" style={{
-        '--fc-border-color': 'var(--border)',
-        '--fc-page-bg-color': 'transparent',
-        '--fc-neutral-bg-color': 'var(--secondary)',
-        '--fc-neutral-text-color': 'var(--foreground)',
-        '--fc-today-bg-color': 'rgba(99, 102, 241, 0.1)',
-        '--fc-button-text-color': 'var(--foreground)',
-        '--fc-button-bg-color': 'var(--secondary)',
-        '--fc-button-border-color': 'var(--border)',
-        '--fc-button-hover-bg-color': 'var(--secondary)',
-        '--fc-button-hover-border-color': 'var(--border)',
-        '--fc-button-active-bg-color': 'rgba(99, 102, 241, 0.2)',
-        '--fc-button-active-border-color': 'var(--primary)',
-      } as React.CSSProperties}>
+      <div className="world-card p-6 min-h-[700px] fc-theme-standard">
         <style suppressHydrationWarning>{`
           .fc-theme-standard td, .fc-theme-standard th, .fc-theme-standard .fc-scrollgrid {
-            border-color: hsl(var(--border) / 0.5) !important;
+            border-color: var(--color-border) !important;
+            opacity: 0.8;
           }
           .fc .fc-col-header-cell-cushion, .fc .fc-timegrid-slot-label-cushion {
-            color: hsl(var(--muted-foreground)) !important;
+            color: var(--color-muted-foreground) !important;
             font-weight: 600;
           }
           .fc-event {
@@ -199,24 +174,28 @@ export function TimelineCalendarView() {
             transform: translateY(-2px);
           }
           .fc .fc-button-primary {
-            background-color: hsl(var(--secondary)) !important;
-            border-color: hsl(var(--border)) !important;
-            color: hsl(var(--foreground)) !important;
-            border-radius: 10px;
+            background-color: var(--color-foreground) !important;
+            border-color: var(--color-border) !important;
+            color: var(--color-background) !important;
+            background: rgba(255, 255, 255, 0.04) !important;
+            color: var(--color-foreground) !important;
+            border-radius: 12px;
             text-transform: capitalize;
             font-weight: 600;
+            padding: 8px 16px;
+            box-shadow: none;
           }
           .fc .fc-button-primary:not(:disabled):active, .fc .fc-button-primary:not(:disabled).fc-button-active {
-            background-color: hsl(var(--primary)) !important;
-            color: hsl(var(--primary-foreground)) !important;
-            border-color: hsl(var(--primary)) !important;
+            background-color: var(--color-accent) !important;
+            color: var(--color-accent-foreground) !important;
+            border-color: var(--color-accent) !important;
           }
           .fc-timegrid-now-indicator-line {
-            border-color: hsl(var(--brand-rose)) !important;
+            border-color: var(--color-brand-rose) !important;
             border-width: 2px !important;
           }
           .fc-timegrid-now-indicator-arrow {
-            border-color: hsl(var(--brand-rose)) !important;
+            border-color: var(--color-brand-rose) !important;
             border-width: 6px !important;
           }
         `}</style>
@@ -242,20 +221,20 @@ export function TimelineCalendarView() {
             const type = arg.event.extendedProps?.type
             
             return (
-              <div className="flex flex-col overflow-hidden leading-tight text-white h-full justify-start text-[11px] pt-1 px-0.5">
+              <div className="flex flex-col overflow-hidden leading-tight text-white h-full justify-start text-[11px] pt-1 px-1">
                 <div className="flex items-center justify-between mb-0.5">
                   <span className="font-bold truncate pr-1">{arg.event.title}</span>
                   {type === 'conflict' && <ShieldAlert className="h-3 w-3 text-red-100 shrink-0" />}
                 </div>
                 
-                <div className="flex items-center gap-1.5 opacity-90 text-[9px] uppercase tracking-wider font-semibold">
+                <div className="flex items-center gap-1.5 opacity-90 text-[9px] uppercase tracking-widest font-bold">
                   {isFixed ? (
-                    <span className="bg-black/20 px-1.5 py-0.5 rounded">Fixed</span>
+                    <span className="bg-black/30 px-1.5 py-0.5 rounded-sm">Fixed</span>
                   ) : (
-                    <span className="bg-black/20 px-1.5 py-0.5 rounded">Fluid</span>
+                    <span className="bg-black/30 px-1.5 py-0.5 rounded-sm">Fluid</span>
                   )}
                   {type === 'conflict' && (
-                    <span className="bg-red-500/50 px-1.5 py-0.5 rounded text-white flex items-center gap-0.5">
+                    <span className="bg-red-500/80 px-1.5 py-0.5 rounded-sm text-white flex items-center gap-0.5">
                       <AlertCircle className="h-2.5 w-2.5" /> Conflict
                     </span>
                   )}
@@ -264,7 +243,7 @@ export function TimelineCalendarView() {
             )
           }}
         />
-      </Card>
+      </div>
     </div>
   )
 }

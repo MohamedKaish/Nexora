@@ -1,43 +1,30 @@
 'use client'
 
-import { useFocusStore } from '@/store/useFocusStore'
 import { Sidebar } from './Sidebar'
-export function AppShell({ children, header, accentColor }: { children: React.ReactNode, header: React.ReactNode, accentColor: string }) {
-  const isFullScreen = useFocusStore((state) => state.isFullScreen)
+import { MobileNav } from './MobileNav'
+import { WorldBackground } from '@/features/companion/WorldBackground'
 
-  if (isFullScreen) {
-    return (
-      <div 
-        className="min-h-screen w-full bg-background relative z-0 flex flex-col"
-        style={{
-          '--primary': accentColor,
-          '--ring': accentColor,
-        } as React.CSSProperties}
-      >
-        <main className="flex flex-1 flex-col relative z-0 items-center justify-center min-h-screen">
-          {children}
-        </main>
-      </div>
-    )
-  }
+interface AppShellProps {
+  children: React.ReactNode
+}
 
+export function AppShell({ children }: AppShellProps) {
   return (
-    <div 
-      className="grid min-h-screen w-full md:grid-cols-[256px_1fr]"
-      style={{
-        '--primary': accentColor,
-        '--ring': accentColor,
-        '--sidebar-primary': accentColor,
-        '--sidebar-ring': accentColor,
-      } as React.CSSProperties}
-    >
-      <Sidebar />
-      <div className="flex flex-col min-w-0">
-        {header}
-        <main className="flex flex-1 flex-col gap-4 p-4 lg:gap-6 lg:p-6 bg-background relative z-0 min-w-0">
-          {children}
+    <WorldBackground variant="default">
+      <div className="flex min-h-screen">
+        {/* Desktop Sidebar */}
+        <Sidebar />
+        
+        {/* Main Content */}
+        <main className="flex-1 flex flex-col min-h-screen overflow-hidden pb-20 md:pb-0">
+          <div className="flex-1 page-enter">
+            {children}
+          </div>
         </main>
+
+        {/* Mobile Bottom Nav */}
+        <MobileNav />
       </div>
-    </div>
+    </WorldBackground>
   )
 }

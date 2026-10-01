@@ -71,17 +71,17 @@ export function WeeklySchedule({
 
   return (
     <>
-      <div className="glass-card border-white/5 rounded-[24px] overflow-hidden overflow-x-auto shadow-[0_8px_32px_rgba(0,0,0,0.2)]">
+      <div className="world-card overflow-hidden overflow-x-auto shadow-sm animate-in fade-in slide-in-from-bottom-4 duration-500">
         <div className="min-w-[800px]">
           {/* Header */}
-          <div className="grid grid-cols-8 border-b border-white/10 bg-secondary/30 backdrop-blur-sm">
-            <div className="p-4 border-r border-white/5 text-[11px] uppercase tracking-widest font-bold text-muted-foreground/80 text-center flex items-center justify-center">
+          <div className="grid grid-cols-8 border-b border-border/40 bg-foreground/[0.02]">
+            <div className="p-4 border-r border-border/20 text-[10px] uppercase tracking-widest font-bold text-muted-foreground/80 text-center flex items-center justify-center">
               Time
             </div>
             {DAYS.map((day) => (
               <div
                 key={day}
-                className="p-4 border-r border-white/5 last:border-r-0 text-[14px] font-bold text-foreground text-center"
+                className="p-4 border-r border-border/20 last:border-r-0 text-sm font-bold text-foreground text-center"
               >
                 {day}
               </div>
@@ -93,17 +93,17 @@ export function WeeklySchedule({
             {hours.map((hour) => (
               <div
                 key={hour}
-                className="grid grid-cols-8 border-b border-white/5 last:border-b-0 h-16 group/row hover:bg-secondary/20 transition-colors duration-300"
+                className="grid grid-cols-8 border-b border-border/20 last:border-b-0 h-16 group/row hover:bg-foreground/[0.02] transition-colors duration-300"
               >
-                <div className="border-r border-white/5 p-2 text-xs font-medium text-muted-foreground text-right relative flex items-start justify-end">
-                  <span className="absolute -top-2.5 right-3 bg-background px-2 py-0.5 rounded-[6px] text-[10px] uppercase tracking-wider shadow-sm border border-white/10 z-10 font-bold">
+                <div className="border-r border-border/20 p-2 text-xs font-medium text-muted-foreground text-right relative flex items-start justify-end">
+                  <span className="absolute -top-2.5 right-3 bg-card px-2 py-0.5 rounded-md text-[10px] uppercase tracking-widest shadow-sm border border-border/30 z-10 font-bold">
                     {hour > 12 ? `${hour - 12} PM` : hour === 12 ? '12 PM' : `${hour} AM`}
                   </span>
                 </div>
                 {DAYS.map((day) => (
                   <div
                     key={day}
-                    className="border-r border-white/5 last:border-r-0 relative border-dashed opacity-30"
+                    className="border-r border-border/20 last:border-r-0 relative border-dashed opacity-30"
                   />
                 ))}
               </div>
@@ -116,7 +116,7 @@ export function WeeklySchedule({
                 const targetDayOfWeek = getDayOfWeek(dayIdx)
                 const daySlots = slots.filter((s) => s.day_of_week === targetDayOfWeek)
                 return (
-                  <div key={day} className="relative border-r last:border-r-0 pointer-events-auto">
+                  <div key={day} className="relative border-r border-transparent last:border-r-0 pointer-events-auto">
                     {daySlots.map((slot) => {
                       const [startHour, startMin] = slot.start_time.split(':').map(Number)
                       const [endHour, endMin] = slot.end_time.split(':').map(Number)
@@ -130,18 +130,18 @@ export function WeeklySchedule({
                         <div
                           key={slot.id}
                           onClick={() => handleSlotClick(slot)}
-                          className="absolute w-[92%] left-[4%] rounded-xl p-2.5 text-xs overflow-hidden shadow-[0_4px_12px_rgba(0,0,0,0.2)] transition-all duration-300 hover:scale-[1.03] hover:shadow-[0_8px_20px_rgba(0,0,0,0.3)] hover:z-20 group border border-white/10 cursor-pointer"
+                          className="absolute w-[92%] left-[4%] rounded-xl p-2.5 text-xs overflow-hidden shadow-sm transition-all duration-300 hover:scale-[1.03] hover:shadow-md hover:z-20 group border border-white/10 cursor-pointer backdrop-blur-md"
                           style={{
                             top: `${startPos * 64 + 2}px`,
                             height: `${Math.max(28, duration * 64 - 4)}px`,
-                            backgroundColor: slot.color,
+                            backgroundColor: slot.color || 'var(--color-brand-blue)',
                             color: '#fff',
                             backgroundImage:
                               'linear-gradient(to bottom right, rgba(255,255,255,0.15), transparent)',
                           }}
                         >
                           <div className="flex items-center justify-between">
-                            <div className="font-bold tracking-tight truncate pr-2 text-[13px] drop-shadow-sm">
+                            <div className="font-bold tracking-tight truncate pr-2 text-xs drop-shadow-sm">
                               {slot.label}
                             </div>
                             <div className="flex items-center space-x-1 opacity-0 group-hover:opacity-100 transition-opacity">
@@ -160,13 +160,13 @@ export function WeeklySchedule({
                                 variant="ghost"
                                 size="icon"
                                 onClick={(e) => handleDelete(slot.id, e)}
-                                className="h-6 w-6 text-white/90 hover:text-brand-rose hover:bg-black/30 rounded-full transition-all bg-black/10 backdrop-blur-sm"
+                                className="h-6 w-6 text-white/90 hover:text-red-400 hover:bg-black/30 rounded-full transition-all bg-black/10 backdrop-blur-sm"
                               >
                                 <Trash2 className="h-3.5 w-3.5" />
                               </Button>
                             </div>
                           </div>
-                          <div className="opacity-90 font-medium tracking-wide drop-shadow-sm mt-0.5 text-[11px]">
+                          <div className="opacity-90 font-medium tracking-wide drop-shadow-sm mt-0.5 text-[10px]">
                             {slot.start_time.substring(0, 5)} - {slot.end_time.substring(0, 5)}
                           </div>
                         </div>

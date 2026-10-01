@@ -7,9 +7,9 @@
 ---
 
 **Project:** Nexora
-**Generated:** 2026-09-29 22:35:40
+**Generated:** 2026-10-01 22:10:26
 **Category:** Luxury/Premium Brand
-**Design Dials:** Variance 5/10 (Balanced / Modern) | Motion 5/10 (Standard) | Density 7/10 (Standard)
+**Design Dials:** Variance 7/10 (Balanced / Modern) | Motion 7/10 (Standard) | Density 6/10 (Standard)
 
 ---
 
@@ -40,19 +40,19 @@
 
 ### Typography
 
-- **Heading Font:** Bodoni Moda
-- **Body Font:** Jost
-- **Mood:** luxury, minimalist, high-end, sophisticated, refined, premium
-- **Google Fonts:** [Bodoni Moda + Jost](https://fonts.googleapis.com/css2?family=Bodoni+Moda:wght@400;500;600;700&family=Jost:wght@300;400;500;600;700&display=swap)
+- **Heading Font:** Cormorant
+- **Body Font:** Montserrat
+- **Mood:** luxury, high-end, fashion, elegant, refined, premium
+- **Google Fonts:** [Cormorant + Montserrat](https://fonts.googleapis.com/css2?family=Cormorant:wght@400;500;600;700&family=Montserrat:wght@300;400;500;600;700&display=swap)
 
 **CSS Import:**
 ```css
-@import url('https://fonts.googleapis.com/css2?family=Bodoni+Moda:wght@400;500;600;700&family=Jost:wght@300;400;500;600;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Cormorant:wght@400;500;600;700&family=Montserrat:wght@300;400;500;600;700&display=swap');
 ```
 
 ### Spacing Variables
 
-*Density: 7/10 — Standard*
+*Density: 6/10 — Standard*
 
 | Token | Value | Usage |
 |-------|-------|-------|
