@@ -10,7 +10,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Plus, Check, Trash2, CheckSquare, Search, Filter, SortAsc } from 'lucide-react'
 import { useTaskStore } from '@/store/useTaskStore'
 import { useProjectStore } from '@/store/useProjectStore'
-import type { TaskPriority, TaskStatus } from '@/types/local'
+import type { TaskPriority, TaskStatus, TaskTimeframe } from '@/types/local'
 
 const PRIORITY_CONFIG: Record<string, { label: string; color: string; bg: string }> = {
   urgent: { label: 'Urgent', color: '#FB7185', bg: 'rgba(251,113,133,0.08)' },
@@ -29,6 +29,7 @@ export default function TasksPage() {
   const [newTitle, setNewTitle] = useState('')
   const [newPriority, setNewPriority] = useState<TaskPriority>('medium')
   const [newProjectId, setNewProjectId] = useState<string>('none')
+  const [newTimeframe, setNewTimeframe] = useState<TaskTimeframe>('none')
   const [searchQuery, setSearchQuery] = useState('')
   const [filterStatus, setFilterStatus] = useState<FilterType>('active')
 
@@ -37,11 +38,13 @@ export default function TasksPage() {
     addTask({
       title: newTitle.trim(),
       priority: newPriority,
+      timeframe: newTimeframe,
       projectId: newProjectId === 'none' ? undefined : newProjectId,
     })
     setNewTitle('')
     setNewPriority('medium')
     setNewProjectId('none')
+    setNewTimeframe('none')
     setIsCreateOpen(false)
   }
 
@@ -94,7 +97,7 @@ export default function TasksPage() {
               />
               <div className="grid grid-cols-2 gap-3">
                 <Select value={newPriority} onValueChange={v => setNewPriority(v as TaskPriority)}>
-                  <SelectTrigger className="rounded-xl bg-background/60 border-border/30"><SelectValue /></SelectTrigger>
+                  <SelectTrigger className="rounded-xl bg-background/60 border-border/30"><SelectValue placeholder="Priority" /></SelectTrigger>
                   <SelectContent>
                     {Object.entries(PRIORITY_CONFIG).map(([key, cfg]) => (
                       <SelectItem key={key} value={key}>
@@ -107,7 +110,7 @@ export default function TasksPage() {
                   </SelectContent>
                 </Select>
                 <Select value={newProjectId} onValueChange={(v) => setNewProjectId(v as string)}>
-                  <SelectTrigger className="rounded-xl bg-background/60 border-border/30"><SelectValue /></SelectTrigger>
+                  <SelectTrigger className="rounded-xl bg-background/60 border-border/30"><SelectValue placeholder="Project" /></SelectTrigger>
                   <SelectContent>
                     <SelectItem value="none">No project</SelectItem>
                     {projects.filter(p => !p.deletedAt && p.status === 'active').map(p => (
@@ -116,6 +119,15 @@ export default function TasksPage() {
                   </SelectContent>
                 </Select>
               </div>
+              <Select value={newTimeframe} onValueChange={(v) => setNewTimeframe(v as TaskTimeframe)}>
+                <SelectTrigger className="rounded-xl bg-background/60 border-border/30 w-full"><SelectValue placeholder="Timeframe" /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="none">No specific timeframe</SelectItem>
+                  <SelectItem value="daily">Daily Task</SelectItem>
+                  <SelectItem value="weekly">Weekly Task</SelectItem>
+                  <SelectItem value="monthly">Monthly Task</SelectItem>
+                </SelectContent>
+              </Select>
             </div>
             <DialogFooter>
               <Button onClick={handleCreate} className="rounded-xl bg-accent text-accent-foreground hover:bg-accent/90 cursor-pointer font-semibold">
@@ -210,12 +222,19 @@ export default function TasksPage() {
                   <p className={`text-sm font-semibold truncate ${isDone ? 'line-through text-muted-foreground' : 'text-foreground'}`}>
                     {task.title}
                   </p>
-                  {project && (
-                    <span className="text-[10px] font-medium text-muted-foreground/60 flex items-center gap-1 mt-0.5">
-                      <span className="w-1.5 h-1.5 rounded-full" style={{ backgroundColor: project.color }} />
-                      {project.name}
-                    </span>
-                  )}
+                  <div className="flex flex-wrap items-center gap-2 mt-0.5">
+                    {task.timeframe && task.timeframe !== 'none' && (
+                      <span className="text-[9px] font-bold uppercase tracking-widest text-accent bg-accent/10 px-1.5 py-0.5 rounded-sm">
+                        {task.timeframe}
+                      </span>
+                    )}
+                    {project && (
+                      <span className="text-[10px] font-medium text-muted-foreground/80 flex items-center gap-1">
+                        <span className="w-1.5 h-1.5 rounded-full" style={{ backgroundColor: project.color }} />
+                        {project.name}
+                      </span>
+                    )}
+                  </div>
                 </div>
 
                 {/* Actions */}

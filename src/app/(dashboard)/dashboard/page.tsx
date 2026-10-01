@@ -374,7 +374,7 @@ function StatOrb({
   )
 }
 
-function TaskItem({ task }: { task: { id: string; title: string; priority?: string; status: string } }) {
+function TaskItem({ task }: { task: { id: string; title: string; priority?: string; status: string; timeframe?: string } }) {
   const toggleStatus = useTaskStore((s) => s.toggleStatus)
   const isDone = task.status === 'done'
 
@@ -398,9 +398,16 @@ function TaskItem({ task }: { task: { id: string; title: string; priority?: stri
       >
         {isDone && <Check className="w-3 h-3" />}
       </button>
-      <span className={`text-sm font-medium flex-1 truncate ${isDone ? 'line-through text-muted-foreground' : 'text-foreground'}`}>
-        {task.title}
-      </span>
+      <div className="flex-1 min-w-0 flex items-center gap-2">
+        <span className={`text-sm font-medium truncate ${isDone ? 'line-through text-muted-foreground' : 'text-foreground'}`}>
+          {task.title}
+        </span>
+        {task.timeframe && task.timeframe !== 'none' && (
+          <span className="text-[9px] font-bold uppercase tracking-widest text-accent bg-accent/10 px-1.5 py-0.5 rounded-sm shrink-0 mt-0.5">
+            {task.timeframe}
+          </span>
+        )}
+      </div>
       {task.priority && task.priority !== 'none' && (
         <div
           className="w-2 h-2 rounded-full shrink-0"

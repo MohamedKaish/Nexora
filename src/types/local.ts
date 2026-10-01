@@ -18,11 +18,14 @@ export interface LocalEntity {
 export type TaskPriority = 'low' | 'medium' | 'high' | 'urgent'
 export type TaskStatus = 'todo' | 'in_progress' | 'done'
 
+export type TaskTimeframe = 'daily' | 'weekly' | 'monthly' | 'none'
+
 export interface LocalTask extends LocalEntity {
   title: string
   description: string | null
   priority: TaskPriority
   status: TaskStatus
+  timeframe?: TaskTimeframe
   projectId: string | null
   dueDate: string | null
   isScheduleForToday: boolean
@@ -255,6 +258,7 @@ export function createLocalTask(partial: Partial<LocalTask> & { title: string })
     description: partial.description ?? null,
     priority: partial.priority ?? 'medium',
     status: partial.status ?? 'todo',
+    timeframe: partial.timeframe ?? 'none',
     projectId: partial.projectId ?? null,
     dueDate: partial.dueDate ?? null,
     isScheduleForToday: partial.isScheduleForToday ?? false,
