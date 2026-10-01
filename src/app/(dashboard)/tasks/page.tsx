@@ -3,16 +3,14 @@
 import { useState, useMemo } from 'react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
+import { Card, CardContent } from '@/components/ui/card'
 import {
   Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger
 } from '@/components/ui/dialog'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
-import { Checkbox } from '@/components/ui/checkbox'
 import {
   Plus, Search, CheckCircle2, Circle, Trash2, Edit2,
-  Calendar, Flag, ListTodo, LayoutGrid, Repeat
+  Calendar, Flag, ListTodo, Repeat
 } from 'lucide-react'
 import { useTaskStore } from '@/store/useTaskStore'
 import { useProjectStore } from '@/store/useProjectStore'
@@ -143,11 +141,9 @@ export default function TasksPage() {
           </p>
         </div>
         <Dialog open={isCreateOpen} onOpenChange={setIsCreateOpen}>
-          <DialogTrigger asChild>
-            <Button className="rounded-xl bg-accent text-white hover:bg-accent/90 font-medium gap-1.5 cursor-pointer transition-all">
-              <Plus className="w-4 h-4" />
-              New Task
-            </Button>
+          <DialogTrigger render={<Button className="rounded-xl bg-accent text-white hover:bg-accent/90 font-medium gap-1.5 cursor-pointer transition-all" />}>
+            <Plus className="w-4 h-4" />
+            New Task
           </DialogTrigger>
           <DialogContent className="rounded-2xl">
             <DialogHeader>
@@ -169,7 +165,7 @@ export default function TasksPage() {
                 <Input type="date" value={newDueDate} onChange={e => setNewDueDate(e.target.value)} className="rounded-xl" />
               </div>
               <div className="grid grid-cols-2 gap-3">
-                <Select value={newRecurrence} onValueChange={v => setNewRecurrence(v)}>
+                <Select value={newRecurrence} onValueChange={v => setNewRecurrence(v || 'none')}>
                   <SelectTrigger className="rounded-xl"><SelectValue placeholder="Recurrence" /></SelectTrigger>
                   <SelectContent>
                     <SelectItem value="none">One-time</SelectItem>
@@ -274,7 +270,9 @@ export default function TasksPage() {
                       {task.title}
                     </p>
                     {task.recurrenceRule && task.status !== 'done' && (
-                      <Repeat className="w-3.5 h-3.5 text-muted-foreground" title={`Repeats ${task.recurrenceRule}`} />
+                      <span title={`Repeats ${task.recurrenceRule}`}>
+                        <Repeat className="w-3.5 h-3.5 text-muted-foreground" />
+                      </span>
                     )}
                   </div>
                   {task.description && (
@@ -327,7 +325,7 @@ export default function TasksPage() {
               <Input type="date" value={editDueDate} onChange={e => setEditDueDate(e.target.value)} className="rounded-xl" />
             </div>
             <div className="grid grid-cols-1 gap-3">
-              <Select value={editRecurrence} onValueChange={v => setEditRecurrence(v)}>
+              <Select value={editRecurrence} onValueChange={v => setEditRecurrence(v || 'none')}>
                 <SelectTrigger className="rounded-xl"><SelectValue placeholder="Recurrence" /></SelectTrigger>
                 <SelectContent>
                   <SelectItem value="none">One-time</SelectItem>
