@@ -1,198 +1,225 @@
 'use client'
 
-import { useState, useMemo } from 'react'
-import { Button } from '@/components/ui/button'
-import { Input } from '@/components/ui/input'
-import {
-  Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger
-} from '@/components/ui/dialog'
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
-import { Plus, Flame, Check, Trash2 } from 'lucide-react'
+import React, { useState } from 'react'
 import { useHabitStore } from '@/store/useHabitStore'
-import type { HabitFrequency } from '@/types/local'
+import { useCharacterStore } from '@/store/characterStore'
+import { HabitFrequency } from '@/types/local'
+import { Flame, Plus, CheckCircle2, Trash2, Calendar } from 'lucide-react'
 import { format, subDays } from 'date-fns'
 
-const HABIT_COLORS = ['#34D399', '#60A5FA', '#A78BFA', '#FB7185', '#FBBF24', '#F87171', '#2DD4BF']
-const FREQ_LABELS: Record<HabitFrequency, string> = { daily: 'Daily', weekly: 'Weekly', weekdays: 'Weekdays' }
-
 export default function HabitsPage() {
-  const { habits, addHabit, removeHabit, toggleCompletion } = useHabitStore()
-  const [isCreateOpen, setIsCreateOpen] = useState(false)
-  const [newName, setNewName] = useState('')
+  const { habits, completions, addHabit, removeHabit, toggleCompletion } = useHabitStore()
+  const celebrate = useCharacterStore((s) => s.celebrate)
+
+  const [showAddModal, setShowAddModal] = useState(false)
+  const [newHabitName, setNewHabitName] = useState('')
   const [newFrequency, setNewFrequency] = useState<HabitFrequency>('daily')
-  const [newColor, setNewColor] = useState('#34D399')
+  const [selectedColor, setSelectedColor] = useState('#34D399')
 
   const todayStr = format(new Date(), 'yyyy-MM-dd')
-  const last7Days = useMemo(() => Array.from({ length: 7 }, (_, i) => subDays(new Date(), 6 - i)), [])
-
-  const isCompletedOnDate = (habit: typeof habits[0], date: Date): boolean => {
-    const dateStr = format(date, 'yyyy-MM-dd')
-    return habit.habit_completions?.some(c => {
-      const completedDate = c.completedDate || (c as unknown as Record<string, unknown>).completed_date as string
-      return completedDate === dateStr
-    }) || false
-  }
-
-  const handleCreate = () => {
-    if (!newName.trim()) return
-    addHabit({ name: newName.trim(), frequency: newFrequency, color: newColor })
-    setNewName(''); setNewFrequency('daily'); setNewColor('#34D399')
-    setIsCreateOpen(false)
-  }
+  const past7Days = Array.from({ length: 7 }, (_, i) => subDays(new Date(), 6 - i))
 
   const handleToggle = (habitId: string) => {
-    const habit = habits.find(h => h.id === habitId)
-    if (!habit) return
-    const isCompleted = isCompletedOnDate(habit, new Date())
-    toggleCompletion(habitId, todayStr, !isCompleted)
+    const isCompleted = toggleCompletion(habitId)
+    if (isCompleted) {
+      celebrate()
+    }
   }
 
-  const activeHabits = habits.filter(h => !h.deletedAt)
+  const handleAddHabit = () => {
+    if (!newHabitName.trim()) return
+    addHabit({
+      name: newHabitName.trim(),
+      frequency: newFrequency,
+      color: selectedColor,
+    })
+    setNewHabitName('')
+    setShowAddModal(false)
+  }
+
+  const habitColors = ['#34D399', '#60A5FA', '#A78BFA', '#FBBF24', '#FB7185', '#2DD4BF']
 
   return (
-    <div className="flex-1 p-4 md:p-8 max-w-5xl mx-auto w-full space-y-5">
-      <div className="flex flex-col md:flex-row md:items-end justify-between gap-4">
+    <div className="space-y-6 animate-in fade-in duration-500">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
-          <h1 className="text-3xl md:text-4xl font-serif font-bold tracking-tight text-gradient">Habits</h1>
-          <p className="text-muted-foreground font-medium mt-1 text-sm">{activeHabits.length} habits tracked</p>
+          <h1 className="text-3xl font-serif font-bold text-foreground">Habit Momentum</h1>
+          <p className="text-stone-400 text-sm">Forge daily consistency and protect your streaks.</p>
         </div>
-        <Dialog open={isCreateOpen} onOpenChange={setIsCreateOpen}>
-          <DialogTrigger render={<Button className="rounded-xl bg-accent text-accent-foreground hover:bg-accent/90 font-semibold gap-1.5 cursor-pointer shadow-sm" />}>
-            <Plus className="w-4 h-4" /> New Habit
-          </DialogTrigger>
-          <DialogContent className="rounded-2xl world-glass border-border/20">
-            <DialogHeader>
-              <DialogTitle className="font-serif text-xl">Track a Habit</DialogTitle>
-              <DialogDescription>Build consistency with daily habits.</DialogDescription>
-            </DialogHeader>
-            <div className="space-y-4 py-2">
-              <Input
-                placeholder="e.g. Read 30 minutes"
-                value={newName}
-                onChange={e => setNewName(e.target.value)}
-                onKeyDown={e => e.key === 'Enter' && handleCreate()}
-                autoFocus
-                className="rounded-xl bg-background/60 border-border/30"
-              />
-              <Select value={newFrequency} onValueChange={v => setNewFrequency(v as HabitFrequency)}>
-                <SelectTrigger className="rounded-xl bg-background/60 border-border/30"><SelectValue /></SelectTrigger>
-                <SelectContent>
-                  {(['daily', 'weekly', 'weekdays'] as HabitFrequency[]).map(f => (
-                    <SelectItem key={f} value={f}>{FREQ_LABELS[f]}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-              <div className="space-y-2">
-                <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">Color</p>
-                <div className="flex gap-2">
-                  {HABIT_COLORS.map(c => (
-                    <button
-                      key={c}
-                      onClick={() => setNewColor(c)}
-                      className={`w-7 h-7 rounded-full border-2 transition-all cursor-pointer ${newColor === c ? 'border-accent scale-110' : 'border-border/30 hover:scale-105'}`}
-                      style={{ backgroundColor: c }}
-                    />
-                  ))}
-                </div>
-              </div>
-            </div>
-            <DialogFooter>
-              <Button onClick={handleCreate} className="rounded-xl bg-accent text-accent-foreground hover:bg-accent/90 cursor-pointer font-semibold">
-                Create Habit
-              </Button>
-            </DialogFooter>
-          </DialogContent>
-        </Dialog>
+
+        <button
+          onClick={() => setShowAddModal(true)}
+          className="px-4 py-2.5 rounded-xl bg-amber-400 hover:bg-amber-300 text-stone-950 font-bold text-xs flex items-center gap-1.5 shadow-[0_0_20px_rgba(212,168,83,0.3)] transition-all cursor-pointer self-start sm:self-auto"
+        >
+          <Plus className="w-4 h-4" />
+          Track Habit
+        </button>
       </div>
 
-      {activeHabits.length === 0 ? (
-        <div className="empty-world rounded-3xl py-16 text-center">
-          <div className="w-12 h-12 mx-auto rounded-2xl bg-brand-amber/5 flex items-center justify-center mb-4">
-            <Flame className="w-6 h-6 text-brand-amber/30" />
-          </div>
-          <h3 className="text-base font-bold text-foreground">No habits yet</h3>
-          <p className="text-sm text-muted-foreground mt-1 mb-4">Start tracking habits to build consistency.</p>
-          <Button onClick={() => setIsCreateOpen(true)} variant="outline" className="rounded-xl cursor-pointer font-semibold gap-1.5">
-            <Plus className="w-4 h-4" /> Track a Habit
-          </Button>
-        </div>
-      ) : (
-        <div className="space-y-2">
-          {activeHabits.map(habit => {
-            const isCompletedToday = isCompletedOnDate(habit, new Date())
+      {/* Habits List with 7-Day Heatmap */}
+      <div className="space-y-3">
+        {habits.map((habit) => {
+          const isDoneToday = completions.some(
+            (c) => c.habitId === habit.id && c.completedDate === todayStr
+          )
 
-            return (
-              <div
-                key={habit.id}
-                className={`group world-card p-4 transition-all duration-200 ${
-                  isCompletedToday ? 'border-brand-emerald/15' : ''
-                }`}
-              >
-                <div className="flex items-center gap-4">
-                  {/* Check button */}
+          return (
+            <div
+              key={habit.id}
+              className={`world-deck p-4 sm:p-5 transition-all ${
+                isDoneToday ? 'border-emerald-500/30' : 'hover:border-stone-700'
+              }`}
+            >
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                {/* Left: Check Button & Info */}
+                <div className="flex items-center gap-3.5 min-w-0">
                   <button
                     onClick={() => handleToggle(habit.id)}
-                    className={`shrink-0 w-9 h-9 rounded-xl flex items-center justify-center transition-all cursor-pointer ${
-                      isCompletedToday
-                        ? 'text-white shadow-sm'
-                        : 'border-[1.5px] border-border/40 hover:border-accent/40'
+                    className={`w-9 h-9 rounded-xl border flex items-center justify-center transition-all cursor-pointer ${
+                      isDoneToday
+                        ? 'bg-emerald-400 border-emerald-400 text-stone-950 shadow-[0_0_15px_rgba(52,211,153,0.4)]'
+                        : 'border-stone-700 hover:border-amber-400 text-transparent'
                     }`}
-                    style={isCompletedToday ? { backgroundColor: habit.color } : {}}
-                    aria-label={isCompletedToday ? 'Unmark habit' : 'Mark habit done'}
                   >
-                    {isCompletedToday && <Check className="w-4 h-4" />}
+                    <CheckCircle2 className="w-5 h-5 fill-current" />
                   </button>
 
-                  {/* Habit info */}
-                  <div className="flex-1 min-w-0">
+                  <div className="min-w-0">
                     <div className="flex items-center gap-2">
-                      <p className={`text-sm font-bold ${isCompletedToday ? 'text-muted-foreground' : 'text-foreground'}`}>
+                      <h3
+                        className={`text-sm font-bold ${
+                          isDoneToday ? 'text-emerald-300' : 'text-foreground'
+                        }`}
+                      >
                         {habit.name}
-                      </p>
-                    </div>
-                    <div className="flex items-center gap-2 mt-0.5">
+                      </h3>
                       {habit.streak > 0 && (
-                        <span className="text-[10px] font-bold text-brand-amber flex items-center gap-0.5">
-                          <Flame className="w-3 h-3" /> {habit.streak}
+                        <span className="flex items-center gap-1 text-[11px] font-bold text-amber-400 bg-amber-400/10 px-2 py-0.5 rounded-full border border-amber-400/20">
+                          <Flame className="w-3 h-3 fill-current" />
+                          {habit.streak} streak
                         </span>
                       )}
-                      <span className="text-[10px] text-muted-foreground font-medium">{FREQ_LABELS[habit.frequency]}</span>
                     </div>
+                    <span className="text-[11px] text-stone-400 capitalize">{habit.frequency} frequency</span>
                   </div>
+                </div>
 
-                  {/* 7-day history */}
-                  <div className="hidden sm:flex items-center gap-1">
-                    {last7Days.map((date, i) => {
-                      const completed = isCompletedOnDate(habit, date)
-                      const isToday = i === 6
+                {/* Right: 7-Day Rolling Visual Grid */}
+                <div className="flex items-center gap-4 self-end sm:self-auto">
+                  <div className="flex items-center gap-1.5">
+                    {past7Days.map((date, idx) => {
+                      const dStr = format(date, 'yyyy-MM-dd')
+                      const isComplete = completions.some(
+                        (c) => c.habitId === habit.id && c.completedDate === dStr
+                      )
+                      const isCurrentDay = idx === 6
+
                       return (
-                        <div key={i} className="flex flex-col items-center gap-1">
-                          <span className="text-[9px] text-muted-foreground/50 font-medium">{format(date, 'EEE').charAt(0)}</span>
+                        <div key={dStr} className="flex flex-col items-center gap-1">
+                          <span className="text-[9px] text-stone-500 font-semibold uppercase">
+                            {format(date, 'EEE').charAt(0)}
+                          </span>
                           <div
-                            className={`w-6 h-6 rounded-lg flex items-center justify-center transition-all ${
-                              completed ? '' : isToday ? 'border border-dashed border-border/40' : 'bg-foreground/[0.02]'
+                            className={`w-7 h-7 rounded-lg border flex items-center justify-center text-[10px] font-bold transition-all ${
+                              isComplete
+                                ? 'bg-emerald-400/20 border-emerald-400 text-emerald-300'
+                                : isCurrentDay
+                                ? 'border-dashed border-stone-600 bg-stone-900/40 text-stone-600'
+                                : 'border-stone-800 bg-stone-950/40 text-transparent'
                             }`}
-                            style={completed ? { backgroundColor: habit.color } : {}}
                           >
-                            {completed && <Check className="w-3 h-3 text-white" />}
+                            {isComplete ? '✓' : ''}
                           </div>
                         </div>
                       )
                     })}
                   </div>
 
-                  {/* Delete */}
                   <button
                     onClick={() => removeHabit(habit.id)}
-                    className="p-1.5 rounded-lg hover:bg-destructive/10 opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer"
-                    aria-label="Delete habit"
+                    className="p-1.5 rounded-lg text-stone-500 hover:text-rose-400 hover:bg-stone-800/60 transition-colors ml-2"
                   >
-                    <Trash2 className="w-3.5 h-3.5 text-destructive/60" />
+                    <Trash2 className="w-4 h-4" />
                   </button>
                 </div>
               </div>
-            )
-          })}
+            </div>
+          )
+        })}
+
+        {habits.length === 0 && (
+          <div className="p-12 text-center world-deck border-dashed border-stone-800">
+            <Flame className="w-10 h-10 text-stone-600 mx-auto mb-3" />
+            <h3 className="text-base font-bold text-foreground">No habits tracked yet</h3>
+            <p className="text-xs text-stone-400 mt-1">Start tracking daily routines to ignite your momentum.</p>
+          </div>
+        )}
+      </div>
+
+      {/* Add Modal */}
+      {showAddModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
+          <div className="w-full max-w-md rounded-2xl bg-stone-950 border border-stone-800 p-6 space-y-4 shadow-2xl">
+            <h3 className="text-xl font-serif font-bold text-foreground">Track a Daily Habit</h3>
+
+            <div className="space-y-3">
+              <div>
+                <label className="block text-xs font-semibold text-stone-400 mb-1">Habit Name</label>
+                <input
+                  type="text"
+                  value={newHabitName}
+                  onChange={(e) => setNewHabitName(e.target.value)}
+                  placeholder="e.g. Read 30 mins, Exercise, Hydrate..."
+                  className="w-full bg-stone-900 border border-stone-800 rounded-xl px-3.5 py-2 text-sm text-foreground focus:outline-none focus:border-amber-400"
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-semibold text-stone-400 mb-1">Frequency</label>
+                <select
+                  value={newFrequency}
+                  onChange={(e) => setNewFrequency(e.target.value as HabitFrequency)}
+                  className="w-full bg-stone-900 border border-stone-800 rounded-xl px-3 py-2 text-xs text-foreground"
+                >
+                  <option value="daily">Daily</option>
+                  <option value="weekdays">Weekdays Only</option>
+                  <option value="weekly">Weekly</option>
+                </select>
+              </div>
+
+              <div>
+                <label className="block text-xs font-semibold text-stone-400 mb-2">Accent Color</label>
+                <div className="flex gap-2">
+                  {habitColors.map((hex) => (
+                    <button
+                      key={hex}
+                      onClick={() => setSelectedColor(hex)}
+                      className={`w-7 h-7 rounded-full border-2 transition-all ${
+                        selectedColor === hex ? 'border-amber-400 scale-110' : 'border-transparent'
+                      }`}
+                      style={{ backgroundColor: hex }}
+                    />
+                  ))}
+                </div>
+              </div>
+            </div>
+
+            <div className="flex justify-end gap-2 pt-2">
+              <button
+                onClick={() => setShowAddModal(false)}
+                className="px-4 py-2 rounded-xl text-stone-400 hover:text-stone-200 text-xs font-semibold"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleAddHabit}
+                disabled={!newHabitName.trim()}
+                className="px-5 py-2 rounded-xl bg-amber-400 hover:bg-amber-300 disabled:opacity-40 text-stone-950 font-bold text-xs"
+              >
+                Start Tracking
+              </button>
+            </div>
+          </div>
         </div>
       )}
     </div>

@@ -1,78 +1,190 @@
-import { getNotifications } from '@/features/notifications/actions'
-import { Bell, Info, Trophy, BrainCircuit } from 'lucide-react'
+'use client'
 
-export const metadata = {
-  title: 'Notifications - Nexora',
+import React, { useState } from 'react'
+import { useAppStore } from '@/store/appStore'
+import {
+  Bell,
+  Sparkles,
+  CheckCircle2,
+  AlertCircle,
+  Flame,
+  Zap,
+  Trash2,
+  Check,
+} from 'lucide-react'
+import { format } from 'date-fns'
+
+interface NotificationItem {
+  id: string
+  title: string
+  message: string
+  type: 'kyro' | 'habit' | 'focus' | 'task'
+  timestamp: string
+  isRead: boolean
 }
 
-export default async function NotificationsPage() {
-  const notifications = await getNotifications()
+const INITIAL_NOTIFICATIONS: NotificationItem[] = [
+  {
+    id: 'n-1',
+    title: 'Kyro Contextual Insight',
+    message: 'You have cleared 3 tasks today! A 25-minute focus session will finalize your momentum.',
+    type: 'kyro',
+    timestamp: new Date().toISOString(),
+    isRead: false,
+  },
+  {
+    id: 'n-2',
+    title: 'Habit Streak Alert',
+    message: 'Your top habit chain is active! Check in before midnight to protect your streak.',
+    type: 'habit',
+    timestamp: new Date(Date.now() - 3600000 * 3).toISOString(),
+    isRead: false,
+  },
+  {
+    id: 'n-3',
+    title: 'Focus Chamber Logged',
+    message: 'Completed 25m Pomodoro Focus session in the Deep Work sanctuary.',
+    type: 'focus',
+    timestamp: new Date(Date.now() - 3600000 * 6).toISOString(),
+    isRead: true,
+  },
+  {
+    id: 'n-4',
+    title: 'Sanctuary Online',
+    message: 'Nexora Living Operating System initialized and synchronized.',
+    type: 'task',
+    timestamp: new Date(Date.now() - 86400000).toISOString(),
+    isRead: true,
+  },
+]
 
-  const getIcon = (type: string) => {
-    switch (type) {
-      case 'system': return <Info className="h-5 w-5 text-brand-blue" />
-      case 'reminder': return <Bell className="h-5 w-5 text-brand-amber" />
-      case 'achievement': return <Trophy className="h-5 w-5 text-brand-emerald" />
-      case 'kyro': return <BrainCircuit className="h-5 w-5 text-accent" />
-      default: return <Info className="h-5 w-5 text-muted-foreground" />
-    }
+export default function NotificationsPage() {
+  const agentName = useAppStore((s) => s.agentConfig.name) || 'Kyro'
+  const [notifications, setNotifications] = useState<NotificationItem[]>(INITIAL_NOTIFICATIONS)
+
+  const markAllAsRead = () => {
+    setNotifications((prev) => prev.map((n) => ({ ...n, isRead: true })))
+  }
+
+  const clearAll = () => {
+    setNotifications([])
+  }
+
+  const deleteOne = (id: string) => {
+    setNotifications((prev) => prev.filter((n) => n.id !== id))
+  }
+
+  const toggleOne = (id: string) => {
+    setNotifications((prev) =>
+      prev.map((n) => (n.id === id ? { ...n, isRead: !n.isRead } : n))
+    )
   }
 
   return (
-    <div className="flex-1 space-y-6 p-8 pt-8 max-w-5xl mx-auto animate-in fade-in slide-in-from-bottom-4 duration-500">
-      <div className="flex items-center justify-between">
-        <div className="space-y-1">
-          <h2 className="text-3xl font-black tracking-tight flex items-center gap-2">
-            <Bell className="h-8 w-8 text-accent" />
-            Inbox
-          </h2>
-          <p className="text-muted-foreground font-medium">Review your system alerts and Kyro scheduling insights.</p>
+    <div className="space-y-8 animate-in fade-in duration-300">
+      {/* Title & Actions */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+        <div>
+          <h1 className="text-2xl sm:text-3xl font-serif font-bold tracking-tight text-gradient-gold">
+            Sanctuary Transmissions
+          </h1>
+          <p className="text-sm text-stone-400 mt-1">
+            Logs, alerts from {agentName}, and milestone broadcasts.
+          </p>
+        </div>
+
+        <div className="flex items-center gap-2">
+          <button
+            onClick={markAllAsRead}
+            className="px-3.5 py-2 rounded-xl bg-stone-900 border border-stone-800 hover:border-amber-400/40 text-stone-300 text-xs font-semibold flex items-center gap-1.5 transition-all cursor-pointer"
+          >
+            <Check className="w-3.5 h-3.5 text-amber-400" />
+            <span>Mark all read</span>
+          </button>
+          <button
+            onClick={clearAll}
+            className="px-3.5 py-2 rounded-xl bg-stone-900 border border-stone-800 hover:border-rose-400/40 text-stone-400 hover:text-rose-300 text-xs font-semibold flex items-center gap-1.5 transition-all cursor-pointer"
+          >
+            <Trash2 className="w-3.5 h-3.5" />
+            <span>Clear inbox</span>
+          </button>
         </div>
       </div>
-      
-      <div className="world-card overflow-hidden">
-        <div className="pb-3 border-b border-border/30 px-6 pt-6">
-          <h3 className="text-lg font-bold text-foreground">All Notifications</h3>
-        </div>
-        <div>
-          <div className="divide-y divide-border/20">
-            {notifications.length === 0 ? (
-              <div className="p-16 text-center flex flex-col items-center justify-center space-y-4">
-                <div className="h-16 w-16 rounded-full bg-foreground/[0.04] flex items-center justify-center">
-                  <Bell className="h-8 w-8 text-muted-foreground opacity-50" />
-                </div>
-                <div className="text-muted-foreground font-medium text-lg">
-                  You&apos;re all caught up!
-                </div>
-              </div>
-            ) : (
-              notifications.map(notification => (
-                <div 
-                  key={notification.id} 
-                  className={`p-6 transition-colors hover:bg-foreground/[0.04] ${notification.is_read ? 'opacity-70' : 'bg-accent/5'}`}
-                >
-                  <div className="flex gap-4">
-                    <div className="mt-1 flex-shrink-0 bg-foreground/[0.03] p-2 rounded-xl border border-border/20">
-                      {getIcon(notification.type)}
+
+      {/* Notifications List */}
+      <div className="world-deck p-6 space-y-3">
+        {notifications.length === 0 ? (
+          <div className="py-16 text-center space-y-3">
+            <Bell className="w-10 h-10 text-stone-600 mx-auto" />
+            <h3 className="text-base font-bold text-foreground">Inbox is tranquil</h3>
+            <p className="text-xs text-stone-400 max-w-sm mx-auto">
+              No pending transmissions from {agentName} or your habitat.
+            </p>
+          </div>
+        ) : (
+          notifications.map((n) => {
+            const Icon =
+              n.type === 'kyro'
+                ? Sparkles
+                : n.type === 'habit'
+                ? Flame
+                : n.type === 'focus'
+                ? Zap
+                : CheckCircle2
+
+            return (
+              <div
+                key={n.id}
+                onClick={() => toggleOne(n.id)}
+                className={`p-4 rounded-2xl border transition-all cursor-pointer flex items-start justify-between gap-4 ${
+                  !n.isRead
+                    ? 'bg-amber-400/10 border-amber-400/40'
+                    : 'bg-stone-900/60 border-stone-800/80 hover:border-stone-700'
+                }`}
+              >
+                <div className="flex items-start gap-3.5">
+                  <div
+                    className={`p-2.5 rounded-xl shrink-0 mt-0.5 ${
+                      n.type === 'kyro'
+                        ? 'bg-amber-400/20 text-amber-400'
+                        : n.type === 'habit'
+                        ? 'bg-orange-400/20 text-orange-400'
+                        : n.type === 'focus'
+                        ? 'bg-blue-400/20 text-blue-400'
+                        : 'bg-emerald-400/20 text-emerald-400'
+                    }`}
+                  >
+                    <Icon className="w-4 h-4" />
+                  </div>
+
+                  <div className="space-y-1">
+                    <div className="flex items-center gap-2">
+                      <h4 className="text-sm font-bold text-foreground">{n.title}</h4>
+                      {!n.isRead && (
+                        <span className="w-2 h-2 rounded-full bg-amber-400 animate-pulse" />
+                      )}
                     </div>
-                    <div className="flex-1 space-y-1">
-                      <div className="flex justify-between items-start">
-                        <span className="font-bold text-foreground text-[15px]">{notification.title}</span>
-                        {!notification.is_read && (
-                          <span className="h-2.5 w-2.5 rounded-full bg-accent shrink-0 shadow-[0_0_10px_rgba(212,168,83,0.6)]" />
-                        )}
-                      </div>
-                      <p className="text-sm text-muted-foreground leading-relaxed font-medium">{notification.message}</p>
-                      <span className="text-[11px] text-muted-foreground/70 font-semibold block pt-2 uppercase tracking-widest">
-                        {new Date(notification.created_at).toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })}
-                      </span>
-                    </div>
+                    <p className="text-xs text-stone-300 leading-relaxed">{n.message}</p>
+                    <p className="text-[10px] text-stone-500 font-mono">
+                      {format(new Date(n.timestamp), 'MMM dd, HH:mm')}
+                    </p>
                   </div>
                 </div>
-              ))
-            )}
-          </div>
-        </div>
+
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation()
+                    deleteOne(n.id)
+                  }}
+                  className="p-1.5 rounded-lg text-stone-500 hover:text-rose-400 hover:bg-stone-800 transition-colors"
+                  title="Remove transmission"
+                >
+                  <Trash2 className="w-3.5 h-3.5" />
+                </button>
+              </div>
+            )
+          })
+        )}
       </div>
     </div>
   )

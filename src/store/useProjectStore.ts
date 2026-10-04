@@ -1,67 +1,68 @@
 import { create } from 'zustand'
 import { persist } from 'zustand/middleware'
-import type { LocalProject } from '@/types/local'
-import { createLocalProject, nowISO } from '@/types/local'
-import { dbGetAll, dbPut, dbDelete } from '@/lib/db/indexeddb'
-
-export type Project = LocalProject & {
-  tasks?: { id: string; status: string; due_date: string | null; updated_at: string; deleted_at: string | null }[]
-}
+import { LocalProject, ProjectStatus } from '@/types/local'
 
 interface ProjectState {
-  projects: Project[]
-  isLoading: boolean
-  setProjects: (projects: Project[]) => void
-  addProject: (partial: Partial<LocalProject> & { name: string }) => Project
-  updateProject: (id: string, updates: Partial<Project>) => void
+  projects: LocalProject[]
+  addProject: (params: { name: string; description?: string | null; color?: string }) => void
+  updateProject: (id: string, partial: Partial<LocalProject>) => void
   removeProject: (id: string) => void
-  hydrate: () => Promise<void>
 }
+
+const INITIAL_PROJECTS: LocalProject[] = [
+  {
+    id: 'proj-1',
+    name: 'Nexora OS Sanctuary',
+    description: 'Personal productivity workflow setup and life operating system.',
+    color: '#6366F1',
+    status: 'active',
+    dueDate: null,
+    createdAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString(),
+  },
+  {
+    id: 'proj-2',
+    name: 'Health & Vitality',
+    description: 'Physical energy, sleep protocols, and workout routines.',
+    color: '#34D399',
+    status: 'active',
+    dueDate: null,
+    createdAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString(),
+  },
+]
 
 export const useProjectStore = create<ProjectState>()(
   persist(
-    (set, get) => ({
-      projects: [],
-      isLoading: true,
-      setProjects: (projects) => set({ projects, isLoading: false }),
-      addProject: (partial) => {
-        const project: Project = createLocalProject(partial)
-        set((state) => ({ projects: [project, ...state.projects] }))
-        dbPut('projects', project).catch(console.error)
-        return project
+    (set) => ({
+      projects: INITIAL_PROJECTS,
+
+      addProject: (params) => {
+        const project: LocalProject = {
+          id: 'proj_' + Math.random().toString(36).substring(2, 9),
+          name: params.name,
+          description: params.description ?? null,
+          color: params.color ?? '#6366F1',
+          status: 'active',
+          dueDate: null,
+          createdAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString(),
+        }
+        set((state) => ({ projects: [...state.projects, project] }))
       },
-      updateProject: (id, updates) => {
-        const updatedAt = nowISO()
+
+      updateProject: (id, partial) => {
         set((state) => ({
           projects: state.projects.map((p) =>
-            p.id === id ? { ...p, ...updates, updatedAt } : p
+            p.id === id ? { ...p, ...partial, updatedAt: new Date().toISOString() } : p
           ),
         }))
-        const project = get().projects.find((p) => p.id === id)
-        if (project) dbPut('projects', project).catch(console.error)
       },
+
       removeProject: (id) => {
-        set((state) => ({
-          projects: state.projects.filter((p) => p.id !== id),
-        }))
-        dbDelete('projects', id).catch(console.error)
-      },
-      hydrate: async () => {
-        try {
-          const projects = await dbGetAll<Project>('projects')
-          if (projects.length > 0) {
-            set({ projects, isLoading: false })
-          } else {
-            set({ isLoading: false })
-          }
-        } catch {
-          set({ isLoading: false })
-        }
+        set((state) => ({ projects: state.projects.filter((p) => p.id !== id) }))
       },
     }),
-    {
-      name: 'nexora_guest_projects',
-      partialize: (state) => ({ projects: state.projects }),
-    }
+    { name: 'nexora_project_storage' }
   )
 )

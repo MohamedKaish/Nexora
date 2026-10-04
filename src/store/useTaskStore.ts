@@ -1,82 +1,146 @@
 import { create } from 'zustand'
 import { persist } from 'zustand/middleware'
-import type { LocalTask, TaskPriority, TaskStatus } from '@/types/local'
-import { createLocalTask, nowISO } from '@/types/local'
-import { dbGetAll, dbPut, dbDelete } from '@/lib/db/indexeddb'
+import { LocalTask, LocalSubtask, TaskPriority, TaskTimeframe } from '@/types/local'
 
 interface TaskState {
   tasks: LocalTask[]
-  isLoading: boolean
-  isHydrated: boolean
-  setTasks: (tasks: LocalTask[]) => void
-  addTask: (partial: Partial<LocalTask> & { title: string }) => LocalTask
-  updateTask: (id: string, updates: Partial<LocalTask>) => void
-  removeTask: (id: string) => void
+  subtasks: LocalSubtask[]
+  addTask: (params: {
+    title: string
+    description?: string | null
+    priority?: TaskPriority
+    timeframe?: TaskTimeframe
+    projectId?: string | null
+    dueDate?: string | null
+    estimatedTimeMinutes?: number | null
+  }) => LocalTask
+  updateTask: (id: string, partial: Partial<LocalTask>) => void
   toggleStatus: (id: string) => void
-  hydrate: () => Promise<void>
+  removeTask: (id: string) => void
+  addSubtask: (taskId: string, title: string) => void
+  toggleSubtask: (subtaskId: string) => void
+  removeSubtask: (subtaskId: string) => void
 }
+
+const INITIAL_TASKS: LocalTask[] = [
+  {
+    id: 'task-1',
+    title: 'Explore the Nexora Sanctuary and meet Kyro',
+    description: 'Customize your companion and discover your personalized command hub.',
+    priority: 'high',
+    status: 'todo',
+    timeframe: 'daily',
+    projectId: 'proj-1',
+    dueDate: null,
+    createdAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString(),
+  },
+  {
+    id: 'task-2',
+    title: 'Complete a 25-minute Deep Work focus session',
+    description: 'Immerse into focus mode while Kyro keeps watch and minimizes distractions.',
+    priority: 'medium',
+    status: 'todo',
+    timeframe: 'daily',
+    projectId: 'proj-1',
+    dueDate: null,
+    createdAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString(),
+  },
+  {
+    id: 'task-3',
+    title: 'Set weekly goals & configure timetable blocks',
+    description: 'Map out your high-leverage milestones for the upcoming cycle.',
+    priority: 'low',
+    status: 'todo',
+    timeframe: 'weekly',
+    projectId: null,
+    dueDate: null,
+    createdAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString(),
+  },
+]
 
 export const useTaskStore = create<TaskState>()(
   persist(
     (set, get) => ({
-      tasks: [],
-      isLoading: true,
-      isHydrated: false,
-      setTasks: (tasks) => set({ tasks, isLoading: false }),
-      addTask: (partial) => {
-        const task = createLocalTask(partial)
-        set((state) => ({ tasks: [task, ...state.tasks] }))
-        // Async persist to IndexedDB
-        dbPut('tasks', task).catch(console.error)
-        return task
+      tasks: INITIAL_TASKS,
+      subtasks: [],
+
+      addTask: (params) => {
+        const newTask: LocalTask = {
+          id: 'task_' + Math.random().toString(36).substring(2, 9),
+          title: params.title,
+          description: params.description ?? null,
+          priority: params.priority ?? 'medium',
+          status: 'todo',
+          timeframe: params.timeframe ?? 'none',
+          projectId: params.projectId ?? null,
+          dueDate: params.dueDate ?? null,
+          estimatedTimeMinutes: params.estimatedTimeMinutes ?? null,
+          actualTimeMinutes: 0,
+          createdAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString(),
+        }
+        set((state) => ({ tasks: [newTask, ...state.tasks] }))
+        return newTask
       },
-      updateTask: (id, updates) => {
-        const updatedAt = nowISO()
+
+      updateTask: (id, partial) => {
         set((state) => ({
           tasks: state.tasks.map((t) =>
-            t.id === id ? { ...t, ...updates, updatedAt } : t
+            t.id === id ? { ...t, ...partial, updatedAt: new Date().toISOString() } : t
           ),
         }))
-        // Async persist
-        const task = get().tasks.find((t) => t.id === id)
-        if (task) dbPut('tasks', task).catch(console.error)
       },
+
+      toggleStatus: (id) => {
+        set((state) => ({
+          tasks: state.tasks.map((t) => {
+            if (t.id !== id) return t
+            const nextStatus = t.status === 'done' ? 'todo' : 'done'
+            return {
+              ...t,
+              status: nextStatus,
+              updatedAt: new Date().toISOString(),
+            }
+          }),
+        }))
+      },
+
       removeTask: (id) => {
         set((state) => ({
           tasks: state.tasks.filter((t) => t.id !== id),
+          subtasks: state.subtasks.filter((st) => st.taskId !== id),
         }))
-        dbDelete('tasks', id).catch(console.error)
       },
-      toggleStatus: (id) => {
-        const updatedAt = nowISO()
-        set((state) => ({
-          tasks: state.tasks.map((t) => {
-            if (t.id === id) {
-              const newStatus: TaskStatus = t.status === 'done' ? 'todo' : 'done'
-              return { ...t, status: newStatus, updatedAt }
-            }
-            return t
-          }),
-        }))
-        const task = get().tasks.find((t) => t.id === id)
-        if (task) dbPut('tasks', task).catch(console.error)
-      },
-      hydrate: async () => {
-        try {
-          const tasks = await dbGetAll<LocalTask>('tasks')
-          if (tasks.length > 0) {
-            set({ tasks, isLoading: false, isHydrated: true })
-          } else {
-            set({ isLoading: false, isHydrated: true })
-          }
-        } catch {
-          set({ isLoading: false, isHydrated: true })
+
+      addSubtask: (taskId, title) => {
+        const subtask: LocalSubtask = {
+          id: 'sub_' + Math.random().toString(36).substring(2, 9),
+          taskId,
+          title,
+          isCompleted: false,
+          createdAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString(),
         }
+        set((state) => ({ subtasks: [...state.subtasks, subtask] }))
+      },
+
+      toggleSubtask: (subtaskId) => {
+        set((state) => ({
+          subtasks: state.subtasks.map((st) =>
+            st.id === subtaskId ? { ...st, isCompleted: !st.isCompleted, updatedAt: new Date().toISOString() } : st
+          ),
+        }))
+      },
+
+      removeSubtask: (subtaskId) => {
+        set((state) => ({
+          subtasks: state.subtasks.filter((st) => st.id !== subtaskId),
+        }))
       },
     }),
-    {
-      name: 'nexora_guest_tasks',
-      partialize: (state) => ({ tasks: state.tasks }),
-    }
+    { name: 'nexora_task_storage' }
   )
 )

@@ -1,23 +1,14 @@
 {
-  "name": "nexora-app",
-  "version": "0.1.0",
+  "name": "nexora",
+  "version": "2.0.0",
   "private": true,
   "scripts": {
-    "dev": "node scripts/launcher.js dev",
-    "build": "next build",
-    "start": "node scripts/launcher.js start",
-    "lint": "eslint",
-    "test": "vitest run",
-    "typecheck": "tsc --noEmit",
-    "verify": "tsc --noEmit && vitest run"
+    "dev": "next dev -p 3000 -H 0.0.0.0",
+    "build": "NODE_ENV=production next build",
+    "start": "next start -p 3000 -H 0.0.0.0",
+    "lint": "next lint"
   },
   "dependencies": {
-    "@base-ui/react": "^1.6.0",
-    "@fullcalendar/daygrid": "^6.1.21",
-    "@fullcalendar/interaction": "^6.1.21",
-    "@fullcalendar/list": "^6.1.21",
-    "@fullcalendar/react": "^6.1.21",
-    "@fullcalendar/timegrid": "^6.1.21",
     "@supabase/ssr": "^0.12.4",
     "@supabase/supabase-js": "^2.111.0",
     "class-variance-authority": "^0.7.1",
@@ -28,8 +19,6 @@
     "next-themes": "^0.4.6",
     "react": "19.2.4",
     "react-dom": "19.2.4",
-    "recharts": "^3.10.1",
-    "shadcn": "^4.16.1",
     "sonner": "^2.0.7",
     "tailwind-merge": "^3.6.0",
     "tw-animate-css": "^1.4.0",
@@ -41,10 +30,8 @@
     "@types/node": "^20",
     "@types/react": "^19",
     "@types/react-dom": "^19",
-    "eslint": "^9",
-    "eslint-config-next": "16.2.12",
+    "postcss": "^8.4.31",
     "tailwindcss": "^4",
-    "typescript": "^5",
-    "vitest": "^4.1.10"
+    "typescript": "^5"
   }
 }

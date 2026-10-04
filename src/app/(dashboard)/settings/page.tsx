@@ -1,215 +1,221 @@
 'use client'
 
-import { useState, useRef } from 'react'
-import { Button } from '@/components/ui/button'
-import { Input } from '@/components/ui/input'
-import { Label } from '@/components/ui/label'
-import {
-  AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
-  AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger
-} from '@/components/ui/alert-dialog'
-import {
-  User, Download, Upload, Trash2, Cloud, Shield, Info, Check
-} from 'lucide-react'
+import React, { useState } from 'react'
 import { useAppStore } from '@/store/appStore'
-import { useAuth } from '@/providers/AuthProvider'
-import { exportWorkspace, downloadWorkspaceFile, validateImportFile, importWorkspace, resetWorkspace } from '@/lib/workspace'
+import { useTaskStore } from '@/store/useTaskStore'
+import { useHabitStore } from '@/store/useHabitStore'
+import { useGoalStore } from '@/store/useGoalStore'
+import { useProjectStore } from '@/store/useProjectStore'
+import { useFocusStore } from '@/store/useFocusStore'
+import {
+  Settings,
+  User,
+  Bot,
+  Database,
+  Download,
+  Upload,
+  RotateCcw,
+  Sparkles,
+  Volume2,
+  Moon,
+  Sun,
+  Shield,
+  Check,
+} from 'lucide-react'
 import { toast } from 'sonner'
-import Link from 'next/link'
 
 export default function SettingsPage() {
-  const preferences = useAppStore((s) => s.preferences)
-  const setDisplayName = useAppStore((s) => s.setDisplayName)
-  const { user } = useAuth()
-  const fileInputRef = useRef<HTMLInputElement>(null)
-  const [importSummary, setImportSummary] = useState<string | null>(null)
-  const [pendingImport, setPendingImport] = useState<string | null>(null)
+  const { preferences, agentConfig, setDisplayName, setAgentName, setTheme } = useAppStore()
 
-  const handleExport = async () => {
-    try {
-      const json = await exportWorkspace(preferences)
-      downloadWorkspaceFile(json)
-      toast.success('Workspace exported successfully.')
-    } catch (err) {
-      toast.error('Failed to export workspace.')
-      console.error(err)
+  const [name, setName] = useState(preferences.displayName || '')
+  const [agent, setAgent] = useState(agentConfig.name || 'Kyro')
+  const [isSaved, setIsSaved] = useState(false)
+
+  // Export full sanctuary data as JSON
+  const handleExportData = () => {
+    const backup = {
+      version: '2.0.0',
+      exportedAt: new Date().toISOString(),
+      tasks: useTaskStore.getState().tasks,
+      habits: useHabitStore.getState().habits,
+      habitCompletions: useHabitStore.getState().completions,
+      goals: useGoalStore.getState().goals,
+      projects: useProjectStore.getState().projects,
+      focusSessions: useFocusStore.getState().sessions,
     }
+
+    const dataStr = 'data:text/json;charset=utf-8,' + encodeURIComponent(JSON.stringify(backup, null, 2))
+    const downloadAnchor = document.createElement('a')
+    downloadAnchor.setAttribute('href', dataStr)
+    downloadAnchor.setAttribute('download', `nexora_sanctuary_backup_${new Date().toISOString().split('T')[0]}.json`)
+    document.body.appendChild(downloadAnchor)
+    downloadAnchor.click()
+    downloadAnchor.remove()
+    toast.success('Sanctuary backup exported successfully.')
   }
 
-  const handleImportFile = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0]
-    if (!file) return
-    const reader = new FileReader()
-    reader.onload = (event) => {
-      const json = event.target?.result as string
-      const result = validateImportFile(json)
-      if (!result.valid) { toast.error(result.error || 'Invalid file.'); return }
-      setPendingImport(json)
-      setImportSummary(`${result.summary?.tasks ?? 0} tasks, ${result.summary?.projects ?? 0} projects, ${result.summary?.goals ?? 0} goals, ${result.summary?.habits ?? 0} habits`)
+  // Handle Profile Save
+  const handleSaveProfile = (e: React.FormEvent) => {
+    e.preventDefault()
+    if (name.trim()) setDisplayName(name.trim())
+    if (agent.trim()) setAgentName(agent.trim())
+    setIsSaved(true)
+    toast.success('Sanctuary preferences updated.')
+    setTimeout(() => setIsSaved(false), 2000)
+  }
+
+  // Reset database with warning
+  const handleResetData = () => {
+    if (window.confirm('Are you sure you want to reset all local tasks, habits, and focus logs? This action cannot be undone.')) {
+      localStorage.clear()
+      window.location.reload()
     }
-    reader.readAsText(file)
-    e.target.value = ''
-  }
-
-  const confirmImport = async () => {
-    if (!pendingImport) return
-    try {
-      const result = validateImportFile(pendingImport)
-      if (result.valid && result.data) {
-        await importWorkspace(result.data)
-        toast.success('Workspace imported! Refreshing...')
-        setTimeout(() => window.location.reload(), 1000)
-      }
-    } catch { toast.error('Failed to import workspace.') }
-    setPendingImport(null); setImportSummary(null)
-  }
-
-  const handleReset = async () => {
-    try {
-      await resetWorkspace()
-      toast.success('Workspace reset. Redirecting...')
-      setTimeout(() => { window.location.href = '/' }, 1000)
-    } catch { toast.error('Failed to reset workspace.') }
   }
 
   return (
-    <div className="flex-1 p-4 md:p-8 max-w-3xl mx-auto w-full space-y-5">
+    <div className="space-y-8 animate-in fade-in duration-300 max-w-4xl">
+      {/* Title */}
       <div>
-        <h1 className="text-3xl md:text-4xl font-serif font-bold tracking-tight text-gradient">Settings</h1>
-        <p className="text-muted-foreground font-medium mt-1 text-sm">Manage your workspace preferences.</p>
+        <h1 className="text-2xl sm:text-3xl font-serif font-bold tracking-tight text-gradient-gold">
+          Sanctuary Settings
+        </h1>
+        <p className="text-sm text-stone-400 mt-1">
+          Configure your identity, companion resonance, and local data persistence.
+        </p>
       </div>
 
-      {/* Profile */}
-      <div className="world-card p-5 space-y-4">
-        <div className="flex items-center gap-2 mb-1">
-          <div className="p-1.5 rounded-xl bg-accent/8">
-            <User className="w-4 h-4 text-accent" />
+      <div className="space-y-6">
+        {/* Profile & Explorer Identity */}
+        <div className="world-deck p-6 space-y-4">
+          <div className="flex items-center gap-2.5 pb-2 border-b border-stone-800">
+            <User className="w-4 h-4 text-amber-400" />
+            <h3 className="text-sm font-bold text-foreground">Explorer & Companion Identities</h3>
           </div>
-          <h2 className="text-sm font-bold text-foreground">Profile</h2>
-        </div>
-        <div className="space-y-2">
-          <Label className="text-sm font-medium">Display Name</Label>
-          <Input value={preferences.displayName} onChange={e => setDisplayName(e.target.value)} className="rounded-xl max-w-sm bg-background/60 border-border/30" />
-        </div>
-        <div className="flex items-center gap-2 text-sm text-muted-foreground">
-          <Shield className="w-4 h-4" />
-          {user ? (
-            <span>Signed in as <strong className="text-foreground">{user.email}</strong></span>
-          ) : (
-            <span>Guest workspace · <Link href="/register" className="text-accent hover:underline font-semibold">Create account</Link></span>
-          )}
-        </div>
-      </div>
 
-      {/* Cloud Sync */}
-      {!user && (
-        <div className="world-card p-5 border-accent/10">
-          <div className="flex items-center gap-2 mb-3">
-            <div className="p-1.5 rounded-xl bg-accent/8">
-              <Cloud className="w-4 h-4 text-accent" />
+          <form onSubmit={handleSaveProfile} className="space-y-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div>
+                <label className="block text-xs font-semibold text-stone-300 mb-1.5">
+                  Explorer Callsign / Name
+                </label>
+                <input
+                  type="text"
+                  value={name}
+                  onChange={(e) => setName(e.target.value)}
+                  className="w-full px-3.5 py-2.5 rounded-xl bg-stone-900 border border-stone-800 text-sm text-foreground focus:outline-none focus:border-amber-400"
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-semibold text-stone-300 mb-1.5">
+                  Companion Name
+                </label>
+                <input
+                  type="text"
+                  value={agent}
+                  onChange={(e) => setAgent(e.target.value)}
+                  className="w-full px-3.5 py-2.5 rounded-xl bg-stone-900 border border-stone-800 text-sm text-foreground focus:outline-none focus:border-amber-400"
+                />
+              </div>
             </div>
-            <h2 className="text-sm font-bold text-foreground">Cloud Sync</h2>
-          </div>
-          <p className="text-sm text-muted-foreground mb-3">Create an account to sync your workspace across devices.</p>
-          <div className="flex gap-2">
-            <Link href="/register">
-              <Button className="rounded-xl bg-accent text-accent-foreground hover:bg-accent/90 cursor-pointer font-semibold">Create Account</Button>
-            </Link>
-            <Link href="/login">
-              <Button variant="outline" className="rounded-xl cursor-pointer font-semibold border-border/30">Sign In</Button>
-            </Link>
-          </div>
-        </div>
-      )}
 
-      {/* Data Management */}
-      <div className="world-card p-5 space-y-4">
-        <div className="flex items-center gap-2 mb-1">
-          <div className="p-1.5 rounded-xl bg-accent/8">
-            <Download className="w-4 h-4 text-accent" />
-          </div>
-          <h2 className="text-sm font-bold text-foreground">Data Management</h2>
-        </div>
-
-        <div className="flex items-center justify-between p-3.5 rounded-xl bg-foreground/[0.02] border border-border/15">
-          <div>
-            <p className="text-sm font-semibold">Export Workspace</p>
-            <p className="text-[11px] text-muted-foreground">Download all your data as a JSON file.</p>
-          </div>
-          <Button variant="outline" size="sm" onClick={handleExport} className="rounded-xl cursor-pointer gap-1.5 font-semibold border-border/30">
-            <Download className="w-3.5 h-3.5" /> Export
-          </Button>
-        </div>
-
-        <div className="flex items-center justify-between p-3.5 rounded-xl bg-foreground/[0.02] border border-border/15">
-          <div>
-            <p className="text-sm font-semibold">Import Workspace</p>
-            <p className="text-[11px] text-muted-foreground">Restore from a previously exported file.</p>
-          </div>
-          <Button variant="outline" size="sm" onClick={() => fileInputRef.current?.click()} className="rounded-xl cursor-pointer gap-1.5 font-semibold border-border/30">
-            <Upload className="w-3.5 h-3.5" /> Import
-          </Button>
-          <input ref={fileInputRef} type="file" accept=".json" onChange={handleImportFile} className="hidden" />
-        </div>
-
-        {pendingImport && (
-          <div className="p-3.5 rounded-xl bg-accent/[0.03] border border-accent/15 space-y-2">
-            <div className="flex items-center gap-2">
-              <Info className="w-4 h-4 text-accent" />
-              <p className="text-sm font-semibold">Ready to import</p>
+            <div className="flex justify-end pt-2">
+              <button
+                type="submit"
+                className="px-5 py-2.5 rounded-xl bg-amber-400 hover:bg-amber-300 text-stone-950 font-bold text-xs transition-all flex items-center gap-1.5 cursor-pointer"
+              >
+                {isSaved ? <Check className="w-4 h-4" /> : <Sparkles className="w-4 h-4" />}
+                <span>Save Identities</span>
+              </button>
             </div>
-            <p className="text-[11px] text-muted-foreground">{importSummary}</p>
-            <p className="text-[11px] text-destructive font-semibold">This will replace all current local data.</p>
-            <div className="flex gap-2">
-              <Button size="sm" onClick={confirmImport} className="rounded-xl bg-accent text-accent-foreground hover:bg-accent/90 cursor-pointer gap-1 font-semibold">
-                <Check className="w-3.5 h-3.5" /> Confirm Import
-              </Button>
-              <Button size="sm" variant="outline" onClick={() => { setPendingImport(null); setImportSummary(null) }} className="rounded-xl cursor-pointer border-border/30">
-                Cancel
-              </Button>
+          </form>
+        </div>
+
+        {/* Habitat Aesthetics & Environment */}
+        <div className="world-surface p-6 space-y-4">
+          <div className="flex items-center gap-2.5 pb-2 border-b border-stone-800">
+            <Sparkles className="w-4 h-4 text-amber-400" />
+            <h3 className="text-sm font-bold text-foreground">Habitat Environment</h3>
+          </div>
+
+          <div className="space-y-3">
+            <div className="flex items-center justify-between p-3 rounded-xl bg-stone-900/60 border border-stone-800">
+              <div>
+                <h4 className="text-xs font-bold text-foreground">Theme Palette</h4>
+                <p className="text-[11px] text-stone-400">Current visual atmosphere mode.</p>
+              </div>
+              <div className="flex gap-1.5">
+                <button
+                  onClick={() => setTheme('dark')}
+                  className={`px-3 py-1.5 rounded-lg text-xs font-bold flex items-center gap-1 transition-all ${
+                    preferences.theme === 'dark'
+                      ? 'bg-amber-400 text-stone-950 shadow'
+                      : 'text-stone-400 hover:text-stone-200'
+                  }`}
+                >
+                  <Moon className="w-3.5 h-3.5" />
+                  Dark Deep Space
+                </button>
+                <button
+                  onClick={() => setTheme('light')}
+                  className={`px-3 py-1.5 rounded-lg text-xs font-bold flex items-center gap-1 transition-all ${
+                    preferences.theme === 'light'
+                      ? 'bg-amber-400 text-stone-950 shadow'
+                      : 'text-stone-400 hover:text-stone-200'
+                  }`}
+                >
+                  <Sun className="w-3.5 h-3.5" />
+                  Light Sanctuary
+                </button>
+              </div>
+            </div>
+
+            <div className="flex items-center justify-between p-3 rounded-xl bg-stone-900/60 border border-stone-800">
+              <div>
+                <h4 className="text-xs font-bold text-foreground">Living Background Effects</h4>
+                <p className="text-[11px] text-stone-400">
+                  Subtle particle nebulae and organic breathing gradients.
+                </p>
+              </div>
+              <span className="text-xs font-semibold text-emerald-400">Active</span>
             </div>
           </div>
-        )}
-
-        <div className="flex items-center justify-between p-3.5 rounded-xl bg-destructive/[0.03] border border-destructive/15">
-          <div>
-            <p className="text-sm font-semibold text-destructive">Reset Workspace</p>
-            <p className="text-[11px] text-muted-foreground">Delete all local data. This cannot be undone.</p>
-          </div>
-          <AlertDialog>
-            <AlertDialogTrigger render={<Button variant="outline" size="sm" className="rounded-xl border-destructive/20 text-destructive hover:bg-destructive/10 cursor-pointer gap-1.5 font-semibold" />}>
-              <Trash2 className="w-3.5 h-3.5" /> Reset
-            </AlertDialogTrigger>
-            <AlertDialogContent className="rounded-2xl world-glass border-border/20">
-              <AlertDialogHeader>
-                <AlertDialogTitle>Reset Workspace?</AlertDialogTitle>
-                <AlertDialogDescription>
-                  This will permanently delete all your local data including tasks, projects, goals, habits, timeline entries, agent configuration, and companion customization. This action cannot be undone.
-                </AlertDialogDescription>
-              </AlertDialogHeader>
-              <AlertDialogFooter>
-                <AlertDialogCancel className="rounded-xl cursor-pointer">Cancel</AlertDialogCancel>
-                <AlertDialogAction onClick={handleReset} className="rounded-xl bg-destructive text-white hover:bg-destructive/90 cursor-pointer font-semibold">
-                  Reset Everything
-                </AlertDialogAction>
-              </AlertDialogFooter>
-            </AlertDialogContent>
-          </AlertDialog>
         </div>
-      </div>
 
-      {/* About */}
-      <div className="world-card p-5">
-        <div className="flex items-center gap-2 mb-3">
-          <div className="p-1.5 rounded-xl bg-accent/8">
-            <Info className="w-4 h-4 text-accent" />
+        {/* Data Persistence & Sanctuary Backup */}
+        <div className="world-surface p-6 space-y-4">
+          <div className="flex items-center gap-2.5 pb-2 border-b border-stone-800">
+            <Database className="w-4 h-4 text-amber-400" />
+            <h3 className="text-sm font-bold text-foreground">Data Ledger & Backup</h3>
           </div>
-          <h2 className="text-sm font-bold text-foreground">About</h2>
-        </div>
-        <div className="space-y-1 text-sm text-muted-foreground">
-          <p><strong className="text-foreground">Nexora</strong> v2.0.0</p>
-          <p>Personal Productivity World</p>
-          <p className="text-[11px]">Local-first · Guest-friendly · Optional cloud sync</p>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <button
+              onClick={handleExportData}
+              className="p-4 rounded-xl bg-stone-900/80 border border-stone-800 hover:border-amber-400/40 text-left transition-all cursor-pointer flex items-center gap-3"
+            >
+              <div className="p-2.5 rounded-lg bg-amber-400/10 text-amber-400">
+                <Download className="w-5 h-5" />
+              </div>
+              <div>
+                <h4 className="text-xs font-bold text-foreground">Export Backup</h4>
+                <p className="text-[11px] text-stone-400">Download complete workspace as JSON.</p>
+              </div>
+            </button>
+
+            <button
+              onClick={handleResetData}
+              className="p-4 rounded-xl bg-stone-900/80 border border-stone-800 hover:border-rose-400/40 text-left transition-all cursor-pointer flex items-center gap-3"
+            >
+              <div className="p-2.5 rounded-lg bg-rose-400/10 text-rose-400">
+                <RotateCcw className="w-5 h-5" />
+              </div>
+              <div>
+                <h4 className="text-xs font-bold text-rose-300">Reset Local Storage</h4>
+                <p className="text-[11px] text-stone-400">Clear cache and restart with defaults.</p>
+              </div>
+            </button>
+          </div>
         </div>
       </div>
     </div>

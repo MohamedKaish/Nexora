@@ -1,420 +1,370 @@
 'use client'
 
-import { useMemo, useState } from 'react'
+import React, { useMemo } from 'react'
 import Link from 'next/link'
 import { useAppStore } from '@/store/appStore'
 import { useTaskStore } from '@/store/useTaskStore'
-import { useGoalStore } from '@/store/useGoalStore'
 import { useHabitStore } from '@/store/useHabitStore'
+import { useGoalStore } from '@/store/useGoalStore'
 import { useProjectStore } from '@/store/useProjectStore'
-import { useAgentStore } from '@/store/agentStore'
-import { CompanionAvatar } from '@/features/companion/CompanionAvatar'
-import { Button } from '@/components/ui/button'
+import { useFocusStore } from '@/store/useFocusStore'
+import { useCharacterStore } from '@/store/characterStore'
+import { useKyroStore } from '@/store/kyroStore'
+import { Companion } from '@/components/companion/Companion'
+import { CompanionSelector } from '@/components/companion/CompanionSelector'
+import { companionController } from '@/components/companion/CompanionController'
 import {
-  CheckSquare, Target, Flame, Zap, FolderKanban,
-  ArrowRight, Plus, Check, Sparkles, Clock, Bot,
+  Compass,
+  CheckCircle2,
+  Circle,
+  Flame,
+  Zap,
+  Target,
+  FolderKanban,
+  ArrowRight,
+  Plus,
+  Bot,
+  Sparkles,
+  Calendar,
 } from 'lucide-react'
 import { format } from 'date-fns'
 
-function getGreeting(name: string) {
-  const hour = new Date().getHours()
-  if (hour < 6) return `Night owl mode, ${name}`
-  if (hour < 12) return `Good morning, ${name}`
-  if (hour < 17) return `Good afternoon, ${name}`
-  if (hour < 21) return `Good evening, ${name}`
-  return `Winding down, ${name}`
-}
-
-function getCompanionMood(tasks: number, habits: number, goals: number) {
-  if (tasks === 0 && habits === 0 && goals === 0) return 'greeting'
-  if (tasks > 5) return 'focused'
-  if (habits > 0) return 'happy'
-  return 'idle'
-}
-
 export default function DashboardPage() {
-  const displayName = useAppStore((s) => s.preferences.displayName) || 'Explorer'
-  const agentName = useAgentStore((s) => s.config.name)
-  const tasks = useTaskStore((s) => s.tasks)
-  const goals = useGoalStore((s) => s.goals)
-  const habits = useHabitStore((s) => s.habits)
-  const projects = useProjectStore((s) => s.projects)
-  const today = format(new Date(), 'EEEE, MMMM do')
+  const userName = useAppStore((s) => s.preferences.displayName) || 'Explorer'
+  const agentName = useAppStore((s) => s.agentConfig.name) || 'Kyro'
+  const characterConfig = useCharacterStore((s) => s.config)
+  const celebrateCompanion = useCharacterStore((s) => s.celebrate)
+  const toggleKyro = useKyroStore((s) => s.toggleOpen)
 
+  const tasks = useTaskStore((s) => s.tasks)
+  const toggleTaskStatus = useTaskStore((s) => s.toggleStatus)
+  const habits = useHabitStore((s) => s.habits)
+  const completions = useHabitStore((s) => s.completions)
+  const toggleHabit = useHabitStore((s) => s.toggleCompletion)
+  const goals = useGoalStore((s) => s.goals)
+  const projects = useProjectStore((s) => s.projects)
+
+  const isFocusRunning = useFocusStore((s) => s.isRunning)
+  const startFocusTimer = useFocusStore((s) => s.startTimer)
+
+  const todayStr = format(new Date(), 'yyyy-MM-dd')
+  const dateHeading = format(new Date(), 'EEEE, MMMM do')
+
+  // Context calculations
   const stats = useMemo(() => {
-    const activeTasks = tasks.filter(t => !t.deletedAt && t.status !== 'done')
-    const todayCompleted = tasks.filter(t => {
-      if (!t.updatedAt || t.status !== 'done') return false
-      return format(new Date(t.updatedAt), 'yyyy-MM-dd') === format(new Date(), 'yyyy-MM-dd')
-    })
-    const activeGoals = goals.filter(g => g.status === 'active' && !g.deletedAt)
-    const activeHabits = habits.filter(h => !h.deletedAt)
-    const activeProjects = projects.filter(p => p.status === 'active' && !p.deletedAt)
-    const todayStr = format(new Date(), 'yyyy-MM-dd')
-    const habitsCompletedToday = activeHabits.filter(h =>
-      h.habit_completions?.some(c => {
-        const d = c.completedDate || (c as unknown as Record<string, unknown>).completed_date as string
-        return d === todayStr
-      })
-    ).length
+    const activeTasks = tasks.filter((t) => t.status !== 'done')
+    const completedToday = tasks.filter((t) => t.status === 'done')
+    const urgentTasks = activeTasks.filter((t) => t.priority === 'urgent' || t.priority === 'high')
+    const habitsDoneToday = completions.filter((c) => c.completedDate === todayStr).length
+    const activeGoals = goals.filter((g) => g.status === 'active')
+    const maxStreak = Math.max(...habits.map((h) => h.streak), 0)
 
     return {
-      activeTasks, todayCompleted,
-      activeGoals, activeHabits, activeProjects,
-      habitsCompletedToday,
-      streak: Math.max(...activeHabits.map(h => h.streak || 0), 0),
+      activeTasks,
+      completedToday,
+      urgentTasks,
+      habitsDoneToday,
+      activeGoals,
+      maxStreak,
     }
-  }, [tasks, goals, habits, projects])
+  }, [tasks, habits, completions, goals, todayStr])
 
-  const companionMood = getCompanionMood(
-    stats.activeTasks.length,
-    stats.habitsCompletedToday,
-    stats.activeGoals.length,
-  )
+  // Contextual speech bubble message from Kyro
+  const companionMessage = useMemo(() => {
+    if (isFocusRunning) return "Chamber locked. Stay in flow. One breath, one task."
+    if (stats.urgentTasks.length > 0) return `Priorities aligned. We have ${stats.urgentTasks.length} high-leverage objective${stats.urgentTasks.length > 1 ? 's' : ''} to conquer today.`
+    if (stats.completedToday.length > 0) return `Clean work, ${userName}! You've crossed ${stats.completedToday.length} task${stats.completedToday.length > 1 ? 's' : ''} off the board.`
+    if (stats.habitsDoneToday > 0) return `Consistency is the forge. ${stats.habitsDoneToday}/${habits.length} habits locked in.`
+    return "Sanctuary stable. What is the single most important action for today?"
+  }, [isFocusRunning, stats, habits.length, userName])
 
-  // Pick a companion message
-  const companionMessages = [
-    stats.todayCompleted.length > 0
-      ? `You've completed ${stats.todayCompleted.length} task${stats.todayCompleted.length > 1 ? 's' : ''} today. Keep going!`
-      : stats.activeTasks.length > 0
-      ? `You have ${stats.activeTasks.length} task${stats.activeTasks.length > 1 ? 's' : ''} waiting. Let's make progress!`
-      : 'Ready to start your day? Add a task to begin!',
-    stats.streak > 0 ? `🔥 ${stats.streak}-day streak! Don't break the chain.` : null,
-    stats.habitsCompletedToday > 0 ? `${stats.habitsCompletedToday}/${stats.activeHabits.length} habits done today!` : null,
-  ].filter(Boolean)
+  const greeting = useMemo(() => {
+    const hour = new Date().getHours()
+    if (hour < 12) return `Good morning, ${userName}`
+    if (hour < 18) return `Good afternoon, ${userName}`
+    return `Good evening, ${userName}`
+  }, [userName])
+
+  const handleTaskToggle = (id: string, currentStatus: string) => {
+    const task = tasks.find((t) => t.id === id)
+    toggleTaskStatus(id)
+    if (currentStatus !== 'done') {
+      companionController.onTaskCompleted(task?.title)
+    }
+  }
+
+  const handleHabitToggle = (id: string) => {
+    const habit = habits.find((h) => h.id === id)
+    const wasCompleted = toggleHabit(id)
+    if (wasCompleted) {
+      companionController.onHabitChecked(habit?.name, (habit?.streak || 0) + 1)
+    }
+  }
 
   return (
-    <div className="flex-1 p-4 md:p-8 max-w-6xl mx-auto w-full space-y-6 md:space-y-8">
-      {/* ─── Hero: Companion Greeting Area ─── */}
-      <div className="relative overflow-hidden rounded-3xl world-card p-6 md:p-8">
-        {/* Ambient overlay */}
-        <div className="absolute inset-0 bg-gradient-to-br from-accent/[0.03] via-transparent to-transparent pointer-events-none" />
-        
-        <div className="relative flex flex-col md:flex-row items-center gap-6 md:gap-10">
-          {/* Companion */}
-          <div className="relative">
-            <div className="companion-glow p-3">
-              <CompanionAvatar
-                size={140}
-                state={companionMood}
-                expression={companionMood === 'greeting' ? 'happy' : companionMood}
-                animate
-                showGlow
-                showPlatform
-              />
-            </div>
-          </div>
+    <div className="space-y-8 animate-in fade-in duration-500">
+      {/* ─── THE WORLD STAGE: COMPANION & COMMAND CENTER ─── */}
+      <section className="relative overflow-hidden rounded-3xl border border-stone-800/80 bg-gradient-to-br from-stone-900/60 via-stone-950/80 to-stone-950 p-6 sm:p-10 shadow-[0_12px_40px_rgba(0,0,0,0.5)]">
+        {/* Ambient environmental aura */}
+        <div className="absolute top-0 right-1/4 w-96 h-96 rounded-full blur-[120px] bg-amber-500/10 pointer-events-none" />
 
-          {/* Greeting Text */}
-          <div className="flex-1 text-center md:text-left space-y-3">
-            <div>
-              <p className="text-xs font-semibold text-accent uppercase tracking-widest mb-1">
-                {today}
-              </p>
-              <h1 className="text-3xl md:text-4xl font-serif font-bold tracking-tight text-gradient">
-                {getGreeting(displayName)}
-              </h1>
+        <div className="relative z-10 flex flex-col md:flex-row items-center justify-between gap-8">
+          {/* Left: Greeting & Command State */}
+          <div className="flex-1 space-y-4 text-center md:text-left">
+            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-stone-900/90 border border-stone-800 text-amber-300 text-xs font-semibold">
+              <Calendar className="w-3.5 h-3.5 text-amber-400" />
+              <span>{dateHeading}</span>
             </div>
 
-            {/* Companion Speech Bubble */}
-            <div className="inline-flex items-start gap-2 max-w-md px-4 py-3 rounded-2xl world-glass text-sm text-foreground/80 font-medium leading-relaxed">
-              <Bot className="h-4 w-4 text-accent mt-0.5 shrink-0" />
-              <span>{companionMessages[0]}</span>
-            </div>
+            <h1 className="text-3xl sm:text-4xl md:text-5xl font-serif font-bold tracking-tight text-foreground">
+              {greeting}
+            </h1>
 
-            {/* Quick Actions */}
-            <div className="flex flex-wrap gap-2 justify-center md:justify-start pt-1">
-              <Link href="/tasks">
-                <Button className="rounded-xl bg-accent text-accent-foreground hover:bg-accent/90 font-semibold gap-1.5 cursor-pointer shadow-sm h-9 px-4 text-sm">
-                  <Plus className="w-3.5 h-3.5" /> New Task
-                </Button>
-              </Link>
-              <Link href="/focus">
-                <Button variant="outline" className="rounded-xl font-semibold gap-1.5 cursor-pointer border-border/40 h-9 px-4 text-sm hover:bg-foreground/[0.04]">
-                  <Zap className="w-3.5 h-3.5 text-brand-amber" /> Focus
-                </Button>
-              </Link>
-              <Link href="/agent">
-                <Button variant="outline" className="rounded-xl font-semibold gap-1.5 cursor-pointer border-border/40 h-9 px-4 text-sm hover:bg-foreground/[0.04]">
-                  <Sparkles className="w-3.5 h-3.5 text-brand-purple" /> Ask {agentName}
-                </Button>
-              </Link>
-            </div>
-          </div>
-        </div>
-      </div>
+            <p className="text-sm sm:text-base text-stone-400 max-w-lg leading-relaxed font-normal">
+              {isFocusRunning
+                ? "Deep work chamber active. External noise suppressed."
+                : `You have ${stats.activeTasks.length} active tasks, ${stats.habitsDoneToday}/${habits.length} habits locked in, and ${stats.urgentTasks.length} high priority items waiting.`}
+            </p>
 
-      {/* ─── Stats Orbs ─── */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-3 md:gap-4">
-        <Link href="/tasks" className="group">
-          <StatOrb
-            icon={CheckSquare}
-            label="Active Tasks"
-            value={stats.activeTasks.length}
-            color="var(--color-brand-blue)"
-            subtext={`${stats.todayCompleted.length} done today`}
-          />
-        </Link>
-        <Link href="/goals" className="group">
-          <StatOrb
-            icon={Target}
-            label="Goals"
-            value={stats.activeGoals.length}
-            color="var(--color-brand-emerald)"
-            subtext="active goals"
-          />
-        </Link>
-        <Link href="/habits" className="group">
-          <StatOrb
-            icon={Flame}
-            label="Habits"
-            value={`${stats.habitsCompletedToday}/${stats.activeHabits.length}`}
-            color="var(--color-brand-amber)"
-            subtext={stats.streak > 0 ? `${stats.streak}-day streak` : 'Build consistency'}
-          />
-        </Link>
-        <Link href="/projects" className="group">
-          <StatOrb
-            icon={FolderKanban}
-            label="Projects"
-            value={stats.activeProjects.length}
-            color="var(--color-brand-purple)"
-            subtext="in progress"
-          />
-        </Link>
-      </div>
-
-      {/* ─── Main Content Grid ─── */}
-      <div className="grid md:grid-cols-2 gap-4 md:gap-6">
-        {/* Today's Tasks */}
-        <div className="world-card p-5 md:p-6 space-y-4">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-2">
-              <div className="p-1.5 rounded-xl bg-brand-blue/10">
-                <CheckSquare className="h-4 w-4 text-brand-blue" />
-              </div>
-              <h2 className="text-sm font-bold text-foreground tracking-tight">Today's Tasks</h2>
-            </div>
-            <Link href="/tasks" className="text-xs font-semibold text-accent hover:text-accent/80 transition-colors flex items-center gap-1 cursor-pointer">
-              View all <ArrowRight className="w-3 h-3" />
-            </Link>
-          </div>
-
-          {stats.activeTasks.length === 0 ? (
-            <div className="text-center py-8 space-y-2">
-              <div className="w-10 h-10 mx-auto rounded-2xl bg-brand-blue/5 flex items-center justify-center">
-                <CheckSquare className="w-5 h-5 text-brand-blue/30" />
-              </div>
-              <p className="text-sm text-muted-foreground font-medium">All caught up!</p>
-              <Link href="/tasks">
-                <Button variant="outline" size="sm" className="rounded-xl text-xs cursor-pointer">
-                  <Plus className="w-3 h-3 mr-1" /> Add task
-                </Button>
-              </Link>
-            </div>
-          ) : (
-            <div className="space-y-1.5 max-h-[280px] overflow-y-auto">
-              {stats.activeTasks.slice(0, 6).map(task => (
-                <TaskItem key={task.id} task={task} />
-              ))}
-              {stats.activeTasks.length > 6 && (
-                <Link href="/tasks" className="block text-xs font-semibold text-accent text-center py-2 hover:text-accent/80 transition-colors cursor-pointer">
-                  +{stats.activeTasks.length - 6} more tasks
+            {/* Quick Command Bar */}
+            <div className="flex flex-wrap gap-2.5 justify-center md:justify-start pt-2">
+              {!isFocusRunning ? (
+                <button
+                  onClick={() => startFocusTimer()}
+                  className="px-4 py-2.5 rounded-xl bg-amber-400 hover:bg-amber-300 text-stone-950 font-bold text-xs flex items-center gap-2 shadow-[0_0_20px_rgba(212,168,83,0.3)] transition-all cursor-pointer"
+                >
+                  <Zap className="w-4 h-4 fill-stone-950" />
+                  Launch 25m Focus
+                </button>
+              ) : (
+                <Link
+                  href="/focus"
+                  className="px-4 py-2.5 rounded-xl bg-amber-400/20 border border-amber-400/40 text-amber-300 font-bold text-xs flex items-center gap-2 transition-all"
+                >
+                  <Zap className="w-4 h-4 text-amber-400 animate-pulse" />
+                  View Active Chamber
                 </Link>
               )}
-            </div>
-          )}
-        </div>
 
-        {/* Habits Today */}
-        <div className="world-card p-5 md:p-6 space-y-4">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-2">
-              <div className="p-1.5 rounded-xl bg-brand-amber/10">
-                <Flame className="h-4 w-4 text-brand-amber" />
-              </div>
-              <h2 className="text-sm font-bold text-foreground tracking-tight">Today's Habits</h2>
+              <Link
+                href="/tasks"
+                className="px-4 py-2.5 rounded-xl bg-stone-900 hover:bg-stone-800 border border-stone-800 text-stone-200 font-semibold text-xs flex items-center gap-1.5 transition-all"
+              >
+                <Plus className="w-4 h-4 text-stone-400" />
+                Add Priority
+              </Link>
+
+              <button
+                onClick={toggleKyro}
+                className="px-4 py-2.5 rounded-xl bg-stone-900 hover:bg-stone-800 border border-stone-800 text-amber-300 font-semibold text-xs flex items-center gap-1.5 transition-all cursor-pointer"
+              >
+                <Bot className="w-4 h-4 text-amber-400" />
+                Ask {agentName}
+              </button>
             </div>
-            <Link href="/habits" className="text-xs font-semibold text-accent hover:text-accent/80 transition-colors flex items-center gap-1 cursor-pointer">
-              View all <ArrowRight className="w-3 h-3" />
-            </Link>
           </div>
 
-          {stats.activeHabits.length === 0 ? (
-            <div className="text-center py-8 space-y-2">
-              <div className="w-10 h-10 mx-auto rounded-2xl bg-brand-amber/5 flex items-center justify-center">
-                <Flame className="w-5 h-5 text-brand-amber/30" />
-              </div>
-              <p className="text-sm text-muted-foreground font-medium">No habits tracked yet</p>
-              <Link href="/habits">
-                <Button variant="outline" size="sm" className="rounded-xl text-xs cursor-pointer">
-                  <Plus className="w-3 h-3 mr-1" /> Track a habit
-                </Button>
-              </Link>
+          {/* Right: Integrated Environmental Companion on Dais */}
+          <div className="relative flex flex-col items-center shrink-0">
+            <Companion
+              size={150}
+              showGlow={true}
+              showPlatform={true}
+              speechTextOverride={companionMessage}
+              onClick={toggleKyro}
+            />
+            <div className="text-center mt-2 mb-3">
+              <span className="text-xs font-bold text-stone-300">{agentName}</span>
+              <span className="block text-[10px] text-amber-400/70 font-medium">Click to Converse</span>
             </div>
-          ) : (
-            <div className="space-y-1.5">
-              {stats.activeHabits.slice(0, 5).map(habit => {
-                const todayStr = format(new Date(), 'yyyy-MM-dd')
-                const isCompleted = habit.habit_completions?.some(c => {
-                  const d = c.completedDate || (c as unknown as Record<string, unknown>).completed_date as string
-                  return d === todayStr
-                }) || false
 
-                return (
-                  <div key={habit.id} className={`flex items-center gap-3 p-3 rounded-xl transition-all duration-200 ${
-                    isCompleted ? 'bg-brand-emerald/5 border border-brand-emerald/10' : 'bg-foreground/[0.02] border border-border/20 hover:bg-foreground/[0.04]'
-                  }`}>
-                    <div className={`w-7 h-7 rounded-lg flex items-center justify-center shrink-0 transition-all ${
-                      isCompleted ? 'bg-brand-emerald/20' : 'border border-border/40'
-                    }`}>
-                      {isCompleted && <Check className="w-3.5 h-3.5 text-brand-emerald" />}
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <p className={`text-sm font-semibold truncate ${isCompleted ? 'text-muted-foreground line-through' : 'text-foreground'}`}>
-                        {habit.name}
-                      </p>
-                    </div>
-                    {habit.streak > 0 && (
-                      <span className="text-[10px] font-bold text-brand-amber flex items-center gap-0.5">
-                        <Flame className="w-3 h-3" /> {habit.streak}
-                      </span>
-                    )}
-                  </div>
-                )
-              })}
-            </div>
-          )}
+            {/* Quick 1-Click Creature Switcher */}
+            <CompanionSelector variant="compact" />
+          </div>
         </div>
+      </section>
+
+      {/* ─── VITAL SIGNALS MATRIX (STAT PODS) ─── */}
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+        <Link href="/tasks" className="world-deck p-4 hover:border-amber-400/40 transition-all group">
+          <div className="flex items-center justify-between">
+            <span className="text-xs font-semibold text-stone-400">Active Tasks</span>
+            <CheckCircle2 className="w-4 h-4 text-blue-400" />
+          </div>
+          <div className="text-2xl sm:text-3xl font-bold font-serif text-foreground mt-2">
+            {stats.activeTasks.length}
+          </div>
+          <span className="text-[11px] text-blue-300/80 font-medium mt-1 block">
+            {stats.completedToday.length} finished today
+          </span>
+        </Link>
+
+        <Link href="/habits" className="world-deck p-4 hover:border-amber-400/40 transition-all group">
+          <div className="flex items-center justify-between">
+            <span className="text-xs font-semibold text-stone-400">Habits Locked</span>
+            <Flame className="w-4 h-4 text-amber-400" />
+          </div>
+          <div className="text-2xl sm:text-3xl font-bold font-serif text-foreground mt-2">
+            {stats.habitsDoneToday}/{habits.length}
+          </div>
+          <span className="text-[11px] text-amber-300/80 font-medium mt-1 block">
+            {stats.maxStreak > 0 ? `${stats.maxStreak}-day streak active` : 'Build momentum'}
+          </span>
+        </Link>
+
+        <Link href="/goals" className="world-deck p-4 hover:border-amber-400/40 transition-all group">
+          <div className="flex items-center justify-between">
+            <span className="text-xs font-semibold text-stone-400">Active Goals</span>
+            <Target className="w-4 h-4 text-emerald-400" />
+          </div>
+          <div className="text-2xl sm:text-3xl font-bold font-serif text-foreground mt-2">
+            {stats.activeGoals.length}
+          </div>
+          <span className="text-[11px] text-emerald-300/80 font-medium mt-1 block">
+            milestones in flight
+          </span>
+        </Link>
+
+        <Link href="/projects" className="world-deck p-4 hover:border-amber-400/40 transition-all group">
+          <div className="flex items-center justify-between">
+            <span className="text-xs font-semibold text-stone-400">Workspaces</span>
+            <FolderKanban className="w-4 h-4 text-purple-400" />
+          </div>
+          <div className="text-2xl sm:text-3xl font-bold font-serif text-foreground mt-2">
+            {projects.length}
+          </div>
+          <span className="text-[11px] text-purple-300/80 font-medium mt-1 block">
+            active project hubs
+          </span>
+        </Link>
       </div>
 
-      {/* ─── Projects Strip ─── */}
-      {stats.activeProjects.length > 0 && (
-        <div className="space-y-3">
-          <div className="flex items-center justify-between px-1">
+      {/* ─── TODAY'S PROTOCOL: TASKS & HABITS INTEGRATION ─── */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        {/* Left 2 Cols: Priority Task Deck */}
+        <div className="lg:col-span-2 space-y-4">
+          <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
-              <div className="p-1.5 rounded-xl bg-brand-purple/10">
-                <FolderKanban className="h-4 w-4 text-brand-purple" />
-              </div>
-              <h2 className="text-sm font-bold text-foreground tracking-tight">Active Projects</h2>
+              <Compass className="w-4 h-4 text-amber-400" />
+              <h3 className="text-sm font-bold text-foreground uppercase tracking-wider">
+                Today&apos;s High-Leverage Tasks
+              </h3>
             </div>
-            <Link href="/projects" className="text-xs font-semibold text-accent hover:text-accent/80 transition-colors flex items-center gap-1 cursor-pointer">
-              View all <ArrowRight className="w-3 h-3" />
+            <Link href="/tasks" className="text-xs font-semibold text-amber-400 hover:underline flex items-center gap-1">
+              Task Matrix <ArrowRight className="w-3 h-3" />
             </Link>
           </div>
-          
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-            {stats.activeProjects.slice(0, 3).map(project => {
-              const projectTasks = tasks.filter(t => {
-                const pid = t.projectId || (t as unknown as Record<string, unknown>).project_id as string
-                return pid === project.id && !t.deletedAt
-              })
-              const done = projectTasks.filter(t => t.status === 'done').length
-              const progress = projectTasks.length > 0 ? Math.round((done / projectTasks.length) * 100) : 0
+
+          <div className="space-y-2.5">
+            {stats.activeTasks.slice(0, 5).map((task) => (
+              <div
+                key={task.id}
+                className="world-deck p-3.5 flex items-center justify-between gap-3 group hover:border-amber-400/30 transition-all"
+              >
+                <div className="flex items-center gap-3 min-w-0">
+                  <button
+                    onClick={() => handleTaskToggle(task.id, task.status)}
+                    className="w-6 h-6 rounded-lg border border-stone-700 hover:border-amber-400 flex items-center justify-center shrink-0 cursor-pointer text-stone-500 hover:text-amber-400 transition-colors"
+                  >
+                    <Circle className="w-3.5 h-3.5" />
+                  </button>
+
+                  <div className="min-w-0">
+                    <p className="text-sm font-semibold text-foreground truncate group-hover:text-amber-200 transition-colors">
+                      {task.title}
+                    </p>
+                    {task.description && (
+                      <p className="text-xs text-stone-400 truncate">{task.description}</p>
+                    )}
+                  </div>
+                </div>
+
+                <div className="flex items-center gap-2 shrink-0">
+                  <span
+                    className={`text-[10px] px-2 py-0.5 rounded font-bold uppercase ${
+                      task.priority === 'urgent'
+                        ? 'bg-rose-500/15 text-rose-300'
+                        : task.priority === 'high'
+                        ? 'bg-amber-500/15 text-amber-300'
+                        : 'bg-blue-500/15 text-blue-300'
+                    }`}
+                  >
+                    {task.priority}
+                  </span>
+                </div>
+              </div>
+            ))}
+
+            {stats.activeTasks.length === 0 && (
+              <div className="p-8 text-center world-deck border-dashed border-stone-800">
+                <CheckCircle2 className="w-8 h-8 text-emerald-400 mx-auto mb-2 opacity-60" />
+                <h4 className="text-sm font-bold text-foreground">Clean Deck</h4>
+                <p className="text-xs text-stone-400 mt-1">All prioritized tasks for today are complete.</p>
+              </div>
+            )}
+          </div>
+        </div>
+
+        {/* Right 1 Col: Daily Habit Streak Grid */}
+        <div className="space-y-4">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <Flame className="w-4 h-4 text-amber-400" />
+              <h3 className="text-sm font-bold text-foreground uppercase tracking-wider">
+                Daily Habit Streaks
+              </h3>
+            </div>
+            <Link href="/habits" className="text-xs font-semibold text-amber-400 hover:underline flex items-center gap-1">
+              All <ArrowRight className="w-3 h-3" />
+            </Link>
+          </div>
+
+          <div className="space-y-2.5">
+            {habits.slice(0, 4).map((habit) => {
+              const isDone = completions.some(
+                (c) => c.habitId === habit.id && c.completedDate === todayStr
+              )
 
               return (
-                <Link key={project.id} href="/projects" className="block">
-                  <div className="world-card p-4 cursor-pointer">
-                    <div className="flex items-center gap-3 mb-3">
-                      <div className="w-9 h-9 rounded-xl flex items-center justify-center" style={{ backgroundColor: `${project.color}12` }}>
-                        <FolderKanban className="w-4 h-4" style={{ color: project.color }} />
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <p className="text-sm font-bold text-foreground truncate">{project.name}</p>
-                        <p className="text-[10px] text-muted-foreground">{done}/{projectTasks.length} tasks</p>
-                      </div>
+                <div
+                  key={habit.id}
+                  onClick={() => handleHabitToggle(habit.id)}
+                  className={`world-deck p-3.5 flex items-center justify-between cursor-pointer transition-all ${
+                    isDone
+                      ? 'border-emerald-500/30 bg-emerald-950/15'
+                      : 'hover:border-stone-700'
+                  }`}
+                >
+                  <div className="flex items-center gap-3 min-w-0">
+                    <div
+                      className={`w-5 h-5 rounded-md border flex items-center justify-center transition-colors ${
+                        isDone
+                          ? 'bg-emerald-400 border-emerald-400 text-stone-950'
+                          : 'border-stone-700 text-transparent'
+                      }`}
+                    >
+                      <CheckCircle2 className="w-3.5 h-3.5 fill-current" />
                     </div>
-                    <div className="w-full h-1.5 rounded-full bg-border/30 overflow-hidden">
-                      <div
-                        className="h-full rounded-full transition-all duration-700"
-                        style={{ width: `${progress}%`, backgroundColor: project.color }}
-                      />
+                    <div>
+                      <p className={`text-xs font-bold ${isDone ? 'line-through text-stone-500' : 'text-foreground'}`}>
+                        {habit.name}
+                      </p>
+                      <span className="text-[10px] text-stone-400">
+                        {habit.frequency}
+                      </span>
                     </div>
                   </div>
-                </Link>
+
+                  <div className="flex items-center gap-1 text-amber-400 text-xs font-bold">
+                    <Flame className="w-3.5 h-3.5 fill-current" />
+                    <span>{habit.streak}</span>
+                  </div>
+                </div>
               )
             })}
           </div>
         </div>
-      )}
-    </div>
-  )
-}
-
-/* ─── Sub-components ─── */
-
-function StatOrb({
-  icon: Icon,
-  label,
-  value,
-  color,
-  subtext,
-}: {
-  icon: React.ElementType
-  label: string
-  value: string | number
-  color: string
-  subtext: string
-}) {
-  return (
-    <div className="world-card stat-orb p-4 md:p-5 flex flex-col gap-2 cursor-pointer">
-      <div className="flex items-center gap-2">
-        <div className="p-1.5 rounded-xl" style={{ backgroundColor: `${color}12` }}>
-          <Icon className="h-4 w-4" style={{ color }} />
-        </div>
-        <span className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">
-          {label}
-        </span>
       </div>
-      <div>
-        <p className="text-2xl md:text-3xl font-bold text-foreground tracking-tighter">{value}</p>
-        <p className="text-[11px] text-muted-foreground font-medium mt-0.5">{subtext}</p>
-      </div>
-    </div>
-  )
-}
-
-function TaskItem({ task }: { task: { id: string; title: string; priority?: string; status: string; timeframe?: string } }) {
-  const toggleStatus = useTaskStore((s) => s.toggleStatus)
-  const isDone = task.status === 'done'
-
-  const priorityColors: Record<string, string> = {
-    urgent: '#FB7185',
-    high: '#FBBF24',
-    medium: '#60A5FA',
-    low: '#A8A29E',
-  }
-
-  return (
-    <div className={`flex items-center gap-3 p-3 rounded-xl transition-all duration-200 ${
-      isDone ? 'bg-brand-emerald/5 border border-brand-emerald/10' : 'bg-foreground/[0.02] border border-border/20 hover:bg-foreground/[0.04]'
-    }`}>
-      <button
-        onClick={() => toggleStatus(task.id)}
-        className={`w-5 h-5 rounded-md flex items-center justify-center transition-all cursor-pointer shrink-0 ${
-          isDone ? 'bg-brand-emerald text-white' : 'border-[1.5px] border-border/50 hover:border-accent/50'
-        }`}
-        aria-label={isDone ? 'Unmark task' : 'Complete task'}
-      >
-        {isDone && <Check className="w-3 h-3" />}
-      </button>
-      <div className="flex-1 min-w-0 flex items-center gap-2">
-        <span className={`text-sm font-medium truncate ${isDone ? 'line-through text-muted-foreground' : 'text-foreground'}`}>
-          {task.title}
-        </span>
-        {task.timeframe && task.timeframe !== 'none' && (
-          <span className="text-[9px] font-bold uppercase tracking-widest text-accent bg-accent/10 px-1.5 py-0.5 rounded-sm shrink-0 mt-0.5">
-            {task.timeframe}
-          </span>
-        )}
-      </div>
-      {task.priority && task.priority !== 'none' && (
-        <div
-          className="w-2 h-2 rounded-full shrink-0"
-          style={{ backgroundColor: priorityColors[task.priority] || '#A8A29E' }}
-          title={task.priority}
-        />
-      )}
     </div>
   )
 }

@@ -1,94 +1,105 @@
 import { create } from 'zustand'
 import { persist } from 'zustand/middleware'
-import type { LocalHabit, LocalHabitCompletion } from '@/types/local'
-import { createLocalHabit, createLocalId, nowISO } from '@/types/local'
-import { dbGetAll, dbPut, dbDelete } from '@/lib/db/indexeddb'
+import { LocalHabit, LocalHabitCompletion, HabitFrequency } from '@/types/local'
+import { format } from 'date-fns'
 
-export type Habit = LocalHabit & {
-  habit_completions?: LocalHabitCompletion[]
-}
-
-interface HabitStore {
-  habits: Habit[]
-  setHabits: (habits: Habit[]) => void
-  addHabit: (partial: Partial<LocalHabit> & { name: string }) => Habit
-  updateHabit: (id: string, updates: Partial<Habit>) => void
+interface HabitState {
+  habits: LocalHabit[]
+  completions: LocalHabitCompletion[]
+  addHabit: (params: { name: string; frequency?: HabitFrequency; color?: string }) => void
   removeHabit: (id: string) => void
-  toggleCompletion: (habitId: string, date: string, isCompleted: boolean, updatedStreak?: number) => void
-  hydrate: () => Promise<void>
+  toggleCompletion: (habitId: string, dateStr?: string) => boolean
 }
 
-export const useHabitStore = create<HabitStore>()(
+const INITIAL_HABITS: LocalHabit[] = [
+  {
+    id: 'habit-1',
+    name: 'Morning Deep Reading (30m)',
+    frequency: 'daily',
+    color: '#60A5FA',
+    streak: 5,
+    createdAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString(),
+  },
+  {
+    id: 'habit-2',
+    name: 'Hydration & Daily Movement',
+    frequency: 'daily',
+    color: '#34D399',
+    streak: 8,
+    createdAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString(),
+  },
+  {
+    id: 'habit-3',
+    name: 'Evening Review & Clean Slate',
+    frequency: 'weekdays',
+    color: '#FBBF24',
+    streak: 3,
+    createdAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString(),
+  },
+]
+
+export const useHabitStore = create<HabitState>()(
   persist(
     (set, get) => ({
-      habits: [],
-      setHabits: (habits) => set({ habits }),
-      addHabit: (partial) => {
-        const habit: Habit = { ...createLocalHabit(partial), habit_completions: [] }
+      habits: INITIAL_HABITS,
+      completions: [],
+
+      addHabit: (params) => {
+        const habit: LocalHabit = {
+          id: 'habit_' + Math.random().toString(36).substring(2, 9),
+          name: params.name,
+          frequency: params.frequency ?? 'daily',
+          color: params.color ?? '#34D399',
+          streak: 0,
+          createdAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString(),
+        }
         set((state) => ({ habits: [...state.habits, habit] }))
-        dbPut('habits', habit).catch(console.error)
-        return habit
       },
-      updateHabit: (id, updates) =>
-        set((state) => {
-          const habits = state.habits.map((h) => (h.id === id ? { ...h, ...updates, updatedAt: nowISO() } : h))
-          const updated = habits.find((h) => h.id === id)
-          if (updated) dbPut('habits', updated).catch(console.error)
-          return { habits }
-        }),
+
       removeHabit: (id) => {
-        set((state) => ({ habits: state.habits.filter((h) => h.id !== id) }))
-        dbDelete('habits', id).catch(console.error)
+        set((state) => ({
+          habits: state.habits.filter((h) => h.id !== id),
+          completions: state.completions.filter((c) => c.habitId !== id),
+        }))
       },
-      toggleCompletion: (habitId, date, isCompleted, updatedStreak) =>
-        set((state) => {
-          const habits = state.habits.map((habit) => {
-            if (habit.id === habitId) {
-              const completions = habit.habit_completions || []
-              if (isCompleted) {
-                const newCompletion: LocalHabitCompletion = {
-                  id: createLocalId(),
-                  habitId,
-                  completedDate: date,
-                  createdAt: nowISO(),
-                }
-                const updated = {
-                  ...habit,
-                  habit_completions: [...completions, newCompletion],
-                  streak: typeof updatedStreak === 'number' ? updatedStreak : habit.streak + 1,
-                  updatedAt: nowISO(),
-                }
-                dbPut('habits', updated).catch(console.error)
-                return updated
-              } else {
-                const updated = {
-                  ...habit,
-                  habit_completions: completions.filter((c) => c.completedDate !== date),
-                  streak: typeof updatedStreak === 'number' ? updatedStreak : Math.max(0, habit.streak - 1),
-                  updatedAt: nowISO(),
-                }
-                dbPut('habits', updated).catch(console.error)
-                return updated
-              }
-            }
-            return habit
-          })
-          return { habits }
-        }),
-      hydrate: async () => {
-        try {
-          const habits = await dbGetAll<Habit>('habits')
-          if (habits.length > 0) {
-            set({ habits })
+
+      toggleCompletion: (habitId, dateStr = format(new Date(), 'yyyy-MM-dd')) => {
+        const existing = get().completions.find(
+          (c) => c.habitId === habitId && c.completedDate === dateStr
+        )
+        const isDone = !!existing
+
+        if (isDone) {
+          // Unmark
+          set((state) => ({
+            completions: state.completions.filter((c) => c.id !== existing.id),
+            habits: state.habits.map((h) =>
+              h.id === habitId ? { ...h, streak: Math.max(0, h.streak - 1) } : h
+            ),
+          }))
+          return false
+        } else {
+          // Mark complete
+          const newCompletion: LocalHabitCompletion = {
+            id: 'comp_' + Math.random().toString(36).substring(2, 9),
+            habitId,
+            completedDate: dateStr,
+            createdAt: new Date().toISOString(),
           }
-        } catch {
-          // Keep existing state
+          set((state) => ({
+            completions: [...state.completions, newCompletion],
+            habits: state.habits.map((h) =>
+              h.id === habitId ? { ...h, streak: h.streak + 1 } : h
+            ),
+          }))
+          return true
         }
       },
     }),
-    {
-      name: 'nexora_guest_habits',
-      partialize: (state) => ({ habits: state.habits }),
-    }
+    { name: 'nexora_habit_storage' }
   )
 )

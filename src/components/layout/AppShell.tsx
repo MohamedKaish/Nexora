@@ -1,30 +1,49 @@
 'use client'
 
+import React, { useEffect } from 'react'
 import { Sidebar } from './Sidebar'
+import { Header } from './Header'
 import { MobileNav } from './MobileNav'
 import { WorldBackground } from '@/features/companion/WorldBackground'
+import { KyroChatPanel } from '@/features/kyro/KyroChatPanel'
+import { useFocusStore } from '@/store/useFocusStore'
 
-interface AppShellProps {
-  children: React.ReactNode
-}
+export function AppShell({ children }: { children: React.ReactNode }) {
+  const tickFocusTimer = useFocusStore((s) => s.tick)
+  const isFocusRunning = useFocusStore((s) => s.isRunning)
 
-export function AppShell({ children }: AppShellProps) {
+  // Global 1s ticker for focus countdown
+  useEffect(() => {
+    if (!isFocusRunning) return
+    const interval = setInterval(() => {
+      tickFocusTimer()
+    }, 1000)
+    return () => clearInterval(interval)
+  }, [isFocusRunning, tickFocusTimer])
+
   return (
-    <WorldBackground variant="default">
-      <div className="flex min-h-screen">
-        {/* Desktop Sidebar */}
-        <Sidebar />
-        
-        {/* Main Content */}
-        <main className="flex-1 flex flex-col min-h-screen overflow-hidden pb-20 md:pb-0">
-          <div className="flex-1 page-enter">
-            {children}
-          </div>
-        </main>
+    <div className="min-h-screen bg-background text-foreground flex flex-col relative">
+      {/* Environmental Atmospheric Background */}
+      <WorldBackground />
 
-        {/* Mobile Bottom Nav */}
-        <MobileNav />
+      <div className="relative z-10 flex min-h-screen">
+        {/* Navigation Sidebar for Desktop */}
+        <Sidebar />
+
+        {/* Primary Content Container */}
+        <div className="flex-1 flex flex-col lg:pl-64 min-w-0">
+          <Header />
+          <main className="flex-1 p-4 md:p-8 pb-24 lg:pb-12 max-w-7xl mx-auto w-full">
+            {children}
+          </main>
+        </div>
       </div>
-    </WorldBackground>
+
+      {/* Kyro AI Conversational Assistant Panel */}
+      <KyroChatPanel />
+
+      {/* Bottom Bar for Mobile */}
+      <MobileNav />
+    </div>
   )
 }

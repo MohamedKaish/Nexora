@@ -1,87 +1,33 @@
-'use client'
-
 import { create } from 'zustand'
 import { persist } from 'zustand/middleware'
-import type { AppMode, LocalPreferences, DEFAULT_PREFERENCES } from '@/types/local'
-import { useAuth } from '@/providers/AuthProvider'
+import { LocalPreferences, DEFAULT_PREFERENCES, AgentConfig, DEFAULT_AGENT_CONFIG } from '@/types/local'
 
-interface AppModeState {
-  mode: AppMode
+interface AppState {
   preferences: LocalPreferences
-  setMode: (mode: AppMode) => void
-  setPreferences: (prefs: Partial<LocalPreferences>) => void
+  agentConfig: AgentConfig
   setDisplayName: (name: string) => void
+  setTheme: (theme: 'dark' | 'light' | 'system') => void
   setAgentName: (name: string) => void
   completeOnboarding: () => void
-  resetPreferences: () => void
+  updatePreferences: (partial: Partial<LocalPreferences>) => void
 }
 
-const defaultPrefs: LocalPreferences = {
-  displayName: '',
-  theme: 'dark',
-  accentColor: '#6366F1',
-  onboardingComplete: false,
-  agentName: 'Nexora',
-  sidebarCollapsed: false,
-  language: 'en',
-  pomodoroDuration: 25,
-  shortBreakDuration: 5,
-  longBreakDuration: 15,
-}
-
-export const useAppStore = create<AppModeState>()(
+export const useAppStore = create<AppState>()(
   persist(
     (set) => ({
-      mode: 'guest',
-      preferences: defaultPrefs,
-      setMode: (mode) => set({ mode }),
-      setPreferences: (prefs) =>
-        set((state) => ({
-          preferences: { ...state.preferences, ...prefs },
-        })),
+      preferences: DEFAULT_PREFERENCES,
+      agentConfig: DEFAULT_AGENT_CONFIG,
       setDisplayName: (name) =>
-        set((state) => ({
-          preferences: { ...state.preferences, displayName: name },
-        })),
+        set((state) => ({ preferences: { ...state.preferences, displayName: name } })),
+      setTheme: (theme) =>
+        set((state) => ({ preferences: { ...state.preferences, theme } })),
       setAgentName: (name) =>
-        set((state) => ({
-          preferences: { ...state.preferences, agentName: name },
-        })),
+        set((state) => ({ agentConfig: { ...state.agentConfig, name } })),
       completeOnboarding: () =>
-        set((state) => ({
-          preferences: { ...state.preferences, onboardingComplete: true },
-        })),
-      resetPreferences: () => set({ preferences: defaultPrefs, mode: 'guest' }),
+        set((state) => ({ preferences: { ...state.preferences, onboardingComplete: true } })),
+      updatePreferences: (partial) =>
+        set((state) => ({ preferences: { ...state.preferences, ...partial } })),
     }),
-    {
-      name: 'nexora_app_state',
-      partialize: (state) => ({
-        preferences: state.preferences,
-      }),
-    }
+    { name: 'nexora_app_storage' }
   )
 )
-
-/** Hook that derives app mode from both store and auth state */
-export function useAppMode() {
-  const { user, isLoading: authLoading } = useAuth()
-  const storeMode = useAppStore((s) => s.mode)
-  const setMode = useAppStore((s) => s.setMode)
-
-  const effectiveMode: AppMode = user
-    ? storeMode === 'syncing'
-      ? 'syncing'
-      : 'authenticated'
-    : navigator.onLine
-    ? 'guest'
-    : 'offline'
-
-  return {
-    mode: effectiveMode,
-    isGuest: !user,
-    isAuthenticated: !!user,
-    isLoading: authLoading,
-    setMode,
-    user,
-  }
-}

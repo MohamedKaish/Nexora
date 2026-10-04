@@ -1,65 +1,71 @@
 import { create } from 'zustand'
 import { persist } from 'zustand/middleware'
-import type { LocalGoal } from '@/types/local'
-import { createLocalGoal, nowISO } from '@/types/local'
-import { dbGetAll, dbPut, dbDelete } from '@/lib/db/indexeddb'
-
-export type Goal = LocalGoal
+import { LocalGoal, GoalType } from '@/types/local'
 
 interface GoalState {
-  goals: Goal[]
-  isLoading: boolean
-  setGoals: (goals: Goal[]) => void
-  addGoal: (partial: Partial<LocalGoal> & { title: string; periodStart: string; periodEnd: string }) => Goal
-  updateGoal: (id: string, updates: Partial<Goal>) => void
+  goals: LocalGoal[]
+  addGoal: (params: { title: string; type?: GoalType; periodStart?: string; periodEnd?: string }) => void
+  updateGoal: (id: string, partial: Partial<LocalGoal>) => void
   removeGoal: (id: string) => void
-  hydrate: () => Promise<void>
 }
+
+const INITIAL_GOALS: LocalGoal[] = [
+  {
+    id: 'goal-1',
+    title: 'Achieve 20 Focused Deep Work Hours',
+    type: 'weekly',
+    status: 'active',
+    progress: 45,
+    periodStart: new Date().toISOString(),
+    periodEnd: new Date(Date.now() + 7 * 86400000).toISOString(),
+    createdAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString(),
+  },
+  {
+    id: 'goal-2',
+    title: 'Maintain 14-Day Consistency Across Habits',
+    type: 'monthly',
+    status: 'active',
+    progress: 60,
+    periodStart: new Date().toISOString(),
+    periodEnd: new Date(Date.now() + 30 * 86400000).toISOString(),
+    createdAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString(),
+  },
+]
 
 export const useGoalStore = create<GoalState>()(
   persist(
-    (set, get) => ({
-      goals: [],
-      isLoading: true,
-      setGoals: (goals) => set({ goals, isLoading: false }),
-      addGoal: (partial) => {
-        const goal = createLocalGoal(partial)
-        set((state) => ({ goals: [goal, ...state.goals] }))
-        dbPut('goals', goal).catch(console.error)
-        return goal
+    (set) => ({
+      goals: INITIAL_GOALS,
+
+      addGoal: (params) => {
+        const goal: LocalGoal = {
+          id: 'goal_' + Math.random().toString(36).substring(2, 9),
+          title: params.title,
+          type: params.type ?? 'weekly',
+          status: 'active',
+          progress: 0,
+          periodStart: params.periodStart ?? new Date().toISOString(),
+          periodEnd: params.periodEnd ?? new Date(Date.now() + 7 * 86400000).toISOString(),
+          createdAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString(),
+        }
+        set((state) => ({ goals: [...state.goals, goal] }))
       },
-      updateGoal: (id, updates) => {
-        const updatedAt = nowISO()
+
+      updateGoal: (id, partial) => {
         set((state) => ({
           goals: state.goals.map((g) =>
-            g.id === id ? { ...g, ...updates, updatedAt } : g
+            g.id === id ? { ...g, ...partial, updatedAt: new Date().toISOString() } : g
           ),
         }))
-        const goal = get().goals.find((g) => g.id === id)
-        if (goal) dbPut('goals', goal).catch(console.error)
       },
+
       removeGoal: (id) => {
-        set((state) => ({
-          goals: state.goals.filter((g) => g.id !== id),
-        }))
-        dbDelete('goals', id).catch(console.error)
-      },
-      hydrate: async () => {
-        try {
-          const goals = await dbGetAll<Goal>('goals')
-          if (goals.length > 0) {
-            set({ goals, isLoading: false })
-          } else {
-            set({ isLoading: false })
-          }
-        } catch {
-          set({ isLoading: false })
-        }
+        set((state) => ({ goals: state.goals.filter((g) => g.id !== id) }))
       },
     }),
-    {
-      name: 'nexora_guest_goals',
-      partialize: (state) => ({ goals: state.goals }),
-    }
+    { name: 'nexora_goal_storage' }
   )
 )

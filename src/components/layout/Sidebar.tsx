@@ -1,151 +1,126 @@
 'use client'
 
+import React from 'react'
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import {
-  LayoutDashboard,
+  Compass,
   CheckSquare,
-  FolderKanban,
-  Target,
   Flame,
   Zap,
-  Clock,
-  Bot,
+  Target,
+  FolderKanban,
+  CalendarDays,
+  CalendarRange,
+  BarChart3,
+  Bell,
   Sparkles,
+  Bot,
   Settings,
-  LineChart,
-  ChevronLeft,
-  ChevronRight,
 } from 'lucide-react'
-import { useAgentStore } from '@/store/agentStore'
-import { CompanionAvatar } from '@/features/companion/CompanionAvatar'
 import { useAppStore } from '@/store/appStore'
-import { useState } from 'react'
 
-const mainNavItems = [
-  { href: '/dashboard', label: 'Home', icon: LayoutDashboard },
-  { href: '/tasks', label: 'Tasks', icon: CheckSquare },
-  { href: '/projects', label: 'Projects', icon: FolderKanban },
-  { href: '/goals', label: 'Goals', icon: Target },
-  { href: '/habits', label: 'Habits', icon: Flame },
-  { href: '/focus', label: 'Focus', icon: Zap },
-  { href: '/timeline', label: 'Timeline', icon: Clock },
-]
+interface NavSection {
+  title: string
+  items: {
+    name: string
+    href: string
+    icon: React.ElementType
+    badge?: string
+  }[]
+}
 
-const secondaryNavItems = [
-  { href: '/agent', label: 'Agent', icon: Bot },
-  { href: '/character', label: 'Companion', icon: Sparkles },
-  { href: '/analytics', label: 'Analytics', icon: LineChart },
-  { href: '/settings', label: 'Settings', icon: Settings },
+const NAV_SECTIONS: NavSection[] = [
+  {
+    title: 'Core Habitat',
+    items: [
+      { name: 'World Hub', href: '/dashboard', icon: Compass },
+      { name: 'Tasks', href: '/tasks', icon: CheckSquare },
+      { name: 'Habits', href: '/habits', icon: Flame },
+      { name: 'Focus Chamber', href: '/focus', icon: Zap },
+    ],
+  },
+  {
+    title: 'Horizon Planning',
+    items: [
+      { name: 'Goals', href: '/goals', icon: Target },
+      { name: 'Projects', href: '/projects', icon: FolderKanban },
+      { name: 'Timetable', href: '/timetable', icon: CalendarDays },
+      { name: 'Calendar', href: '/calendar', icon: CalendarRange },
+    ],
+  },
+  {
+    title: 'Insights',
+    items: [
+      { name: 'Analytics', href: '/analytics', icon: BarChart3 },
+      { name: 'Inbox', href: '/notifications', icon: Bell },
+    ],
+  },
+  {
+    title: 'Personal Ally',
+    items: [
+      { name: 'Companion Atelier', href: '/character', icon: Sparkles },
+      { name: 'Kyro Agent', href: '/agent', icon: Bot },
+      { name: 'Settings', href: '/settings', icon: Settings },
+    ],
+  },
 ]
 
 export function Sidebar() {
   const pathname = usePathname()
-  const agentName = useAgentStore((s) => s.config.name)
-  const displayName = useAppStore((s) => s.preferences.displayName)
-  const [collapsed, setCollapsed] = useState(false)
-
-  const renderNavItem = (item: { href: string; label: string; icon: React.ElementType }) => {
-    const isActive = pathname === item.href || pathname.startsWith(`${item.href}/`)
-    const label = item.href === '/agent' ? agentName : item.label
-
-    return (
-      <Link
-        key={item.href}
-        href={item.href}
-        className={`group relative flex items-center gap-3 rounded-2xl px-3 py-2.5 transition-all duration-200 cursor-pointer ${
-          isActive
-            ? 'bg-accent/8 text-accent'
-            : 'text-muted-foreground hover:text-foreground hover:bg-foreground/[0.04]'
-        } ${collapsed ? 'justify-center px-2' : ''}`}
-        aria-current={isActive ? 'page' : undefined}
-        aria-label={label}
-        title={collapsed ? label : undefined}
-      >
-        {/* Active indicator */}
-        {isActive && (
-          <div className="absolute left-0 top-1/2 -translate-y-1/2 w-[3px] h-5 bg-accent rounded-r-full transition-all" />
-        )}
-        
-        <div className={`relative flex items-center justify-center ${
-          isActive ? 'text-accent' : 'text-muted-foreground/60 group-hover:text-foreground'
-        } transition-all duration-200`}>
-          <item.icon className="h-[18px] w-[18px] shrink-0" />
-          {isActive && (
-            <div className="absolute inset-0 blur-md bg-accent/20 rounded-full" />
-          )}
-        </div>
-        
-        {!collapsed && (
-          <span className="text-[13px] font-semibold truncate">{label}</span>
-        )}
-      </Link>
-    )
-  }
+  const agentName = useAppStore((s) => s.agentConfig.name) || 'Kyro'
 
   return (
-    <aside className={`hidden md:flex flex-col transition-all duration-300 ${
-      collapsed ? 'w-[72px]' : 'w-[250px]'
-    }`}>
-      {/* Frosted sidebar background */}
-      <div className="flex flex-col h-full world-glass border-r border-border/30">
-        {/* Logo */}
-        <div className={`flex items-center h-16 px-4 ${collapsed ? 'justify-center' : ''}`}>
-          <Link href="/dashboard" className="flex items-center gap-2.5 group cursor-pointer">
-            <div className="relative flex h-8 w-8 items-center justify-center rounded-xl bg-accent/10 border border-accent/20 transition-all duration-300 group-hover:scale-105 group-hover:bg-accent/15">
-              <span className="text-accent text-sm font-black">N</span>
-              <div className="absolute inset-0 rounded-xl bg-accent/5 blur-sm" />
-            </div>
-            {!collapsed && (
-              <span className="text-base tracking-tight font-bold text-foreground">
-                Nexora
-              </span>
-            )}
-          </Link>
+    <aside className="hidden lg:flex w-64 flex-col fixed inset-y-0 left-0 z-40 bg-stone-950/80 border-r border-stone-800/80 backdrop-blur-xl">
+      {/* Brand Header */}
+      <div className="h-16 flex items-center px-6 border-b border-stone-800/80 gap-3">
+        <div className="w-8 h-8 rounded-xl bg-gradient-to-br from-amber-400 to-amber-600 flex items-center justify-center shadow-[0_0_15px_rgba(212,168,83,0.35)]">
+          <span className="text-stone-950 font-bold text-lg font-serif">N</span>
         </div>
+        <div className="flex flex-col">
+          <span className="text-base font-bold tracking-tight text-gradient-gold">NEXORA</span>
+          <span className="text-[10px] text-amber-300/70 uppercase tracking-widest font-semibold">Living OS</span>
+        </div>
+      </div>
 
-        {/* Companion preview */}
-        {!collapsed && (
-          <div className="px-4 pb-3">
-            <Link href="/character" className="flex items-center gap-3 p-2.5 rounded-2xl bg-foreground/[0.02] border border-border/20 hover:bg-foreground/[0.04] transition-all cursor-pointer group">
-              <CompanionAvatar size={36} expression="happy" animate={false} />
-              <div className="flex-1 min-w-0">
-                <p className="text-xs font-bold text-foreground truncate">
-                  {displayName || 'Explorer'}
-                </p>
-                <p className="text-[10px] text-muted-foreground font-medium">
-                  Your world
-                </p>
-              </div>
-            </Link>
+      {/* Nav links */}
+      <div className="flex-1 overflow-y-auto px-4 py-6 space-y-6">
+        {NAV_SECTIONS.map((section) => (
+          <div key={section.title} className="space-y-1.5">
+            <h4 className="px-3 text-[10px] font-bold text-stone-500 uppercase tracking-widest">
+              {section.title}
+            </h4>
+            {section.items.map((item) => {
+              const Icon = item.icon
+              const isActive = pathname === item.href
+              const itemName = item.name.replace('Kyro Agent', `${agentName} Agent`)
+
+              return (
+                <Link
+                  key={item.href}
+                  href={item.href}
+                  className={`flex items-center gap-3 px-3 py-2.5 rounded-xl text-xs font-semibold transition-all duration-150 ${
+                    isActive
+                      ? 'bg-amber-400/10 text-amber-300 border border-amber-400/25 shadow-sm'
+                      : 'text-stone-400 hover:text-stone-100 hover:bg-stone-900/60'
+                  }`}
+                >
+                  <Icon
+                    className={`w-4 h-4 transition-colors ${
+                      isActive ? 'text-amber-400' : 'text-stone-400'
+                    }`}
+                  />
+                  <span>{itemName}</span>
+                </Link>
+              )
+            })}
           </div>
-        )}
+        ))}
+      </div>
 
-        {/* Main Nav */}
-        <div className="flex-1 overflow-auto py-1">
-          <nav aria-label="Main Navigation" className={`space-y-0.5 ${collapsed ? 'px-2' : 'px-3'}`}>
-            {mainNavItems.map(renderNavItem)}
-
-            <div className="h-px bg-border/20 my-3" />
-
-            {secondaryNavItems.map(renderNavItem)}
-          </nav>
-        </div>
-
-        {/* Collapse toggle */}
-        <div className={`p-3 border-t border-border/20 ${collapsed ? 'flex justify-center' : ''}`}>
-          <button
-            onClick={() => setCollapsed(!collapsed)}
-            className="p-2 rounded-xl text-muted-foreground hover:text-foreground hover:bg-foreground/[0.04] transition-all cursor-pointer"
-            aria-label={collapsed ? 'Expand sidebar' : 'Collapse sidebar'}
-          >
-            {collapsed ? (
-              <ChevronRight className="h-4 w-4" />
-            ) : (
-              <ChevronLeft className="h-4 w-4" />
-            )}
-          </button>
-        </div>
+      {/* Ambient Footer */}
+      <div className="p-4 border-t border-stone-800/80 text-center">
+        <p className="text-[11px] text-stone-500 font-medium">Nexora v2.0 · Sanctuary Active</p>
       </div>
     </aside>
   )
