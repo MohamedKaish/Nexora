@@ -7,6 +7,7 @@ import { useHabitStore } from '@/store/useHabitStore'
 import { useGoalStore } from '@/store/useGoalStore'
 import { useProjectStore } from '@/store/useProjectStore'
 import { useFocusStore } from '@/store/useFocusStore'
+import { usePwa } from '@/components/pwa/PwaProvider'
 import {
   Settings,
   User,
@@ -21,11 +22,15 @@ import {
   Sun,
   Shield,
   Check,
+  Smartphone,
+  Laptop,
+  CheckCircle2,
 } from 'lucide-react'
 import { toast } from 'sonner'
 
 export default function SettingsPage() {
   const { preferences, agentConfig, setDisplayName, setAgentName, setTheme } = useAppStore()
+  const { isInstallable, isInstalled, installApp, openInstallGuide, isIos } = usePwa()
 
   const [name, setName] = useState(preferences.displayName || '')
   const [agent, setAgent] = useState(agentConfig.name || 'Kyro')
@@ -80,7 +85,7 @@ export default function SettingsPage() {
           Sanctuary Settings
         </h1>
         <p className="text-sm text-stone-400 mt-1">
-          Configure your identity, companion resonance, and local data persistence.
+          Configure your identity, companion resonance, web app installation, and local data persistence.
         </p>
       </div>
 
@@ -129,6 +134,52 @@ export default function SettingsPage() {
               </button>
             </div>
           </form>
+        </div>
+
+        {/* Web App Installation (PWA) */}
+        <div className="world-surface p-6 space-y-4">
+          <div className="flex items-center gap-2.5 pb-2 border-b border-stone-800">
+            <Smartphone className="w-4 h-4 text-amber-400" />
+            <h3 className="text-sm font-bold text-foreground">Web App Installation (PC & Mobile)</h3>
+          </div>
+
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 p-4 rounded-xl bg-stone-900/60 border border-stone-800">
+            <div className="space-y-1">
+              <div className="flex items-center gap-2">
+                <h4 className="text-xs sm:text-sm font-bold text-foreground">
+                  Standalone Desktop & Mobile App
+                </h4>
+                {isInstalled ? (
+                  <span className="px-2 py-0.5 rounded-full bg-emerald-400/20 text-emerald-300 text-[10px] font-bold flex items-center gap-1">
+                    <CheckCircle2 className="w-3 h-3" /> Installed
+                  </span>
+                ) : (
+                  <span className="px-2 py-0.5 rounded-full bg-amber-400/20 text-amber-300 text-[10px] font-bold">
+                    PWA Ready
+                  </span>
+                )}
+              </div>
+              <p className="text-xs text-stone-400">
+                Install Nexora directly to your PC, Mac, Android, or iOS device for offline caching, windowed desktop mode, and zero browser toolbar distraction.
+              </p>
+            </div>
+
+            <div className="shrink-0">
+              {isInstalled ? (
+                <span className="text-xs text-emerald-300 font-semibold flex items-center gap-1">
+                  <Check className="w-4 h-4" /> Active in Standalone Mode
+                </span>
+              ) : (
+                <button
+                  onClick={openInstallGuide}
+                  className="px-4 py-2.5 rounded-xl bg-amber-400 hover:bg-amber-300 text-stone-950 font-bold text-xs flex items-center gap-2 shadow-[0_0_15px_rgba(212,168,83,0.3)] transition-all cursor-pointer"
+                >
+                  <Download className="w-4 h-4" />
+                  <span>Install Web App</span>
+                </button>
+              )}
+            </div>
+          </div>
         </div>
 
         {/* Habitat Aesthetics & Environment */}

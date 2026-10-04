@@ -28,21 +28,32 @@ export async function POST(req: NextRequest) {
     const creature = context?.systemMetadata?.creatureArchetype || 'nyxen'
 
     // System Prompt for Kyro with real Nexora context
+    const currentDate = context?.systemMetadata?.currentDate || new Date().toISOString().split('T')[0]
+    const dayOfWeek = context?.systemMetadata?.dayOfWeek || 'Today'
+    const currentTime = context?.systemMetadata?.currentTime || 'Now'
+    const activeTasksCount = context?.tasks?.activeCount ?? 0
+    const urgentTasksList = context?.tasks?.urgentTasks?.map((t) => `"${t.title}" (${t.priority})`).join(', ') || 'None'
+    const nextTasksList = context?.tasks?.nextTasks?.map((t) => `"${t.title}"`).join(', ') || 'None'
+    const habitsDone = context?.habits?.completedToday ?? 0
+    const habitsTotal = context?.habits?.total ?? 0
+    const habitsPending = context?.habits?.pendingToday?.map((h) => `${h.name} (${h.streak}d streak)`).join(', ') || 'None'
+    const focusMins = context?.focus?.todayMinutes ?? 0
+    const isFocusActive = context?.focus?.isSessionActive ? 'Yes' : 'No'
+    const goalsList = context?.goals?.map((g) => `"${g.title}" (${g.progress}% done)`).join(', ') || 'None'
+    const slotsList = context?.timetable?.todaySlots?.map((s) => `${s.startTime}-${s.endTime}: ${s.title} [${s.category}]`).join(', ') || 'Open flow'
+
     const systemPrompt = `You are ${agent}, the intelligent living AI companion inside NEXORA — a personal productivity operating system.
 Your current embodied avatar form is ${creature.toUpperCase()}.
 You live inside the Nexora sanctuary alongside ${user}.
 Your personality: intelligent, calm, observant, slightly playful, concise, and deeply context-aware. Never generic productivity spam or excessive emojis.
 
 REAL NEXORA WORKSPACE CONTEXT:
-- Date: ${context.systemMetadata.currentDate} (${context.systemMetadata.dayOfWeek}) at ${context.systemMetadata.currentTime}
-- Tasks: ${context.tasks.activeCount} active, ${context.tasks.urgentTasks.length} urgent/high priority, ${context.tasks.overdueCount} overdue, ${context.tasks.completedTodayCount} finished today.
-  Urgent Tasks: ${context.tasks.urgentTasks.map((t) => `"${t.title}" (${t.priority})`).join(', ') || 'None'}
-  Next Queued Tasks: ${context.tasks.nextTasks.map((t) => `"${t.title}"`).join(', ') || 'None'}
-- Habits: ${context.habits.completedToday}/${context.habits.total} checked today. Best streak: ${context.habits.bestStreak} days.
-  Pending today: ${context.habits.pendingToday.map((h) => `${h.name} (${h.streak}d streak)`).join(', ') || 'All checked!'}
-- Focus Chamber: ${context.focus.todayMinutes} mins logged today. Active timer running: ${context.focus.isSessionActive}
-- Goals: ${context.goals.map((g) => `"${g.title}" (${g.progress}% done)`).join(', ') || 'None'}
-- Schedule Blocks Today: ${context.timetable.todaySlots.map((s) => `${s.startTime}-${s.endTime}: ${s.title} [${s.category}]`).join(', ') || 'Open flow'}
+- Date: ${currentDate} (${dayOfWeek}) at ${currentTime}
+- Tasks: ${activeTasksCount} active. Urgent Tasks: ${urgentTasksList}. Next Queued Tasks: ${nextTasksList}
+- Habits: ${habitsDone}/${habitsTotal} checked today. Pending: ${habitsPending}
+- Focus Chamber: ${focusMins} mins logged today. Active timer: ${isFocusActive}
+- Goals: ${goalsList}
+- Schedule Blocks Today: ${slotsList}
 
 RULES:
 1. Always base answers on the user's actual Nexora data above.
@@ -134,25 +145,25 @@ Respond in valid JSON with format:
  */
 function generateAdvancedSynthesis(
   message: string,
-  ctx: StructuredNexoraContext,
+  ctx?: Partial<StructuredNexoraContext>,
   history: Array<{ sender: 'user' | 'kyro'; text: string }> = []
 ) {
   const lower = message.toLowerCase().trim()
-  const user = ctx.systemMetadata.userName || 'Explorer'
-  const agent = ctx.systemMetadata.agentName || 'Kyro'
-  const currentCreature = (ctx.systemMetadata.creatureArchetype || 'nyxen').toLowerCase()
+  const user = ctx?.systemMetadata?.userName || 'Explorer'
+  const agent = ctx?.systemMetadata?.agentName || 'Kyro'
+  const currentCreature = (ctx?.systemMetadata?.creatureArchetype || 'nyxen').toLowerCase()
 
-  const urgent = ctx.tasks.urgentTasks || []
-  const next = ctx.tasks.nextTasks || []
-  const activeCount = ctx.tasks.activeCount || 0
-  const completed = ctx.tasks.completedTodayCount || 0
-  const habitsDone = ctx.habits.completedToday || 0
-  const habitsTotal = ctx.habits.total || 0
-  const bestStreak = ctx.habits.bestStreak || 0
-  const pendingHabits = ctx.habits.pendingToday || []
-  const focusMins = ctx.focus.todayMinutes || 0
-  const goals = ctx.goals || []
-  const slots = ctx.timetable?.todaySlots || []
+  const urgent = ctx?.tasks?.urgentTasks || []
+  const next = ctx?.tasks?.nextTasks || []
+  const activeCount = ctx?.tasks?.activeCount || 0
+  const completed = ctx?.tasks?.completedTodayCount || 0
+  const habitsDone = ctx?.habits?.completedToday || 0
+  const habitsTotal = ctx?.habits?.total || 0
+  const bestStreak = ctx?.habits?.bestStreak || 0
+  const pendingHabits = ctx?.habits?.pendingToday || []
+  const focusMins = ctx?.focus?.todayMinutes || 0
+  const goals = ctx?.goals || []
+  const slots = ctx?.timetable?.todaySlots || []
 
   // ── 1. COMPANION SWITCHING INTENT ──
   // User: "switch to aerix", "change companion to vayron", "make nyxen my ally", "choose aerix"
@@ -325,8 +336,9 @@ function generateAdvancedSynthesis(
     lower.includes('status') ||
     lower.includes('stats')
   ) {
+    const dayOfWeek = ctx?.systemMetadata?.dayOfWeek || 'Today'
     return {
-      reply: `📊 **Live Habitat Telemetry for ${ctx.systemMetadata.dayOfWeek}:**\n\n• **Tasks**: ${completed} finished today, ${activeCount} remaining active.\n• **Habits**: ${habitsDone} of ${habitsTotal} locked in (top active streak: ${bestStreak} days).\n• **Deep Work**: ${focusMins} minutes in the Focus Chamber.\n• **Active Goals**: ${goals.length} horizons in flight.\n\n${
+      reply: `📊 **Live Habitat Telemetry for ${dayOfWeek}:**\n\n• **Tasks**: ${completed} finished today, ${activeCount} remaining active.\n• **Habits**: ${habitsDone} of ${habitsTotal} locked in (top active streak: ${bestStreak} days).\n• **Deep Work**: ${focusMins} minutes in the Focus Chamber.\n• **Active Goals**: ${goals.length} horizons in flight.\n\n${
         urgent.length > 0
           ? `⚠️ You have ${urgent.length} urgent task${urgent.length > 1 ? 's' : ''} awaiting attention.`
           : '✨ No urgent fires. Your trajectory is steady.'
@@ -342,6 +354,7 @@ function generateAdvancedSynthesis(
     lower.includes('schedule') ||
     lower.includes('timetable')
   ) {
+    const dayOfWeek = ctx?.systemMetadata?.dayOfWeek || 'Today'
     const slotList = slots.length > 0
       ? slots.map((s) => `• \`${s.startTime} - ${s.endTime}\`: ${s.title} *(${s.category})*`).join('\n')
       : '• Open flow schedule (no fixed timetable blocks allocated)'
@@ -349,8 +362,8 @@ function generateAdvancedSynthesis(
     const topTask = urgent[0]?.title || next[0]?.title || 'Key daily objective'
 
     return {
-      reply: `🗺️ **Optimal Battle Plan for ${ctx.systemMetadata.dayOfWeek}:**\n\n**Scheduled Time Blocks:**\n${slotList}\n\n**Recommended Action Flow:**\n1. **High Leverage**: Knock out "${topTask}" in an early morning focus sprint.\n2. **Habit Momentum**: Secure remaining ${pendingHabits.length} daily habit check-ins.\n3. **Sanctuary Recharge**: Dedicate 15 minutes of recovery between deep work blocks.`,
-      speechBubble: `Day plan synthesized for ${ctx.systemMetadata.dayOfWeek}. Let us execute.`,
+      reply: `🗺️ **Optimal Battle Plan for ${dayOfWeek}:**\n\n**Scheduled Time Blocks:**\n${slotList}\n\n**Recommended Action Flow:**\n1. **High Leverage**: Knock out "${topTask}" in an early morning focus sprint.\n2. **Habit Momentum**: Secure remaining ${pendingHabits.length} daily habit check-ins.\n3. **Sanctuary Recharge**: Dedicate 15 minutes of recovery between deep work blocks.`,
+      speechBubble: `Day plan synthesized for ${dayOfWeek}. Let us execute.`,
       proposedAction: {
         id: 'act_plan_' + Date.now(),
         type: 'start_focus',

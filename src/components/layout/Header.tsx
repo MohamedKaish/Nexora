@@ -9,8 +9,9 @@ import { useHabitStore } from '@/store/useHabitStore'
 import { useGoalStore } from '@/store/useGoalStore'
 import { useFocusStore } from '@/store/useFocusStore'
 import { useKyroStore } from '@/store/kyroStore'
+import { usePwa } from '@/components/pwa/PwaProvider'
 import { calculateProductivityLevel } from '@/lib/gamification'
-import { Bot, Zap, Crown, HelpCircle, Sparkles } from 'lucide-react'
+import { Bot, Zap, Crown, Sparkles, Download } from 'lucide-react'
 
 interface HeaderProps {
   onOpenTutorial?: () => void
@@ -23,6 +24,7 @@ export function Header({ onOpenTutorial }: HeaderProps) {
   const isFocusRunning = useFocusStore((s) => s.isRunning)
   const remainingSeconds = useFocusStore((s) => s.remainingSeconds)
   const toggleKyro = useKyroStore((s) => s.toggleOpen)
+  const { isInstallable, isInstalled, installApp } = usePwa()
 
   const tasks = useTaskStore((s) => s.tasks)
   const habits = useHabitStore((s) => s.habits)
@@ -96,6 +98,18 @@ export function Header({ onOpenTutorial }: HeaderProps) {
             <Zap className="w-3.5 h-3.5 text-amber-400 shrink-0" />
             <span className="text-[11px] sm:text-xs">Focus: {formatTimer(remainingSeconds)}</span>
           </Link>
+        )}
+
+        {/* Install Web App Button */}
+        {isInstallable && !isInstalled && (
+          <button
+            onClick={() => installApp()}
+            className="flex items-center gap-1.5 px-2.5 sm:px-3 py-1.5 rounded-full bg-gradient-to-r from-amber-400 to-amber-500 hover:from-amber-300 hover:to-amber-400 text-stone-950 font-bold text-xs shadow-[0_0_12px_rgba(212,168,83,0.3)] transition-all cursor-pointer"
+            title="Install Nexora App on PC or Mobile"
+          >
+            <Download className="w-3.5 h-3.5 shrink-0" />
+            <span className="hidden sm:inline">Install App</span>
+          </button>
         )}
 
         {/* Companion Guide / Tutorial Trigger */}
