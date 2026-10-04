@@ -36,12 +36,12 @@
   --color-brand-gold: #D4A853;
   --color-brand-gold-light: #E8C87A;
   --color-brand-gold-dark: #B07D2F;
-  --color-brand-blue: #60A5FA;
-  --color-brand-purple: #A78BFA;
-  --color-brand-emerald: #34D399;
-  --color-brand-amber: #FBBF24;
-  --color-brand-rose: #FB7185;
-  --color-brand-teal: #2DD4BF;
+  --color-brand-blue: #3B82F6;
+  --color-brand-purple: #8B5CF6;
+  --color-brand-emerald: #10B981;
+  --color-brand-amber: #F59E0B;
+  --color-brand-rose: #F43F5E;
+  --color-brand-teal: #14B8A6;
   --color-brand-indigo: #6366F1;
 
   /* Spatial World Elevation Tokens */
@@ -52,35 +52,35 @@
 }
 
 :root {
-  /* LIGHT SANCTUARY (WARM IVORY & GOLD) */
-  --background: #F8F6F3;
-  --foreground: #1C1917;
+  /* LIGHT SANCTUARY (CLEAN MODERN HIGH-CONTRAST WEB THEME) */
+  --background: #F8FAFC;
+  --foreground: #0F172A;
   --card: #FFFFFF;
-  --card-foreground: #1C1917;
-  --primary: #1C1917;
+  --card-foreground: #0F172A;
+  --primary: #0F172A;
   --primary-foreground: #FFFFFF;
-  --secondary: #EFECE6;
-  --secondary-foreground: #1C1917;
-  --muted: #E7E3DC;
-  --muted-foreground: #78716C;
-  --accent: #B07D2F;
+  --secondary: #F1F5F9;
+  --secondary-foreground: #0F172A;
+  --muted: #E2E8F0;
+  --muted-foreground: #64748B;
+  --accent: #D97706;
   --accent-foreground: #FFFFFF;
-  --destructive: #DC2626;
+  --destructive: #EF4444;
   --destructive-foreground: #FFFFFF;
-  --border: rgba(28, 25, 23, 0.12);
-  --input: rgba(28, 25, 23, 0.08);
-  --ring: #B07D2F;
+  --border: #E2E8F0;
+  --input: #F1F5F9;
+  --ring: #D97706;
 
-  --world-base: #F8F6F3;
-  --world-deck: rgba(255, 255, 255, 0.92);
-  --world-surface: rgba(255, 255, 255, 0.98);
+  --world-base: #F8FAFC;
+  --world-deck: #FFFFFF;
+  --world-surface: #FFFFFF;
   --world-overlay: #FFFFFF;
-  --world-border: rgba(28, 25, 23, 0.12);
-  --world-glow: rgba(176, 125, 47, 0.1);
+  --world-border: #E2E8F0;
+  --world-glow: rgba(217, 119, 6, 0.08);
 }
 
 .dark {
-  /* DEEP SPACE NEXORA - DEFAULT */
+  /* DEEP SPACE NEXORA - DEFAULT PREFERRED THEME */
   --background: #0C0A09;
   --foreground: #FAF9F6;
   --card: rgba(20, 18, 16, 0.85);
@@ -133,12 +133,16 @@
   -webkit-backdrop-filter: blur(16px);
   border: 1px solid var(--world-border);
   border-radius: 1.25rem;
-  box-shadow: 0 4px 20px -2px rgba(0, 0, 0, 0.15);
+  box-shadow: 0 4px 20px -2px rgba(0, 0, 0, 0.08);
   transition: border-color 0.25s ease, box-shadow 0.25s ease;
 }
 
+.dark .world-deck {
+  box-shadow: 0 4px 20px -2px rgba(0, 0, 0, 0.35);
+}
+
 .world-deck:hover {
-  border-color: rgba(212, 168, 83, 0.35);
+  border-color: rgba(212, 168, 83, 0.4);
 }
 
 .world-surface {
@@ -147,7 +151,11 @@
   -webkit-backdrop-filter: blur(20px);
   border: 1px solid var(--world-border);
   border-radius: 1rem;
-  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.05);
+}
+
+.dark .world-surface {
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.2);
 }
 
 .world-focus-ring {
@@ -155,7 +163,7 @@
 }
 
 .text-gradient-gold {
-  background: linear-gradient(135deg, #D4A853 0%, #E8C87A 50%, #B07D2F 100%);
+  background: linear-gradient(135deg, #B45309 0%, #D97706 50%, #78350F 100%);
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
 }
