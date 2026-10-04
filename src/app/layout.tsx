@@ -2,6 +2,7 @@ import type { Metadata, Viewport } from 'next'
 import '../styles/globals.css'
 import { PwaProvider } from '@/components/pwa/PwaProvider'
 import { PwaInstallBanner } from '@/components/pwa/PwaInstallBanner'
+import { NexoraCursor } from '@/components/cursor/NexoraCursor'
 
 export const metadata: Metadata = {
   title: 'Nexora — Living Productivity OS',
@@ -48,6 +49,7 @@ export default function RootLayout({
         <PwaProvider>
           {children}
           <PwaInstallBanner />
+          <NexoraCursor />
         </PwaProvider>
       </body>
     </html>

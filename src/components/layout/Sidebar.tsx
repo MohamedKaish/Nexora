@@ -20,6 +20,7 @@ import {
   User,
 } from 'lucide-react'
 import { useAppStore } from '@/store/appStore'
+import { NexoraLogo } from '@/components/brand/NexoraLogo'
 
 interface NavSection {
   title: string
@@ -75,14 +76,10 @@ export function Sidebar() {
   return (
     <aside className="hidden lg:flex w-64 flex-col fixed inset-y-0 left-0 z-40 bg-stone-950/80 border-r border-stone-800/80 backdrop-blur-xl">
       {/* Brand Header */}
-      <div className="h-16 flex items-center px-6 border-b border-stone-800/80 gap-3">
-        <div className="w-8 h-8 rounded-xl bg-gradient-to-br from-amber-400 to-amber-600 flex items-center justify-center shadow-[0_0_15px_rgba(212,168,83,0.35)]">
-          <span className="text-stone-950 font-bold text-lg font-serif">N</span>
-        </div>
-        <div className="flex flex-col">
-          <span className="text-base font-bold tracking-tight text-gradient-gold">NEXORA</span>
-          <span className="text-[10px] text-amber-300/70 uppercase tracking-widest font-semibold">Living OS</span>
-        </div>
+      <div className="h-16 flex items-center px-5 border-b border-stone-800/80">
+        <Link href="/dashboard" className="flex items-center gap-2.5 hover:opacity-90 transition-opacity">
+          <NexoraLogo size={34} showText={true} showBadge={true} />
+        </Link>
       </div>
 
       {/* Nav links */}

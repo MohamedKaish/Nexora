@@ -2,7 +2,8 @@
 
 import React from 'react'
 import { usePwa } from './PwaProvider'
-import { Download, X, Laptop, Smartphone, Sparkles, Check } from 'lucide-react'
+import { NexoraLogo } from '@/components/brand/NexoraLogo'
+import { Download, X } from 'lucide-react'
 
 export function PwaInstallBanner() {
   const { isInstallable, isInstalled, showBanner, installApp, dismissInstallBanner, isIos } = usePwa()
@@ -13,11 +14,7 @@ export function PwaInstallBanner() {
     <div className="fixed bottom-20 lg:bottom-6 right-4 sm:right-6 z-50 max-w-md w-[calc(100%-2rem)] sm:w-auto animate-in slide-in-from-bottom-5 duration-300">
       <div className="world-deck p-4 bg-stone-950/95 border-amber-400/50 shadow-[0_12px_40px_rgba(0,0,0,0.7)] flex items-center justify-between gap-3 sm:gap-4 ring-1 ring-amber-400/30">
         <div className="flex items-center gap-3 min-w-0">
-          <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-amber-400 to-amber-600 p-0.5 shrink-0 shadow-sm flex items-center justify-center">
-            <div className="w-full h-full rounded-[10px] bg-stone-950 flex items-center justify-center text-amber-300 font-serif font-bold text-base">
-              N
-            </div>
-          </div>
+          <NexoraLogo size={38} />
 
           <div className="min-w-0">
             <h4 className="text-xs sm:text-sm font-bold text-foreground flex items-center gap-1.5">
