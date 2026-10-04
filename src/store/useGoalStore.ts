@@ -9,30 +9,7 @@ interface GoalState {
   removeGoal: (id: string) => void
 }
 
-const INITIAL_GOALS: LocalGoal[] = [
-  {
-    id: 'goal-1',
-    title: 'Achieve 20 Focused Deep Work Hours',
-    type: 'weekly',
-    status: 'active',
-    progress: 45,
-    periodStart: new Date().toISOString(),
-    periodEnd: new Date(Date.now() + 7 * 86400000).toISOString(),
-    createdAt: new Date().toISOString(),
-    updatedAt: new Date().toISOString(),
-  },
-  {
-    id: 'goal-2',
-    title: 'Maintain 14-Day Consistency Across Habits',
-    type: 'monthly',
-    status: 'active',
-    progress: 60,
-    periodStart: new Date().toISOString(),
-    periodEnd: new Date(Date.now() + 30 * 86400000).toISOString(),
-    createdAt: new Date().toISOString(),
-    updatedAt: new Date().toISOString(),
-  },
-]
+const INITIAL_GOALS: LocalGoal[] = []
 
 export const useGoalStore = create<GoalState>()(
   persist(

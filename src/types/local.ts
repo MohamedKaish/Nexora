@@ -184,7 +184,7 @@ export const DEFAULT_PREFERENCES: LocalPreferences = {
   bio: 'Navigating daily quests and mastering focus inside the Nexora habitat.',
   avatarUrl: '',
   theme: 'dark',
-  onboardingComplete: true,
+  onboardingComplete: false,
   pomodoroDuration: 25,
   shortBreakDuration: 5,
   longBreakDuration: 15,

@@ -22,44 +22,7 @@ interface TaskState {
   removeSubtask: (subtaskId: string) => void
 }
 
-const INITIAL_TASKS: LocalTask[] = [
-  {
-    id: 'task-1',
-    title: 'Explore the Nexora Sanctuary and meet Kyro',
-    description: 'Customize your companion and discover your personalized command hub.',
-    priority: 'high',
-    status: 'todo',
-    timeframe: 'daily',
-    projectId: 'proj-1',
-    dueDate: null,
-    createdAt: new Date().toISOString(),
-    updatedAt: new Date().toISOString(),
-  },
-  {
-    id: 'task-2',
-    title: 'Complete a 25-minute Deep Work focus session',
-    description: 'Immerse into focus mode while Kyro keeps watch and minimizes distractions.',
-    priority: 'medium',
-    status: 'todo',
-    timeframe: 'daily',
-    projectId: 'proj-1',
-    dueDate: null,
-    createdAt: new Date().toISOString(),
-    updatedAt: new Date().toISOString(),
-  },
-  {
-    id: 'task-3',
-    title: 'Set weekly goals & configure timetable blocks',
-    description: 'Map out your high-leverage milestones for the upcoming cycle.',
-    priority: 'low',
-    status: 'todo',
-    timeframe: 'weekly',
-    projectId: null,
-    dueDate: null,
-    createdAt: new Date().toISOString(),
-    updatedAt: new Date().toISOString(),
-  },
-]
+const INITIAL_TASKS: LocalTask[] = []
 
 export const useTaskStore = create<TaskState>()(
   persist(

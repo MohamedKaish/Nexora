@@ -9,28 +9,7 @@ interface ProjectState {
   removeProject: (id: string) => void
 }
 
-const INITIAL_PROJECTS: LocalProject[] = [
-  {
-    id: 'proj-1',
-    name: 'Nexora OS Sanctuary',
-    description: 'Personal productivity workflow setup and life operating system.',
-    color: '#6366F1',
-    status: 'active',
-    dueDate: null,
-    createdAt: new Date().toISOString(),
-    updatedAt: new Date().toISOString(),
-  },
-  {
-    id: 'proj-2',
-    name: 'Health & Vitality',
-    description: 'Physical energy, sleep protocols, and workout routines.',
-    color: '#34D399',
-    status: 'active',
-    dueDate: null,
-    createdAt: new Date().toISOString(),
-    updatedAt: new Date().toISOString(),
-  },
-]
+const INITIAL_PROJECTS: LocalProject[] = []
 
 export const useProjectStore = create<ProjectState>()(
   persist(

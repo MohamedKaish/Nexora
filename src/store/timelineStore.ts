@@ -9,52 +9,7 @@ interface TimelineState {
   updateSlot: (id: string, partial: Partial<LocalTimetableSlot>) => void
 }
 
-const INITIAL_SLOTS: LocalTimetableSlot[] = [
-  {
-    id: 'slot-1',
-    dayOfWeek: 1, // Monday
-    startTime: '09:00',
-    endTime: '11:30',
-    title: 'Core Architecture & Deep Focus',
-    category: 'Work',
-    color: '#60A5FA',
-    createdAt: new Date().toISOString(),
-    updatedAt: new Date().toISOString(),
-  },
-  {
-    id: 'slot-2',
-    dayOfWeek: 1,
-    startTime: '14:00',
-    endTime: '15:30',
-    title: 'Research & Life Planning',
-    category: 'Study',
-    color: '#A78BFA',
-    createdAt: new Date().toISOString(),
-    updatedAt: new Date().toISOString(),
-  },
-  {
-    id: 'slot-3',
-    dayOfWeek: 2, // Tuesday
-    startTime: '08:30',
-    endTime: '10:00',
-    title: 'Sprint Execution & Tasks',
-    category: 'Work',
-    color: '#6366F1',
-    createdAt: new Date().toISOString(),
-    updatedAt: new Date().toISOString(),
-  },
-  {
-    id: 'slot-4',
-    dayOfWeek: 3, // Wednesday
-    startTime: '17:00',
-    endTime: '18:15',
-    title: 'Physical Workout & Conditioning',
-    category: 'Health',
-    color: '#34D399',
-    createdAt: new Date().toISOString(),
-    updatedAt: new Date().toISOString(),
-  },
-]
+const INITIAL_SLOTS: LocalTimetableSlot[] = []
 
 export const useTimelineStore = create<TimelineState>()(
   persist(

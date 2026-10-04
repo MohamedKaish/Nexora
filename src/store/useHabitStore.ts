@@ -11,35 +11,7 @@ interface HabitState {
   toggleCompletion: (habitId: string, dateStr?: string) => boolean
 }
 
-const INITIAL_HABITS: LocalHabit[] = [
-  {
-    id: 'habit-1',
-    name: 'Morning Deep Reading (30m)',
-    frequency: 'daily',
-    color: '#60A5FA',
-    streak: 5,
-    createdAt: new Date().toISOString(),
-    updatedAt: new Date().toISOString(),
-  },
-  {
-    id: 'habit-2',
-    name: 'Hydration & Daily Movement',
-    frequency: 'daily',
-    color: '#34D399',
-    streak: 8,
-    createdAt: new Date().toISOString(),
-    updatedAt: new Date().toISOString(),
-  },
-  {
-    id: 'habit-3',
-    name: 'Evening Review & Clean Slate',
-    frequency: 'weekdays',
-    color: '#FBBF24',
-    streak: 3,
-    createdAt: new Date().toISOString(),
-    updatedAt: new Date().toISOString(),
-  },
-]
+const INITIAL_HABITS: LocalHabit[] = []
 
 export const useHabitStore = create<HabitState>()(
   persist(

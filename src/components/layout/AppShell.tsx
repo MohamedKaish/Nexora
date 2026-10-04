@@ -1,6 +1,7 @@
 'use client'
 
 import React, { useEffect, useState } from 'react'
+import { usePathname, useRouter } from 'next/navigation'
 import { Sidebar } from './Sidebar'
 import { Header } from './Header'
 import { MobileNav } from './MobileNav'
@@ -12,11 +13,21 @@ import { useFocusStore } from '@/store/useFocusStore'
 import { useAppStore } from '@/store/appStore'
 
 export function AppShell({ children }: { children: React.ReactNode }) {
+  const pathname = usePathname()
+  const router = useRouter()
   const tickFocusTimer = useFocusStore((s) => s.tick)
   const isFocusRunning = useFocusStore((s) => s.isRunning)
   const theme = useAppStore((s) => s.preferences.theme)
+  const onboardingComplete = useAppStore((s) => s.preferences.onboardingComplete)
 
   const [isTutorialOpen, setIsTutorialOpen] = useState(false)
+
+  // Enforce First-Time 5-Question Onboarding for any new user
+  useEffect(() => {
+    if (!onboardingComplete && pathname !== '/setup') {
+      router.replace('/setup')
+    }
+  }, [onboardingComplete, pathname, router])
 
   // Synchronize dynamic Theme (Light Sanctuary vs Dark Deep Space)
   useEffect(() => {
@@ -47,6 +58,18 @@ export function AppShell({ children }: { children: React.ReactNode }) {
     }, 1000)
     return () => clearInterval(interval)
   }, [isFocusRunning, tickFocusTimer])
+
+  // In setup mode, render isolated setup layout without sidebar clutter
+  if (pathname === '/setup') {
+    return (
+      <div className="min-h-screen bg-background text-foreground flex flex-col relative transition-colors duration-300">
+        <WorldBackground />
+        <main className="flex-1 flex items-center justify-center p-4 relative z-10">
+          {children}
+        </main>
+      </div>
+    )
+  }
 
   return (
     <div className="min-h-screen bg-background text-foreground flex flex-col relative transition-colors duration-300">
