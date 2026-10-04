@@ -32,7 +32,7 @@ export function WorldBackground() {
       x: Math.random() * width,
       y: Math.random() * height,
       radius: Math.random() * 1.5 + 0.5,
-      alpha: Math.random() * 0.4 + 0.1,
+      alpha: Math.random() * 0.35 + 0.1,
       vx: (Math.random() - 0.5) * 0.25,
       vy: -Math.random() * 0.3 - 0.1,
     }))
@@ -70,16 +70,16 @@ export function WorldBackground() {
 
   return (
     <div className="fixed inset-0 pointer-events-none z-0 overflow-hidden" aria-hidden="true">
-      {/* Deep environmental cosmic gradient */}
-      <div className="absolute inset-0 bg-gradient-to-b from-stone-950 via-[#0C0A09] to-[#120F0D]" />
+      {/* Environmental cosmic/sanctuary adaptive gradient */}
+      <div className="absolute inset-0 bg-gradient-to-b from-[#F8F6F3] via-[#FAF8F5] to-[#EFECE6] dark:from-stone-950 dark:via-[#0C0A09] dark:to-[#120F0D] transition-colors duration-500" />
 
       {/* Atmospheric lighting accents */}
       <div
-        className="absolute top-[-10%] left-[20%] w-[650px] h-[650px] rounded-full blur-[130px] opacity-15"
+        className="absolute top-[-10%] left-[20%] w-[650px] h-[650px] rounded-full blur-[130px] opacity-20 dark:opacity-15 pointer-events-none"
         style={{ background: 'radial-gradient(circle, #D4A853 0%, transparent 70%)' }}
       />
       <div
-        className="absolute bottom-[-10%] right-[15%] w-[600px] h-[600px] rounded-full blur-[140px] opacity-12"
+        className="absolute bottom-[-10%] right-[15%] w-[600px] h-[600px] rounded-full blur-[140px] opacity-15 dark:opacity-12 pointer-events-none"
         style={{ background: 'radial-gradient(circle, #3B82F6 0%, transparent 70%)' }}
       />
 

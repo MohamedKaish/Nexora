@@ -17,6 +17,7 @@ import {
   Sparkles,
   Bot,
   Settings,
+  User,
 } from 'lucide-react'
 import { useAppStore } from '@/store/appStore'
 
@@ -59,6 +60,7 @@ const NAV_SECTIONS: NavSection[] = [
   {
     title: 'Personal Ally',
     items: [
+      { name: 'Explorer Profile', href: '/account', icon: User },
       { name: 'Companion Atelier', href: '/character', icon: Sparkles },
       { name: 'Kyro Agent', href: '/agent', icon: Bot },
       { name: 'Settings', href: '/settings', icon: Settings },

@@ -127,39 +127,39 @@ export default function DashboardPage() {
             </p>
 
             {/* Quick Command Bar */}
-            <div className="flex flex-wrap gap-2.5 justify-center md:justify-start pt-2">
+            <div className="flex flex-wrap gap-2 sm:gap-2.5 justify-center md:justify-start pt-2">
               {!isFocusRunning ? (
                 <button
                   onClick={() => startFocusTimer()}
-                  className="px-4 py-2.5 rounded-xl bg-amber-400 hover:bg-amber-300 text-stone-950 font-bold text-xs flex items-center gap-2 shadow-[0_0_20px_rgba(212,168,83,0.3)] transition-all cursor-pointer"
+                  className="px-3.5 sm:px-4 py-2 sm:py-2.5 rounded-xl bg-amber-400 hover:bg-amber-300 text-stone-950 font-bold text-xs flex items-center gap-1.5 sm:gap-2 shadow-[0_0_20px_rgba(212,168,83,0.3)] transition-all cursor-pointer"
                 >
-                  <Zap className="w-4 h-4 fill-stone-950" />
-                  Launch 25m Focus
+                  <Zap className="w-3.5 h-3.5 sm:w-4 sm:h-4 fill-stone-950" />
+                  <span>Launch 25m Focus</span>
                 </button>
               ) : (
                 <Link
                   href="/focus"
-                  className="px-4 py-2.5 rounded-xl bg-amber-400/20 border border-amber-400/40 text-amber-300 font-bold text-xs flex items-center gap-2 transition-all"
+                  className="px-3.5 sm:px-4 py-2 sm:py-2.5 rounded-xl bg-amber-400/20 border border-amber-400/40 text-amber-300 font-bold text-xs flex items-center gap-1.5 sm:gap-2 transition-all"
                 >
-                  <Zap className="w-4 h-4 text-amber-400 animate-pulse" />
-                  View Active Chamber
+                  <Zap className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-amber-400 animate-pulse" />
+                  <span>View Active Chamber</span>
                 </Link>
               )}
 
               <Link
                 href="/tasks"
-                className="px-4 py-2.5 rounded-xl bg-stone-900 hover:bg-stone-800 border border-stone-800 text-stone-200 font-semibold text-xs flex items-center gap-1.5 transition-all"
+                className="px-3.5 sm:px-4 py-2 sm:py-2.5 rounded-xl bg-stone-900/80 hover:bg-stone-800 border border-stone-800 text-stone-200 font-semibold text-xs flex items-center gap-1.5 transition-all"
               >
-                <Plus className="w-4 h-4 text-stone-400" />
-                Add Priority
+                <Plus className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-stone-400" />
+                <span>Add Task</span>
               </Link>
 
               <button
                 onClick={toggleKyro}
-                className="px-4 py-2.5 rounded-xl bg-stone-900 hover:bg-stone-800 border border-stone-800 text-amber-300 font-semibold text-xs flex items-center gap-1.5 transition-all cursor-pointer"
+                className="px-3.5 sm:px-4 py-2 sm:py-2.5 rounded-xl bg-stone-900/80 hover:bg-stone-800 border border-stone-800 text-amber-300 font-semibold text-xs flex items-center gap-1.5 transition-all cursor-pointer"
               >
-                <Bot className="w-4 h-4 text-amber-400" />
-                Ask {agentName}
+                <Bot className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-amber-400" />
+                <span>Ask {agentName}</span>
               </button>
             </div>
           </div>

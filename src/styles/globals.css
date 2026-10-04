@@ -52,10 +52,10 @@
 }
 
 :root {
-  /* LIGHT SANCTUARY */
+  /* LIGHT SANCTUARY (WARM IVORY & GOLD) */
   --background: #F8F6F3;
   --foreground: #1C1917;
-  --card: rgba(255, 255, 255, 0.82);
+  --card: #FFFFFF;
   --card-foreground: #1C1917;
   --primary: #1C1917;
   --primary-foreground: #FFFFFF;
@@ -67,23 +67,23 @@
   --accent-foreground: #FFFFFF;
   --destructive: #DC2626;
   --destructive-foreground: #FFFFFF;
-  --border: rgba(28, 25, 23, 0.1);
+  --border: rgba(28, 25, 23, 0.12);
   --input: rgba(28, 25, 23, 0.08);
   --ring: #B07D2F;
 
   --world-base: #F8F6F3;
-  --world-deck: rgba(255, 255, 255, 0.65);
-  --world-surface: rgba(255, 255, 255, 0.88);
-  --world-overlay: rgba(255, 255, 255, 0.95);
-  --world-border: rgba(28, 25, 23, 0.08);
-  --world-glow: rgba(176, 125, 47, 0.06);
+  --world-deck: rgba(255, 255, 255, 0.92);
+  --world-surface: rgba(255, 255, 255, 0.98);
+  --world-overlay: #FFFFFF;
+  --world-border: rgba(28, 25, 23, 0.12);
+  --world-glow: rgba(176, 125, 47, 0.1);
 }
 
 .dark {
   /* DEEP SPACE NEXORA - DEFAULT */
   --background: #0C0A09;
   --foreground: #FAF9F6;
-  --card: rgba(20, 18, 16, 0.75);
+  --card: rgba(20, 18, 16, 0.85);
   --card-foreground: #FAF9F6;
   --primary: #FAF9F6;
   --primary-foreground: #0C0A09;
@@ -100,9 +100,9 @@
   --ring: #D4A853;
 
   --world-base: #0C0A09;
-  --world-deck: rgba(18, 16, 14, 0.75);
-  --world-surface: rgba(26, 23, 20, 0.85);
-  --world-overlay: rgba(32, 28, 25, 0.95);
+  --world-deck: rgba(18, 16, 14, 0.8);
+  --world-surface: rgba(26, 23, 20, 0.9);
+  --world-overlay: rgba(32, 28, 25, 0.96);
   --world-border: rgba(250, 249, 246, 0.08);
   --world-glow: rgba(212, 168, 83, 0.08);
 }
@@ -133,12 +133,12 @@
   -webkit-backdrop-filter: blur(16px);
   border: 1px solid var(--world-border);
   border-radius: 1.25rem;
-  box-shadow: 0 4px 20px -2px rgba(0, 0, 0, 0.25);
+  box-shadow: 0 4px 20px -2px rgba(0, 0, 0, 0.15);
   transition: border-color 0.25s ease, box-shadow 0.25s ease;
 }
 
 .world-deck:hover {
-  border-color: rgba(212, 168, 83, 0.2);
+  border-color: rgba(212, 168, 83, 0.35);
 }
 
 .world-surface {
@@ -147,7 +147,7 @@
   -webkit-backdrop-filter: blur(20px);
   border: 1px solid var(--world-border);
   border-radius: 1rem;
-  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.2);
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
 }
 
 .world-focus-ring {
@@ -155,6 +155,12 @@
 }
 
 .text-gradient-gold {
+  background: linear-gradient(135deg, #D4A853 0%, #E8C87A 50%, #B07D2F 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+
+.dark .text-gradient-gold {
   background: linear-gradient(135deg, #FDFBF7 0%, #E8C87A 50%, #B07D2F 100%);
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
@@ -201,17 +207,18 @@
 }
 
 .animate-speaking {
-  animation: speakingPulse 1.4s ease-in-out infinite;
+  animation: speakingPulse 1.2s ease-in-out infinite;
 }
 
 .animate-celebrate {
-  animation: celebrateBurst 0.65s cubic-bezier(0.34, 1.56, 0.64, 1);
+  animation: celebrateBurst 0.9s cubic-bezier(0.34, 1.56, 0.64, 1) 1;
 }
 
-@media (prefers-reduced-motion: reduce) {
-  .animate-breathing,
-  .animate-speaking,
-  .animate-celebrate {
-    animation: none !important;
-  }
+/* ─── Utility Scrollbars ─── */
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+.no-scrollbar {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
 }

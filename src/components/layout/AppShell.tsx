@@ -1,16 +1,43 @@
 'use client'
 
-import React, { useEffect } from 'react'
+import React, { useEffect, useState } from 'react'
 import { Sidebar } from './Sidebar'
 import { Header } from './Header'
 import { MobileNav } from './MobileNav'
 import { WorldBackground } from '@/features/companion/WorldBackground'
 import { KyroChatPanel } from '@/features/kyro/KyroChatPanel'
+import { SystemCompanionBanner } from '@/components/companion/SystemCompanionBanner'
+import { SanctuaryTutorialModal } from '@/components/companion/SanctuaryTutorialModal'
 import { useFocusStore } from '@/store/useFocusStore'
+import { useAppStore } from '@/store/appStore'
 
 export function AppShell({ children }: { children: React.ReactNode }) {
   const tickFocusTimer = useFocusStore((s) => s.tick)
   const isFocusRunning = useFocusStore((s) => s.isRunning)
+  const theme = useAppStore((s) => s.preferences.theme)
+
+  const [isTutorialOpen, setIsTutorialOpen] = useState(false)
+
+  // Synchronize dynamic Theme (Light Sanctuary vs Dark Deep Space)
+  useEffect(() => {
+    const root = document.documentElement
+    if (theme === 'light') {
+      root.classList.remove('dark')
+      root.classList.add('light')
+    } else if (theme === 'dark') {
+      root.classList.remove('light')
+      root.classList.add('dark')
+    } else {
+      const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches
+      if (prefersDark) {
+        root.classList.add('dark')
+        root.classList.remove('light')
+      } else {
+        root.classList.remove('dark')
+        root.classList.add('light')
+      }
+    }
+  }, [theme])
 
   // Global 1s ticker for focus countdown
   useEffect(() => {
@@ -22,7 +49,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   }, [isFocusRunning, tickFocusTimer])
 
   return (
-    <div className="min-h-screen bg-background text-foreground flex flex-col relative">
+    <div className="min-h-screen bg-background text-foreground flex flex-col relative transition-colors duration-300">
       {/* Environmental Atmospheric Background */}
       <WorldBackground />
 
@@ -32,8 +59,10 @@ export function AppShell({ children }: { children: React.ReactNode }) {
 
         {/* Primary Content Container */}
         <div className="flex-1 flex flex-col lg:pl-64 min-w-0">
-          <Header />
-          <main className="flex-1 p-4 md:p-8 pb-24 lg:pb-12 max-w-7xl mx-auto w-full">
+          <Header onOpenTutorial={() => setIsTutorialOpen(true)} />
+          <main className="flex-1 p-3.5 sm:p-6 md:p-8 pb-32 lg:pb-12 max-w-7xl mx-auto w-full space-y-6">
+            {/* System-wide active companion commentary across sub-pages */}
+            <SystemCompanionBanner />
             {children}
           </main>
         </div>
@@ -41,6 +70,12 @@ export function AppShell({ children }: { children: React.ReactNode }) {
 
       {/* Kyro AI Conversational Assistant Panel */}
       <KyroChatPanel />
+
+      {/* Interactive Sanctuary Companion Guide Modal */}
+      <SanctuaryTutorialModal
+        isOpen={isTutorialOpen}
+        onClose={() => setIsTutorialOpen(false)}
+      />
 
       {/* Bottom Bar for Mobile */}
       <MobileNav />

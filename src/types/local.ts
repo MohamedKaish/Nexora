@@ -164,6 +164,11 @@ export const DEFAULT_AGENT_CONFIG: AgentConfig = {
 
 export interface LocalPreferences {
   displayName: string
+  dateOfBirth?: string
+  gender?: 'male' | 'female' | 'non-binary' | 'other' | 'prefer-not-to-say' | string
+  title?: string
+  bio?: string
+  avatarUrl?: string
   theme: 'dark' | 'light' | 'system'
   onboardingComplete: boolean
   pomodoroDuration: number
@@ -173,6 +178,11 @@ export interface LocalPreferences {
 
 export const DEFAULT_PREFERENCES: LocalPreferences = {
   displayName: 'Explorer',
+  dateOfBirth: '',
+  gender: 'prefer-not-to-say',
+  title: 'Sanctuary Pioneer',
+  bio: 'Navigating daily quests and mastering focus inside the Nexora habitat.',
+  avatarUrl: '',
   theme: 'dark',
   onboardingComplete: true,
   pomodoroDuration: 25,
