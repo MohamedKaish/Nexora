@@ -23,6 +23,12 @@ import {
 } from 'lucide-react'
 import { format, subDays } from 'date-fns'
 import { toast } from 'sonner'
+import {
+  isNotificationSupported,
+  getNotificationPermission,
+  requestNotificationPermission,
+  sendTestNotification,
+} from '@/lib/notificationService'
 
 const WINDOW_PRESETS = [
   { label: 'Morning', icon: '🌅', start: '07:00', end: '09:00' },
@@ -49,6 +55,36 @@ export default function HabitsPage() {
   const [startTime, setStartTime] = useState('08:00')
   const [endTime, setEndTime] = useState('09:30')
   const [enableReminder, setEnableReminder] = useState(true)
+
+  // Notification Permission State
+  const [notifPermission, setNotifPermission] = useState<string>('default')
+  const [isTestingNotif, setIsTestingNotif] = useState(false)
+
+  React.useEffect(() => {
+    setNotifPermission(getNotificationPermission())
+  }, [])
+
+  const handleRequestPermission = async () => {
+    const perm = await requestNotificationPermission()
+    setNotifPermission(perm)
+    if (perm === 'granted') {
+      toast.success('Phone notifications enabled! Sending verification alert...')
+      await sendTestNotification()
+    } else if (perm === 'denied') {
+      toast.error('Permission blocked. Please tap the padlock/tune icon in your browser URL bar to allow notifications.')
+    }
+  }
+
+  const handleTestAlert = async () => {
+    setIsTestingNotif(true)
+    const success = await sendTestNotification()
+    setIsTestingNotif(false)
+    if (success) {
+      toast.success('Test notification sent! Check your phone notification tray or PC desktop.')
+    } else {
+      toast.info('Could not send notification. Please allow permission first.')
+    }
+  }
 
   const todayStr = format(new Date(), 'yyyy-MM-dd')
   const currentTimeStr = format(new Date(), 'HH:mm')
@@ -158,6 +194,62 @@ export default function HabitsPage() {
           <Plus className="w-4 h-4" />
           Track Habit
         </button>
+      </div>
+
+      {/* ─── Notification Permission & Live Test Card ─── */}
+      <div className="p-3.5 sm:p-4 rounded-2xl bg-gradient-to-r from-stone-900/80 via-stone-950 to-stone-900/60 border border-stone-800 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+        <div className="flex items-center gap-3">
+          <div className="p-2 rounded-xl bg-amber-400/10 text-amber-400 shrink-0">
+            <Bell className="w-4 h-4" />
+          </div>
+          <div>
+            <div className="flex items-center gap-2">
+              <span className="text-xs font-bold text-foreground">Phone & Desktop Habit Reminders</span>
+              {notifPermission === 'granted' ? (
+                <span className="px-1.5 py-0.2 rounded-full bg-emerald-400/20 text-emerald-300 text-[10px] font-bold flex items-center gap-1 font-mono">
+                  <Check className="w-2.5 h-2.5" /> Active
+                </span>
+              ) : notifPermission === 'denied' ? (
+                <span className="px-1.5 py-0.2 rounded-full bg-rose-400/20 text-rose-300 text-[10px] font-bold font-mono">
+                  Blocked in Browser
+                </span>
+              ) : (
+                <span className="px-1.5 py-0.2 rounded-full bg-amber-400/20 text-amber-300 text-[10px] font-bold font-mono">
+                  Action Required
+                </span>
+              )}
+            </div>
+            <p className="text-[11px] text-stone-400">
+              {notifPermission === 'granted'
+                ? 'Your phone & desktop will alert you whenever your scheduled habit window opens.'
+                : notifPermission === 'denied'
+                ? 'Notifications are blocked. Tap the lock/tune icon in your browser URL bar to allow alerts.'
+                : 'Grant notification permission so your phone alerts you when habit timing windows open.'}
+            </p>
+          </div>
+        </div>
+
+        <div className="flex items-center gap-2 self-start sm:self-auto shrink-0">
+          {notifPermission !== 'granted' && notifPermission !== 'denied' && (
+            <button
+              onClick={handleRequestPermission}
+              className="px-3.5 py-1.5 rounded-xl bg-amber-400 hover:bg-amber-300 text-stone-950 font-bold text-xs flex items-center gap-1.5 shadow-[0_0_12px_rgba(212,168,83,0.3)] transition-all cursor-pointer"
+            >
+              <Bell className="w-3.5 h-3.5" />
+              <span>Enable Phone Alerts</span>
+            </button>
+          )}
+
+          <button
+            onClick={handleTestAlert}
+            disabled={isTestingNotif}
+            className="px-3 py-1.5 rounded-xl bg-stone-900 hover:bg-stone-800 border border-stone-700 hover:border-amber-400/40 text-stone-200 text-xs font-semibold flex items-center gap-1.5 transition-colors cursor-pointer"
+            title="Send an immediate test alert to verify notification delivery"
+          >
+            <Sparkles className="w-3 h-3 text-amber-400" />
+            <span>{isTestingNotif ? 'Sending...' : 'Test Notification Now'}</span>
+          </button>
+        </div>
       </div>
 
       {/* Filter Tabs */}

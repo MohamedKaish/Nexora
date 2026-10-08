@@ -1,4 +1,4 @@
-const CACHE_VERSION = 'v2.1'
+const CACHE_VERSION = 'v2.2'
 const CACHE_NAME = `nexora-sanctuary-${CACHE_VERSION}`
 
 const STATIC_ASSETS = [
@@ -31,6 +31,23 @@ self.addEventListener('activate', (event) => {
     })
   )
   self.clients.claim()
+})
+
+// Handle Mobile & Desktop Notification click
+self.addEventListener('notificationclick', (event) => {
+  event.notification.close()
+  event.waitUntil(
+    clients.matchAll({ type: 'window', includeUncontrolled: true }).then((clientList) => {
+      for (const client of clientList) {
+        if (client.url && 'focus' in client) {
+          return client.focus()
+        }
+      }
+      if (clients.openWindow) {
+        return clients.openWindow('/habits')
+      }
+    })
+  )
 })
 
 self.addEventListener('fetch', (event) => {

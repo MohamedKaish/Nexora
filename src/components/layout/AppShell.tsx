@@ -15,6 +15,7 @@ import { useHabitStore } from '@/store/useHabitStore'
 import { useAppStore, isUserOnboarded } from '@/store/appStore'
 import { format } from 'date-fns'
 import { toast } from 'sonner'
+import { sendNotification } from '@/lib/notificationService'
 
 export function AppShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname()
@@ -117,21 +118,11 @@ export function AppShell({ children }: { children: React.ReactNode }) {
             duration: 8000,
           })
 
-          // 2. Native System/Browser Push Notification
-          if (
-            typeof window !== 'undefined' &&
-            'Notification' in window &&
-            Notification.permission === 'granted'
-          ) {
-            try {
-              new Notification(`⚡ Nexora: Time for ${habit.name}`, {
-                body: `Habit window is active (${habit.startTime} – ${habit.endTime || 'rest of day'}). Streak: ${habit.streak} days.`,
-                icon: '/icon-192.png',
-              })
-            } catch (err) {
-              console.warn('Notification delivery:', err)
-            }
-          }
+          // 2. Native System/Browser Push Notification via ServiceWorker
+          sendNotification(`⚡ Nexora: Time for ${habit.name}`, {
+            body: `Habit window is active (${habit.startTime} – ${habit.endTime || 'rest of day'}). Streak: ${habit.streak} days.`,
+            tag: `habit-${habit.id}-${todayStr}`,
+          })
         }
       })
     }
