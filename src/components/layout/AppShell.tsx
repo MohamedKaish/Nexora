@@ -11,7 +11,10 @@ import { KyroChatPanel } from '@/features/kyro/KyroChatPanel'
 import { SystemCompanionBanner } from '@/components/companion/SystemCompanionBanner'
 import { SanctuaryTutorialModal } from '@/components/companion/SanctuaryTutorialModal'
 import { useFocusStore } from '@/store/useFocusStore'
+import { useHabitStore } from '@/store/useHabitStore'
 import { useAppStore, isUserOnboarded } from '@/store/appStore'
+import { format } from 'date-fns'
+import { toast } from 'sonner'
 
 export function AppShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname()
@@ -77,6 +80,67 @@ export function AppShell({ children }: { children: React.ReactNode }) {
     }, 1000)
     return () => clearInterval(interval)
   }, [isFocusRunning, tickFocusTimer])
+
+  // ─── Automated Habit Timing Range Notification Engine ───
+  useEffect(() => {
+    const checkHabitReminders = () => {
+      const now = new Date()
+      const todayStr = format(now, 'yyyy-MM-dd')
+      const currentTimeStr = format(now, 'HH:mm')
+
+      const { habits, completions, markHabitNotified, toggleCompletion } = useHabitStore.getState()
+
+      habits.forEach((habit) => {
+        if (!habit.hasTimeRange || !habit.enableReminder || !habit.startTime) return
+
+        const isCompletedToday = completions.some(
+          (c) => c.habitId === habit.id && c.completedDate === todayStr
+        )
+        if (isCompletedToday) return
+
+        // Prevent repeated alerts on the same day
+        if (habit.lastNotifiedDate === todayStr) return
+
+        const endTime = habit.endTime || '23:59'
+
+        // Check if current time falls within habit's scheduled window
+        if (currentTimeStr >= habit.startTime && currentTimeStr <= endTime) {
+          markHabitNotified(habit.id, todayStr)
+
+          // 1. In-App Interactive Toast
+          toast(`⚡ Habit Window Active: ${habit.name}`, {
+            description: `Scheduled window (${habit.startTime} – ${habit.endTime || 'end of day'}) is open! Keep your ${habit.streak}d streak going.`,
+            action: {
+              label: 'Complete',
+              onClick: () => toggleCompletion(habit.id),
+            },
+            duration: 8000,
+          })
+
+          // 2. Native System/Browser Push Notification
+          if (
+            typeof window !== 'undefined' &&
+            'Notification' in window &&
+            Notification.permission === 'granted'
+          ) {
+            try {
+              new Notification(`⚡ Nexora: Time for ${habit.name}`, {
+                body: `Habit window is active (${habit.startTime} – ${habit.endTime || 'rest of day'}). Streak: ${habit.streak} days.`,
+                icon: '/icon-192.png',
+              })
+            } catch (err) {
+              console.warn('Notification delivery:', err)
+            }
+          }
+        }
+      })
+    }
+
+    checkHabitReminders()
+    const reminderInterval = setInterval(checkHabitReminders, 30000)
+
+    return () => clearInterval(reminderInterval)
+  }, [])
 
   // Mobile edge-swipe gesture detection (Swipe right from left screen edge to open menu)
   useEffect(() => {

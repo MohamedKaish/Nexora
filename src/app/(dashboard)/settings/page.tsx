@@ -215,6 +215,30 @@ export default function SettingsPage() {
             </div>
           </div>
 
+          {/* Windows PC & Mac Desktop App Card */}
+          <div className="p-4 rounded-xl bg-stone-900/60 border border-stone-800 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+            <div className="space-y-1">
+              <h4 className="text-xs sm:text-sm font-bold text-foreground flex items-center gap-2">
+                <span>Windows PC & Mac Desktop App</span>
+                <span className="text-[10px] px-2 py-0.5 rounded bg-amber-400/20 text-amber-300 font-mono font-bold">
+                  PC Release
+                </span>
+              </h4>
+              <p className="text-xs text-stone-400">
+                Run Nexora as a native desktop application with window borders, taskbar pinning, and custom keyboard shortcuts.
+              </p>
+            </div>
+            <div className="flex items-center gap-2 shrink-0">
+              <button
+                onClick={openInstallGuide}
+                className="px-4 py-2 rounded-xl bg-stone-900 border border-stone-700 hover:border-amber-400/50 text-stone-200 font-bold text-xs flex items-center gap-1.5 transition-colors cursor-pointer"
+              >
+                <Download className="w-3.5 h-3.5 text-amber-400" />
+                <span>Install on PC / Mac</span>
+              </button>
+            </div>
+          </div>
+
           {/* Android APK Direct Export Card */}
           <div className="p-4 rounded-xl bg-gradient-to-r from-amber-500/10 via-stone-900/40 to-transparent border border-amber-400/20 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
             <div className="space-y-1">

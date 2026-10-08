@@ -6,9 +6,20 @@ import { format } from 'date-fns'
 interface HabitState {
   habits: LocalHabit[]
   completions: LocalHabitCompletion[]
-  addHabit: (params: { name: string; frequency?: HabitFrequency; color?: string }) => void
+  addHabit: (params: {
+    name: string
+    description?: string | null
+    frequency?: HabitFrequency
+    color?: string
+    hasTimeRange?: boolean
+    startTime?: string | null
+    endTime?: string | null
+    enableReminder?: boolean
+  }) => void
+  updateHabit: (id: string, partial: Partial<LocalHabit>) => void
   removeHabit: (id: string) => void
   toggleCompletion: (habitId: string, dateStr?: string) => boolean
+  markHabitNotified: (id: string, dateStr: string) => void
 }
 
 function computeConsecutiveStreak(habitId: string, completions: LocalHabitCompletion[]): number {
@@ -52,13 +63,35 @@ export const useHabitStore = create<HabitState>()(
         const habit: LocalHabit = {
           id: 'habit_' + Math.random().toString(36).substring(2, 9),
           name: params.name,
+          description: params.description ?? null,
           frequency: params.frequency ?? 'daily',
           color: params.color ?? '#34D399',
           streak: 0,
+          hasTimeRange: params.hasTimeRange ?? false,
+          startTime: params.hasTimeRange ? params.startTime ?? '08:00' : null,
+          endTime: params.hasTimeRange ? params.endTime ?? '09:00' : null,
+          enableReminder: params.hasTimeRange ? params.enableReminder ?? true : false,
+          lastNotifiedDate: null,
           createdAt: new Date().toISOString(),
           updatedAt: new Date().toISOString(),
         }
         set((state) => ({ habits: [...state.habits, habit] }))
+      },
+
+      updateHabit: (id, partial) => {
+        set((state) => ({
+          habits: state.habits.map((h) =>
+            h.id === id ? { ...h, ...partial, updatedAt: new Date().toISOString() } : h
+          ),
+        }))
+      },
+
+      markHabitNotified: (id, dateStr) => {
+        set((state) => ({
+          habits: state.habits.map((h) =>
+            h.id === id ? { ...h, lastNotifiedDate: dateStr } : h
+          ),
+        }))
       },
 
       removeHabit: (id) => {

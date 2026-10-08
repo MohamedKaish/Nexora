@@ -368,9 +368,16 @@ export default function DashboardPage() {
                       <p className={`text-xs font-bold ${isDone ? 'line-through text-stone-500' : 'text-foreground'}`}>
                         {habit.name}
                       </p>
-                      <span className="text-[10px] text-stone-400">
-                        {habit.frequency}
-                      </span>
+                      <div className="flex items-center gap-1.5 flex-wrap">
+                        <span className="text-[10px] text-stone-400 capitalize">
+                          {habit.frequency}
+                        </span>
+                        {habit.hasTimeRange && habit.startTime && (
+                          <span className="text-[10px] text-amber-300 font-semibold px-1.5 py-0.2 rounded bg-amber-400/10 border border-amber-400/20">
+                            {habit.startTime}–{habit.endTime}
+                          </span>
+                        )}
+                      </div>
                     </div>
                   </div>
 

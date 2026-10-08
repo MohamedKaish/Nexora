@@ -62,6 +62,11 @@ export interface LocalHabit extends LocalEntity {
   frequency: HabitFrequency
   color: string
   streak: number
+  hasTimeRange?: boolean
+  startTime?: string | null // "HH:mm" e.g. "07:30"
+  endTime?: string | null // "HH:mm" e.g. "09:00"
+  enableReminder?: boolean
+  lastNotifiedDate?: string | null // "YYYY-MM-DD"
 }
 
 export interface LocalHabitCompletion {
