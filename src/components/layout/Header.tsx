@@ -9,9 +9,10 @@ import { useHabitStore } from '@/store/useHabitStore'
 import { useGoalStore } from '@/store/useGoalStore'
 import { useFocusStore } from '@/store/useFocusStore'
 import { useKyroStore } from '@/store/kyroStore'
+import { useNotificationStore } from '@/store/useNotificationStore'
 import { usePwa } from '@/components/pwa/PwaProvider'
 import { calculateProductivityLevel } from '@/lib/gamification'
-import { Bot, Zap, Crown, Sparkles, Download, Menu } from 'lucide-react'
+import { Bot, Zap, Crown, Sparkles, Download, Menu, Bell } from 'lucide-react'
 
 interface HeaderProps {
   onOpenTutorial?: () => void
@@ -26,6 +27,9 @@ export function Header({ onOpenTutorial, onOpenMobileDrawer }: HeaderProps) {
   const remainingSeconds = useFocusStore((s) => s.remainingSeconds)
   const toggleKyro = useKyroStore((s) => s.toggleOpen)
   const { isInstalled, openDownloadModal } = usePwa()
+  const unreadNotifsCount = useNotificationStore(
+    (s) => s.notifications.filter((n) => !n.isRead).length
+  )
 
   const tasks = useTaskStore((s) => s.tasks)
   const habits = useHabitStore((s) => s.habits)
@@ -144,6 +148,20 @@ export function Header({ onOpenTutorial, onOpenMobileDrawer }: HeaderProps) {
           <Bot className="w-3.5 h-3.5 text-amber-400 shrink-0" />
           <span className="hidden sm:inline">{agentName}</span>
         </button>
+
+        {/* Notifications Bell with Live Badge */}
+        <Link
+          href="/notifications"
+          className="relative p-2 rounded-full bg-stone-900 border border-stone-800 hover:border-amber-400/40 text-stone-300 hover:text-amber-300 transition-colors flex items-center justify-center shrink-0"
+          title="Sanctuary Transmissions & Alerts"
+        >
+          <Bell className="w-4 h-4" />
+          {unreadNotifsCount > 0 && (
+            <span className="absolute -top-1 -right-1 min-w-[18px] h-[18px] px-1 rounded-full bg-amber-400 text-stone-950 text-[10px] font-extrabold flex items-center justify-center shadow-[0_0_8px_rgba(212,168,83,0.6)] animate-pulse">
+              {unreadNotifsCount > 9 ? '9+' : unreadNotifsCount}
+            </span>
+          )}
+        </Link>
 
         {/* User Account & Level Pill */}
         <Link

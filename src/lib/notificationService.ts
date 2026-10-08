@@ -1,3 +1,5 @@
+import { useNotificationStore } from '@/store/useNotificationStore'
+
 export function isNotificationSupported(): boolean {
   return typeof window !== 'undefined' && 'Notification' in window
 }
@@ -27,8 +29,27 @@ export async function sendNotification(
     badge?: string
     tag?: string
     data?: unknown
+    type?: 'habit' | 'kyro' | 'focus' | 'task'
+    link?: string
+    silentStore?: boolean
   } = {}
 ): Promise<boolean> {
+  const messageBody = options.body || 'Habit reminder from Nexora'
+
+  // Always log to persistent Sanctuary Notifications Inbox so users never lose alerts
+  if (!options.silentStore) {
+    try {
+      useNotificationStore.getState().addNotification({
+        title,
+        message: messageBody,
+        type: options.type || 'habit',
+        link: options.link || '/habits',
+      })
+    } catch (err) {
+      console.warn('Could not record notification to store:', err)
+    }
+  }
+
   if (!isNotificationSupported()) return false
 
   if (Notification.permission !== 'granted') {
@@ -37,7 +58,7 @@ export async function sendNotification(
   }
 
   const notificationOptions = {
-    body: options.body || 'Habit reminder from Nexora',
+    body: messageBody,
     icon: options.icon || '/icon-192.png',
     badge: options.badge || '/icon-192.png',
     tag: options.tag || 'nexora-habit-alert',
@@ -51,7 +72,7 @@ export async function sendNotification(
       const reg = await navigator.serviceWorker.ready
       if (reg && 'showNotification' in reg) {
         await reg.showNotification(title, notificationOptions as NotificationOptions)
-        // Vibrate if supported
+        // Vibrate if supported on device
         if ('vibrate' in navigator) {
           navigator.vibrate([150, 80, 150])
         }
@@ -77,5 +98,7 @@ export async function sendTestNotification(): Promise<boolean> {
     body: 'Your device is successfully connected! You will receive timely alerts when scheduled habit windows open.',
     icon: '/icon-192.png',
     tag: 'nexora-test-alert',
+    type: 'habit',
+    link: '/habits',
   })
 }
