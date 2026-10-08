@@ -1,6 +1,6 @@
 'use client'
 
-import React, { useMemo } from 'react'
+import React, { useMemo, useState, useEffect } from 'react'
 import Link from 'next/link'
 import { useAppStore } from '@/store/appStore'
 import { useTaskStore } from '@/store/useTaskStore'
@@ -47,6 +47,11 @@ export default function DashboardPage() {
   const isFocusRunning = useFocusStore((s) => s.isRunning)
   const startFocusTimer = useFocusStore((s) => s.startTimer)
 
+  const [mounted, setMounted] = useState(false)
+  useEffect(() => {
+    setMounted(true)
+  }, [])
+
   const todayStr = format(new Date(), 'yyyy-MM-dd')
   const dateHeading = format(new Date(), 'EEEE, MMMM do')
 
@@ -79,11 +84,12 @@ export default function DashboardPage() {
   }, [isFocusRunning, stats, habits.length, userName])
 
   const greeting = useMemo(() => {
+    if (!mounted) return `Welcome, ${userName}`
     const hour = new Date().getHours()
     if (hour < 12) return `Good morning, ${userName}`
     if (hour < 18) return `Good afternoon, ${userName}`
     return `Good evening, ${userName}`
-  }, [userName])
+  }, [mounted, userName])
 
   const handleTaskToggle = (id: string, currentStatus: string) => {
     const task = tasks.find((t) => t.id === id)
@@ -113,10 +119,10 @@ export default function DashboardPage() {
           <div className="flex-1 space-y-4 text-center md:text-left">
             <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-stone-900/90 border border-stone-800 text-amber-300 text-xs font-semibold">
               <Calendar className="w-3.5 h-3.5 text-amber-400" />
-              <span>{dateHeading}</span>
+              <span suppressHydrationWarning>{dateHeading}</span>
             </div>
 
-            <h1 className="text-3xl sm:text-4xl md:text-5xl font-serif font-bold tracking-tight text-foreground">
+            <h1 className="text-3xl sm:text-4xl md:text-5xl font-serif font-bold tracking-tight text-foreground" suppressHydrationWarning>
               {greeting}
             </h1>
 

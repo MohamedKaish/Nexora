@@ -195,7 +195,7 @@ export default function FocusChamberPage() {
             <Flame className="w-4 h-4 text-amber-400" />
             <div>
               <p className="text-[10px] text-stone-400 font-semibold uppercase tracking-wider">Today's Focus</p>
-              <p className="text-sm font-bold text-amber-300">{todayMinutes} mins</p>
+              <p className="text-sm font-bold text-amber-300" suppressHydrationWarning>{todayMinutes} mins</p>
             </div>
           </div>
 

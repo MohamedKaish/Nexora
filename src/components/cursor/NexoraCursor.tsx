@@ -11,6 +11,9 @@ export function NexoraCursor() {
   const [isClicking, setIsClicking] = useState(false)
   const [isFinePointer, setIsFinePointer] = useState(false)
 
+  const isVisibleRef = useRef(false)
+  const hasInitializedPos = useRef(false)
+
   useEffect(() => {
     // Only enable custom cursor on fine pointer devices (Mouse / Trackpad on PC/Mac)
     if (typeof window === 'undefined') return
@@ -32,7 +35,17 @@ export function NexoraCursor() {
       mouseX = e.clientX
       mouseY = e.clientY
 
-      if (!isVisible) setIsVisible(true)
+      // Snap ring directly to cursor on first movement to avoid jump from (-100, -100)
+      if (!hasInitializedPos.current) {
+        ringX = mouseX
+        ringY = mouseY
+        hasInitializedPos.current = true
+      }
+
+      if (!isVisibleRef.current) {
+        isVisibleRef.current = true
+        setIsVisible(true)
+      }
 
       // Direct instant position for the center dot
       if (dotRef.current) {
@@ -60,16 +73,17 @@ export function NexoraCursor() {
     const handleMouseUp = () => setIsClicking(false)
 
     const handleMouseLeave = () => {
+      isVisibleRef.current = false
       setIsVisible(false)
     }
 
     const handleMouseEnter = () => {
+      isVisibleRef.current = true
       setIsVisible(true)
     }
 
     // Smooth physics loop for the trailing halo
     const loop = () => {
-      // Linear interpolation (lerp)
       const ease = 0.22
       ringX += (mouseX - ringX) * ease
       ringY += (mouseY - ringY) * ease
@@ -97,7 +111,7 @@ export function NexoraCursor() {
       document.removeEventListener('mouseenter', handleMouseEnter)
       cancelAnimationFrame(animId)
     }
-  }, [isVisible])
+  }, []) // Empty dependency array prevents re-subscription flicker
 
   if (!isFinePointer || !isVisible) return null
 

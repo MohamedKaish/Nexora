@@ -1,0 +1,14 @@
+{
+  "appId": "app.nexora.sanctuary",
+  "appName": "Nexora",
+  "webDir": "out",
+  "bundledWebRuntime": false,
+  "server": {
+    "url": "https://nexora-nine-kappa.vercel.app",
+    "cleartext": true
+  },
+  "android": {
+    "allowMixedContent": true,
+    "backgroundColor": "#0C0A09"
+  }
+}

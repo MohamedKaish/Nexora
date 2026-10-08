@@ -11,13 +11,14 @@ import { useFocusStore } from '@/store/useFocusStore'
 import { useKyroStore } from '@/store/kyroStore'
 import { usePwa } from '@/components/pwa/PwaProvider'
 import { calculateProductivityLevel } from '@/lib/gamification'
-import { Bot, Zap, Crown, Sparkles, Download } from 'lucide-react'
+import { Bot, Zap, Crown, Sparkles, Download, Menu } from 'lucide-react'
 
 interface HeaderProps {
   onOpenTutorial?: () => void
+  onOpenMobileDrawer?: () => void
 }
 
-export function Header({ onOpenTutorial }: HeaderProps) {
+export function Header({ onOpenTutorial, onOpenMobileDrawer }: HeaderProps) {
   const pathname = usePathname()
   const userName = useAppStore((s) => s.preferences.displayName) || 'Explorer'
   const agentName = useAppStore((s) => s.agentConfig.name) || 'Kyro'
@@ -82,7 +83,18 @@ export function Header({ onOpenTutorial }: HeaderProps) {
 
   return (
     <header className="h-16 border-b border-stone-800/80 bg-stone-950/60 backdrop-blur-xl px-3 sm:px-6 lg:px-8 flex items-center justify-between sticky top-0 z-30 transition-colors">
-      <div className="flex items-center gap-2 min-w-0">
+      <div className="flex items-center gap-2 sm:gap-3 min-w-0">
+        {/* Mobile Hamburger Drawer Trigger (Flipkart-Style) */}
+        {onOpenMobileDrawer && (
+          <button
+            onClick={onOpenMobileDrawer}
+            className="lg:hidden p-2 -ml-1.5 rounded-xl text-stone-300 hover:text-amber-400 hover:bg-stone-900/80 transition-colors cursor-pointer min-w-[44px] min-h-[44px] flex items-center justify-center shrink-0"
+            aria-label="Open navigation drawer"
+          >
+            <Menu className="w-5 h-5 text-amber-400" />
+          </button>
+        )}
+
         <h2 className="text-sm sm:text-base font-bold text-foreground tracking-tight truncate">
           {routeTitle}
         </h2>
@@ -100,27 +112,27 @@ export function Header({ onOpenTutorial }: HeaderProps) {
           </Link>
         )}
 
-        {/* Install Web App Button */}
+        {/* Install Web App Button (Desktop only - mobile is clean in drawer) */}
         {isInstallable && !isInstalled && (
           <button
             onClick={() => installApp()}
-            className="flex items-center gap-1.5 px-2.5 sm:px-3 py-1.5 rounded-full bg-gradient-to-r from-amber-400 to-amber-500 hover:from-amber-300 hover:to-amber-400 text-stone-950 font-bold text-xs shadow-[0_0_12px_rgba(212,168,83,0.3)] transition-all cursor-pointer"
+            className="hidden sm:flex items-center gap-1.5 px-2.5 sm:px-3 py-1.5 rounded-full bg-gradient-to-r from-amber-400 to-amber-500 hover:from-amber-300 hover:to-amber-400 text-stone-950 font-bold text-xs shadow-[0_0_12px_rgba(212,168,83,0.3)] transition-all cursor-pointer"
             title="Install Nexora App on PC or Mobile"
           >
             <Download className="w-3.5 h-3.5 shrink-0" />
-            <span className="hidden sm:inline">Install App</span>
+            <span className="hidden md:inline">Install App</span>
           </button>
         )}
 
-        {/* Companion Guide / Tutorial Trigger */}
+        {/* Companion Guide / Tutorial Trigger (Desktop only - cleaner mobile) */}
         {onOpenTutorial && (
           <button
             onClick={onOpenTutorial}
-            className="flex items-center gap-1.5 px-2.5 sm:px-3 py-1.5 rounded-full bg-amber-400/10 border border-amber-400/30 hover:border-amber-400 text-amber-300 text-xs font-semibold transition-all cursor-pointer"
+            className="hidden md:flex items-center gap-1.5 px-2.5 sm:px-3 py-1.5 rounded-full bg-amber-400/10 border border-amber-400/30 hover:border-amber-400 text-amber-300 text-xs font-semibold transition-all cursor-pointer"
             title="Open Interactive Companion Guide"
           >
             <Sparkles className="w-3.5 h-3.5 text-amber-400 shrink-0" />
-            <span className="hidden md:inline">Sanctuary Guide</span>
+            <span>Sanctuary Guide</span>
           </button>
         )}
 

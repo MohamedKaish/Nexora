@@ -17,7 +17,7 @@ export function MobileNav() {
   const pathname = usePathname()
 
   return (
-    <nav className="lg:hidden fixed bottom-0 inset-x-0 z-40 h-16 bg-stone-950/95 border-t border-stone-800/80 backdrop-blur-xl flex items-center justify-around px-2">
+    <nav className="lg:hidden fixed bottom-0 inset-x-0 z-40 h-[calc(4rem+env(safe-area-inset-bottom,0px))] pb-[env(safe-area-inset-bottom,0px)] bg-stone-950/95 border-t border-stone-800/80 backdrop-blur-xl flex items-center justify-around px-2">
       {MOBILE_ITEMS.map((item) => {
         const Icon = item.icon
         const isActive = pathname === item.href

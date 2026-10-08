@@ -1,6 +1,6 @@
 'use client'
 
-import React, { useState } from 'react'
+import React, { useState, useRef } from 'react'
 import { useAppStore } from '@/store/appStore'
 import { useTaskStore } from '@/store/useTaskStore'
 import { useHabitStore } from '@/store/useHabitStore'
@@ -57,6 +57,40 @@ export default function SettingsPage() {
     downloadAnchor.click()
     downloadAnchor.remove()
     toast.success('Sanctuary backup exported successfully.')
+  }
+
+  const fileInputRef = useRef<HTMLInputElement>(null)
+
+  // Import and restore sanctuary data from JSON
+  const handleImportFile = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (!file) return
+
+    const reader = new FileReader()
+    reader.onload = (event) => {
+      try {
+        const content = event.target?.result as string
+        const parsed = JSON.parse(content)
+
+        if (!parsed || typeof parsed !== 'object') {
+          throw new Error('Invalid JSON structure')
+        }
+
+        if (Array.isArray(parsed.tasks)) useTaskStore.setState({ tasks: parsed.tasks })
+        if (Array.isArray(parsed.habits)) useHabitStore.setState({ habits: parsed.habits })
+        if (Array.isArray(parsed.habitCompletions)) useHabitStore.setState({ completions: parsed.habitCompletions })
+        if (Array.isArray(parsed.goals)) useGoalStore.setState({ goals: parsed.goals })
+        if (Array.isArray(parsed.projects)) useProjectStore.setState({ projects: parsed.projects })
+        if (Array.isArray(parsed.focusSessions)) useFocusStore.setState({ sessions: parsed.focusSessions })
+
+        toast.success('Sanctuary ledger successfully restored from backup!')
+      } catch (err) {
+        toast.error('Failed to parse backup file. Please select a valid Nexora JSON ledger.')
+      } finally {
+        if (e.target) e.target.value = ''
+      }
+    }
+    reader.readAsText(file)
   }
 
   // Handle Profile Save
@@ -136,11 +170,11 @@ export default function SettingsPage() {
           </form>
         </div>
 
-        {/* Web App Installation (PWA) */}
+        {/* Web App Installation (PWA) & Android APK */}
         <div className="world-surface p-6 space-y-4">
           <div className="flex items-center gap-2.5 pb-2 border-b border-stone-800">
             <Smartphone className="w-4 h-4 text-amber-400" />
-            <h3 className="text-sm font-bold text-foreground">Web App Installation (PC & Mobile)</h3>
+            <h3 className="text-sm font-bold text-foreground">Web App & Android APK</h3>
           </div>
 
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 p-4 rounded-xl bg-stone-900/60 border border-stone-800">
@@ -179,6 +213,30 @@ export default function SettingsPage() {
                 </button>
               )}
             </div>
+          </div>
+
+          {/* Android APK Direct Export Card */}
+          <div className="p-4 rounded-xl bg-gradient-to-r from-amber-500/10 via-stone-900/40 to-transparent border border-amber-400/20 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+            <div className="space-y-1">
+              <h4 className="text-xs sm:text-sm font-bold text-foreground flex items-center gap-2">
+                <span>Android APK Package (.apk)</span>
+                <span className="text-[10px] px-2 py-0.5 rounded bg-emerald-400/20 text-emerald-300 font-mono font-bold">
+                  Google TWA / PWABuilder
+                </span>
+              </h4>
+              <p className="text-xs text-stone-400">
+                Turn your live Nexora web app into a signed installable Android APK or Google Play Store bundle (.aab) with 1 click via PWABuilder.
+              </p>
+            </div>
+            <a
+              href="https://www.pwabuilder.com"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="px-4 py-2 rounded-xl bg-stone-900 border border-amber-400/40 hover:bg-stone-800 text-amber-300 font-bold text-xs flex items-center gap-1.5 shrink-0 transition-colors"
+            >
+              <Download className="w-3.5 h-3.5" />
+              <span>Generate Android APK ↗</span>
+            </a>
           </div>
         </div>
 
@@ -240,12 +298,21 @@ export default function SettingsPage() {
             <h3 className="text-sm font-bold text-foreground">Data Ledger & Backup</h3>
           </div>
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          {/* Hidden File Input for JSON Backup Import */}
+          <input
+            type="file"
+            ref={fileInputRef}
+            onChange={handleImportFile}
+            accept=".json,application/json"
+            className="hidden"
+          />
+
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
             <button
               onClick={handleExportData}
               className="p-4 rounded-xl bg-stone-900/80 border border-stone-800 hover:border-amber-400/40 text-left transition-all cursor-pointer flex items-center gap-3"
             >
-              <div className="p-2.5 rounded-lg bg-amber-400/10 text-amber-400">
+              <div className="p-2.5 rounded-lg bg-amber-400/10 text-amber-400 shrink-0">
                 <Download className="w-5 h-5" />
               </div>
               <div>
@@ -255,15 +322,28 @@ export default function SettingsPage() {
             </button>
 
             <button
+              onClick={() => fileInputRef.current?.click()}
+              className="p-4 rounded-xl bg-stone-900/80 border border-stone-800 hover:border-amber-400/40 text-left transition-all cursor-pointer flex items-center gap-3"
+            >
+              <div className="p-2.5 rounded-lg bg-amber-400/10 text-amber-400 shrink-0">
+                <Upload className="w-5 h-5" />
+              </div>
+              <div>
+                <h4 className="text-xs font-bold text-foreground">Import Backup</h4>
+                <p className="text-[11px] text-stone-400">Restore ledger from previous JSON.</p>
+              </div>
+            </button>
+
+            <button
               onClick={handleResetData}
               className="p-4 rounded-xl bg-stone-900/80 border border-stone-800 hover:border-rose-400/40 text-left transition-all cursor-pointer flex items-center gap-3"
             >
-              <div className="p-2.5 rounded-lg bg-rose-400/10 text-rose-400">
+              <div className="p-2.5 rounded-lg bg-rose-400/10 text-rose-400 shrink-0">
                 <RotateCcw className="w-5 h-5" />
               </div>
               <div>
-                <h4 className="text-xs font-bold text-rose-300">Reset Local Storage</h4>
-                <p className="text-[11px] text-stone-400">Clear cache and restart with defaults.</p>
+                <h4 className="text-xs font-bold text-rose-300">Reset Storage</h4>
+                <p className="text-[11px] text-stone-400">Clear cache & reload defaults.</p>
               </div>
             </button>
           </div>

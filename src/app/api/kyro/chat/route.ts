@@ -17,6 +17,15 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'Message is required' }, { status: 400 })
     }
 
+    if (message.length > 3000) {
+      return NextResponse.json(
+        { error: 'Message exceeds maximum allowable length of 3000 characters.' },
+        { status: 400 }
+      )
+    }
+
+    const boundedHistory = Array.isArray(history) ? history.slice(-20) : []
+
     const effectiveApiKey =
       userApiKey ||
       process.env.GEMINI_API_KEY ||
@@ -77,7 +86,7 @@ Respond in valid JSON with format:
 
         const contents = [
           { role: 'user', parts: [{ text: systemPrompt }] },
-          ...history.slice(-6).map((h) => ({
+          ...boundedHistory.slice(-6).map((h) => ({
             role: h.sender === 'user' ? 'user' : 'model',
             parts: [{ text: h.text }],
           })),
@@ -121,7 +130,7 @@ Respond in valid JSON with format:
     }
 
     // ── Full Autonomous Conversational Engine ──
-    const synthesized = generateAdvancedSynthesis(message, context, history)
+    const synthesized = generateAdvancedSynthesis(message, context, boundedHistory)
     return NextResponse.json({
       ...synthesized,
       provider: 'nexora_neural_core',

@@ -1,20 +1,37 @@
 'use client'
 
-import { useEffect } from 'react'
+import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
-import { useAppStore } from '@/store/appStore'
+import { useAppStore, isUserOnboarded } from '@/store/appStore'
 
 export default function HomePage() {
   const router = useRouter()
   const onboardingComplete = useAppStore((s) => s.preferences.onboardingComplete)
+  const hasHydrated = useAppStore((s) => s._hasHydrated)
+  const [mounted, setMounted] = useState(false)
 
   useEffect(() => {
-    if (!onboardingComplete) {
-      router.replace('/setup')
-    } else {
+    setMounted(true)
+  }, [])
+
+  useEffect(() => {
+    if (!mounted) return
+
+    // Fast check: If already recorded in localStorage, go straight to dashboard
+    if (isUserOnboarded()) {
       router.replace('/dashboard')
+      return
     }
-  }, [onboardingComplete, router])
+
+    // Wait until Zustand has finished rehydrating state from storage
+    if (!hasHydrated) return
+
+    if (onboardingComplete) {
+      router.replace('/dashboard')
+    } else {
+      router.replace('/setup')
+    }
+  }, [mounted, hasHydrated, onboardingComplete, router])
 
   return (
     <div className="min-h-screen bg-background text-foreground flex items-center justify-center p-4">

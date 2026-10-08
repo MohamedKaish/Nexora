@@ -67,7 +67,7 @@ export default function CalendarPage() {
             >
               <ChevronLeft className="w-4 h-4" />
             </button>
-            <span className="px-3 text-xs font-bold text-foreground font-mono">
+            <span className="px-3 text-xs font-bold text-foreground font-mono" suppressHydrationWarning>
               {format(currentMonth, 'MMMM yyyy')}
             </span>
             <button

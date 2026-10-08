@@ -2,7 +2,8 @@
 
 import React, { useState } from 'react'
 import { useRouter } from 'next/navigation'
-import { useAppStore } from '@/store/appStore'
+import Link from 'next/link'
+import { useAppStore, isUserOnboarded } from '@/store/appStore'
 import { useCharacterStore } from '@/store/characterStore'
 import { Companion } from '@/components/companion/Companion'
 import { CompanionSelector } from '@/components/companion/CompanionSelector'
@@ -86,7 +87,7 @@ export default function SetupPage() {
 
   // Step 5: Focus Selected -> Start Calibration
   const handleFocusSubmit = () => {
-    // Save all profile preferences
+    // Save all profile preferences and mark onboarding complete permanently
     updatePreferences({
       displayName: displayName.trim() || 'Explorer',
       dateOfBirth,
@@ -94,6 +95,9 @@ export default function SetupPage() {
       onboardingComplete: true,
     })
     setAgentName(companionCallsign.trim() || 'Kyro')
+    if (typeof window !== 'undefined') {
+      localStorage.setItem('nexora_onboarding_verified', 'true')
+    }
 
     setCurrentQuestion(6) // Calibration sync
     setSyncProgress(15)
@@ -113,13 +117,33 @@ export default function SetupPage() {
   }
 
   const handleFinishAndEnter = () => {
+    if (typeof window !== 'undefined') {
+      localStorage.setItem('nexora_onboarding_verified', 'true')
+    }
     router.push('/dashboard')
   }
+
+  const alreadyOnboarded = preferences.onboardingComplete || (typeof window !== 'undefined' && isUserOnboarded())
 
   return (
     <div className="min-h-[85vh] flex items-center justify-center p-3 sm:p-6">
       <div className="w-full max-w-2xl world-deck p-6 sm:p-10 relative overflow-hidden shadow-[0_20px_60px_rgba(0,0,0,0.4)] border-amber-400/35">
         <div className="absolute top-0 right-1/4 w-80 h-80 rounded-full blur-[110px] bg-amber-500/10 pointer-events-none" />
+
+        {/* Top banner if already completed: Quick return to dashboard */}
+        {alreadyOnboarded && (
+          <div className="mb-6 p-3 rounded-xl bg-amber-400/10 border border-amber-400/30 flex items-center justify-between gap-3 text-xs">
+            <span className="text-amber-300 font-medium">
+              You have already initialized your Sanctuary Habitat.
+            </span>
+            <Link
+              href="/dashboard"
+              className="px-3 py-1.5 rounded-lg bg-amber-400 text-stone-950 font-bold hover:bg-amber-300 transition-colors shrink-0"
+            >
+              Dashboard →
+            </Link>
+          </div>
+        )}
 
         {/* Progress Pill Bar (Questions 1 to 5) */}
         {currentQuestion <= 5 && (

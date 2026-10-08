@@ -11,6 +11,35 @@ interface HabitState {
   toggleCompletion: (habitId: string, dateStr?: string) => boolean
 }
 
+function computeConsecutiveStreak(habitId: string, completions: LocalHabitCompletion[]): number {
+  const dates = new Set(
+    completions
+      .filter((c) => c.habitId === habitId)
+      .map((c) => c.completedDate)
+  )
+
+  let streak = 0
+  let checkDate = new Date()
+  const todayStr = format(checkDate, 'yyyy-MM-dd')
+
+  // If today isn't checked, check if yesterday was checked
+  if (!dates.has(todayStr)) {
+    const yesterday = new Date()
+    yesterday.setDate(yesterday.getDate() - 1)
+    if (!dates.has(format(yesterday, 'yyyy-MM-dd'))) {
+      return 0
+    }
+    checkDate = yesterday
+  }
+
+  while (dates.has(format(checkDate, 'yyyy-MM-dd'))) {
+    streak++
+    checkDate.setDate(checkDate.getDate() - 1)
+  }
+
+  return streak
+}
+
 const INITIAL_HABITS: LocalHabit[] = []
 
 export const useHabitStore = create<HabitState>()(
@@ -47,10 +76,12 @@ export const useHabitStore = create<HabitState>()(
 
         if (isDone) {
           // Unmark
+          const updatedCompletions = get().completions.filter((c) => c.id !== existing.id)
+          const newStreak = computeConsecutiveStreak(habitId, updatedCompletions)
           set((state) => ({
-            completions: state.completions.filter((c) => c.id !== existing.id),
+            completions: updatedCompletions,
             habits: state.habits.map((h) =>
-              h.id === habitId ? { ...h, streak: Math.max(0, h.streak - 1) } : h
+              h.id === habitId ? { ...h, streak: newStreak } : h
             ),
           }))
           return false
@@ -62,10 +93,12 @@ export const useHabitStore = create<HabitState>()(
             completedDate: dateStr,
             createdAt: new Date().toISOString(),
           }
+          const updatedCompletions = [...get().completions, newCompletion]
+          const newStreak = computeConsecutiveStreak(habitId, updatedCompletions)
           set((state) => ({
-            completions: [...state.completions, newCompletion],
+            completions: updatedCompletions,
             habits: state.habits.map((h) =>
-              h.id === habitId ? { ...h, streak: h.streak + 1 } : h
+              h.id === habitId ? { ...h, streak: newStreak } : h
             ),
           }))
           return true

@@ -116,7 +116,7 @@ export default function HabitsPage() {
 
                       return (
                         <div key={dStr} className="flex flex-col items-center gap-1">
-                          <span className="text-[9px] text-stone-500 font-semibold uppercase">
+                          <span className="text-[9px] text-stone-500 font-semibold uppercase" suppressHydrationWarning>
                             {format(date, 'EEE').charAt(0)}
                           </span>
                           <div
