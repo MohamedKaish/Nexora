@@ -4,14 +4,13 @@ import React, { useState } from 'react'
 import { NexoraLogo } from '@/components/brand/NexoraLogo'
 import {
   X,
-  Download,
   Smartphone,
   Monitor,
-  Check,
   Zap,
   ShieldCheck,
-  Sparkles,
   ArrowDownToLine,
+  CheckCircle2,
+  ExternalLink,
 } from 'lucide-react'
 import { usePwa } from './PwaProvider'
 import { toast } from 'sonner'
@@ -22,8 +21,9 @@ interface AppDownloadModalProps {
 }
 
 export function AppDownloadModal({ isOpen, onClose }: AppDownloadModalProps) {
-  const { installApp, isInstalled } = usePwa()
+  const { installApp, isInstalled, isInstallable } = usePwa()
   const [downloadingPlatform, setDownloadingPlatform] = useState<string | null>(null)
+  const [installingDevice, setInstallingDevice] = useState(false)
 
   // Direct 1-Click File Download without leaving the website
   const handleDirectFileDownload = (platform: 'android' | 'pc') => {
@@ -46,11 +46,13 @@ export function AppDownloadModal({ isOpen, onClose }: AppDownloadModalProps) {
     }, 1500)
   }
 
-  // Direct 1-Click Native App Installation into Phone / PC
-  const handleDirectInstall = async () => {
-    const installed = await installApp()
-    if (installed) {
-      toast.success('Nexora installed directly on this device!')
+  // Direct 1-Click Native App Installation on Desktop / Mobile Home Screen
+  const handleDirectDesktopInstall = async () => {
+    setInstallingDevice(true)
+    const success = await installApp()
+    setInstallingDevice(false)
+    if (success) {
+      toast.success('Nexora installed on your desktop / home screen!')
       onClose()
     }
   }
@@ -73,10 +75,10 @@ export function AppDownloadModal({ isOpen, onClose }: AppDownloadModalProps) {
             <NexoraLogo size={36} />
             <div>
               <h3 className="text-base sm:text-lg font-serif font-bold text-foreground">
-                1-Click Direct Download
+                Download & Install Nexora
               </h3>
               <p className="text-xs text-stone-400">
-                Download the app directly to your device — zero site redirection
+                1-Click installation directly to your phone & PC desktop
               </p>
             </div>
           </div>
@@ -89,96 +91,98 @@ export function AppDownloadModal({ isOpen, onClose }: AppDownloadModalProps) {
           </button>
         </div>
 
-        {/* Modal Body: 1-Click Downloads */}
-        <div className="py-5 space-y-3.5">
-          {/* ─── OPTION 1: Direct Android APK Download ─── */}
-          <div className="p-4 rounded-2xl bg-gradient-to-r from-amber-500/15 via-stone-900/70 to-stone-900/40 border border-amber-400/40 space-y-3">
+        {/* Modal Body */}
+        <div className="py-5 space-y-4">
+          {/* ─── 1. PC: 1-Click Desktop App (Like Chrome / Slack / Spotify) ─── */}
+          <div className="p-4 rounded-2xl bg-gradient-to-r from-amber-500/15 via-stone-900/80 to-stone-900/50 border border-amber-400/40 space-y-3">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-3">
-                <div className="p-2.5 rounded-xl bg-amber-400/20 text-amber-300">
-                  <Smartphone className="w-5 h-5" />
+                <div className="p-2.5 rounded-xl bg-amber-400/20 text-amber-300 shrink-0">
+                  <Monitor className="w-5 h-5 text-amber-400" />
+                </div>
+                <div>
+                  <h4 className="text-sm font-bold text-foreground flex items-center gap-2">
+                    <span>PC Desktop App (Windows & Mac)</span>
+                    <span className="px-1.5 py-0.5 rounded bg-amber-400/20 text-amber-300 text-[10px] font-mono font-bold">
+                      Desktop Native
+                    </span>
+                  </h4>
+                  <p className="text-xs text-stone-400">
+                    Pins directly to your Desktop & Taskbar like other PC apps
+                  </p>
+                </div>
+              </div>
+            </div>
+
+            <div className="flex flex-col sm:flex-row gap-2 pt-1">
+              <button
+                onClick={handleDirectDesktopInstall}
+                disabled={installingDevice}
+                className="flex-1 px-4 py-2.5 rounded-xl bg-gradient-to-r from-amber-400 to-amber-500 hover:from-amber-300 hover:to-amber-400 text-stone-950 font-bold text-xs flex items-center justify-center gap-2 shadow-[0_0_15px_rgba(212,168,83,0.35)] transition-all cursor-pointer"
+              >
+                <Zap className="w-4 h-4 fill-current" />
+                <span>
+                  {installingDevice
+                    ? 'Installing...'
+                    : '1-Click Install App to PC Desktop'}
+                </span>
+              </button>
+
+              <button
+                onClick={() => handleDirectFileDownload('pc')}
+                disabled={downloadingPlatform === 'pc'}
+                className="px-3.5 py-2.5 rounded-xl bg-stone-900 hover:bg-stone-800 border border-stone-700 text-stone-200 text-xs font-semibold flex items-center justify-center gap-1.5 transition-colors cursor-pointer shrink-0"
+                title="Direct standalone installer file"
+              >
+                <ArrowDownToLine className="w-3.5 h-3.5 text-amber-400" />
+                <span>{downloadingPlatform === 'pc' ? 'Downloading...' : 'Installer (.exe)'}</span>
+              </button>
+            </div>
+          </div>
+
+          {/* ─── 2. Android: 1-Click APK File Download ─── */}
+          <div className="p-4 rounded-2xl bg-stone-900/70 border border-stone-800 hover:border-amber-400/40 transition-colors space-y-3">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <div className="p-2.5 rounded-xl bg-stone-800 text-stone-300 shrink-0">
+                  <Smartphone className="w-5 h-5 text-amber-400" />
                 </div>
                 <div>
                   <h4 className="text-sm font-bold text-foreground flex items-center gap-2">
                     <span>Android Phone & Tablet (.apk)</span>
                     <span className="px-1.5 py-0.5 rounded bg-emerald-400/20 text-emerald-300 text-[10px] font-mono font-bold">
-                      Direct APK
+                      Direct APK File
                     </span>
                   </h4>
                   <p className="text-xs text-stone-400">
-                    Instantly downloads Nexora.apk file right now
+                    Instantly downloads Nexora.apk directly to your phone storage
                   </p>
                 </div>
               </div>
             </div>
 
-            <button
-              onClick={() => handleDirectFileDownload('android')}
-              disabled={downloadingPlatform === 'android'}
-              className="w-full px-4 py-2.5 rounded-xl bg-gradient-to-r from-amber-400 to-amber-500 hover:from-amber-300 hover:to-amber-400 text-stone-950 font-bold text-xs flex items-center justify-center gap-2 shadow-[0_0_15px_rgba(212,168,83,0.35)] transition-all cursor-pointer"
-            >
-              <ArrowDownToLine className="w-4 h-4" />
-              <span>
-                {downloadingPlatform === 'android'
-                  ? 'Downloading Nexora.apk...'
-                  : '1-Click Download Android APK (.apk)'}
-              </span>
-            </button>
-          </div>
+            <div className="flex flex-col sm:flex-row gap-2 pt-1">
+              <button
+                onClick={() => handleDirectFileDownload('android')}
+                disabled={downloadingPlatform === 'android'}
+                className="flex-1 px-4 py-2.5 rounded-xl bg-stone-900 hover:bg-stone-800 border border-amber-400/50 hover:border-amber-400 text-amber-300 font-bold text-xs flex items-center justify-center gap-2 transition-all cursor-pointer shadow-sm"
+              >
+                <ArrowDownToLine className="w-4 h-4" />
+                <span>
+                  {downloadingPlatform === 'android'
+                    ? 'Downloading Nexora.apk...'
+                    : '1-Click Download Android APK (.apk)'}
+                </span>
+              </button>
 
-          {/* ─── OPTION 2: Direct PC Windows Installer Download ─── */}
-          <div className="p-4 rounded-2xl bg-stone-900/70 border border-stone-800 hover:border-amber-400/40 transition-colors space-y-3">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-3">
-                <div className="p-2.5 rounded-xl bg-stone-800 text-stone-200">
-                  <Monitor className="w-5 h-5 text-amber-400" />
-                </div>
-                <div>
-                  <h4 className="text-sm font-bold text-foreground flex items-center gap-2">
-                    <span>Windows PC Installer (.exe)</span>
-                    <span className="px-1.5 py-0.5 rounded bg-amber-400/20 text-amber-300 text-[10px] font-mono font-bold">
-                      Direct PC
-                    </span>
-                  </h4>
-                  <p className="text-xs text-stone-400">
-                    Instantly downloads Nexora-Setup.exe installer file
-                  </p>
-                </div>
-              </div>
-            </div>
-
-            <button
-              onClick={() => handleDirectFileDownload('pc')}
-              disabled={downloadingPlatform === 'pc'}
-              className="w-full px-4 py-2.5 rounded-xl bg-stone-900 hover:bg-stone-800 border border-stone-700 hover:border-amber-400/60 text-stone-100 font-bold text-xs flex items-center justify-center gap-2 transition-all cursor-pointer"
-            >
-              <ArrowDownToLine className="w-4 h-4 text-amber-400" />
-              <span>
-                {downloadingPlatform === 'pc'
-                  ? 'Downloading Nexora-Setup.exe...'
-                  : '1-Click Download PC Installer (.exe)'}
-              </span>
-            </button>
-          </div>
-
-          {/* ─── OPTION 3: Instant Device App Installation (No files needed) ─── */}
-          <div className="p-3.5 rounded-xl bg-stone-950/80 border border-stone-800 flex items-center justify-between gap-3">
-            <div className="space-y-0.5">
-              <h5 className="text-xs font-bold text-foreground flex items-center gap-1.5">
+              <button
+                onClick={handleDirectDesktopInstall}
+                className="px-3.5 py-2.5 rounded-xl bg-stone-900 hover:bg-stone-800 border border-stone-700 text-stone-300 text-xs font-semibold flex items-center justify-center gap-1.5 transition-colors cursor-pointer shrink-0"
+              >
                 <Zap className="w-3.5 h-3.5 text-amber-400" />
-                <span>Install Directly on This Screen</span>
-              </h5>
-              <p className="text-[11px] text-stone-400">
-                Adds Nexora app icon directly to your phone/desktop home screen
-              </p>
+                <span>Direct Mobile Add</span>
+              </button>
             </div>
-
-            <button
-              onClick={handleDirectInstall}
-              className="px-3.5 py-1.5 rounded-lg bg-amber-400/15 border border-amber-400/40 hover:bg-amber-400/25 text-amber-300 font-bold text-xs shrink-0 cursor-pointer transition-colors"
-            >
-              Install App
-            </button>
           </div>
         </div>
 
@@ -186,7 +190,7 @@ export function AppDownloadModal({ isOpen, onClose }: AppDownloadModalProps) {
         <div className="pt-3 border-t border-stone-800 flex items-center justify-between text-xs text-stone-400">
           <span className="flex items-center gap-1 text-emerald-400 font-mono text-[11px]">
             <ShieldCheck className="w-3.5 h-3.5" />
-            Direct Download Verified • No Third-Party Redirects
+            Direct Download Verified • Zero Redirections
           </span>
           <button
             onClick={onClose}

@@ -30,7 +30,6 @@ export default function NotificationsPage() {
 
   const [filter, setFilter] = useState<'all' | 'unread' | 'habit'>('all')
   const [notifPermission, setNotifPermission] = useState<string>('default')
-  const [isTesting, setIsTesting] = useState(false)
 
   React.useEffect(() => {
     setNotifPermission(getNotificationPermission())
@@ -40,21 +39,9 @@ export default function NotificationsPage() {
     const perm = await requestNotificationPermission()
     setNotifPermission(perm)
     if (perm === 'granted') {
-      toast.success('System notifications enabled! Sending test broadcast...')
-      await sendTestNotification()
+      toast.success('System notifications enabled! You will receive timely alerts.')
     } else if (perm === 'denied') {
       toast.error('Permission blocked. Please allow notifications in site settings.')
-    }
-  }
-
-  const handleTestBroadcast = async () => {
-    setIsTesting(true)
-    const success = await sendTestNotification()
-    setIsTesting(false)
-    if (success) {
-      toast.success('Test broadcast dispatched to phone and inbox!')
-    } else {
-      toast.info('Could not deliver system alert. Please enable permissions first.')
     }
   }
 
@@ -144,15 +131,6 @@ export default function NotificationsPage() {
               <span>Allow Phone Alerts</span>
             </button>
           )}
-
-          <button
-            onClick={handleTestBroadcast}
-            disabled={isTesting}
-            className="px-3 py-1.5 rounded-xl bg-stone-900 hover:bg-stone-800 border border-stone-700 hover:border-amber-400/40 text-stone-200 text-xs font-semibold flex items-center gap-1.5 transition-colors cursor-pointer"
-          >
-            <Sparkles className="w-3 h-3 text-amber-400" />
-            <span>{isTesting ? 'Relaying...' : 'Test Alert Now'}</span>
-          </button>
         </div>
       </div>
 

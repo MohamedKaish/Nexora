@@ -58,7 +58,6 @@ export default function HabitsPage() {
 
   // Notification Permission State
   const [notifPermission, setNotifPermission] = useState<string>('default')
-  const [isTestingNotif, setIsTestingNotif] = useState(false)
 
   React.useEffect(() => {
     setNotifPermission(getNotificationPermission())
@@ -68,21 +67,9 @@ export default function HabitsPage() {
     const perm = await requestNotificationPermission()
     setNotifPermission(perm)
     if (perm === 'granted') {
-      toast.success('Phone notifications enabled! Sending verification alert...')
-      await sendTestNotification()
+      toast.success('Phone notifications enabled! You will be alerted when habit windows open.')
     } else if (perm === 'denied') {
       toast.error('Permission blocked. Please tap the padlock/tune icon in your browser URL bar to allow notifications.')
-    }
-  }
-
-  const handleTestAlert = async () => {
-    setIsTestingNotif(true)
-    const success = await sendTestNotification()
-    setIsTestingNotif(false)
-    if (success) {
-      toast.success('Test notification sent! Check your phone notification tray or PC desktop.')
-    } else {
-      toast.info('Could not send notification. Please allow permission first.')
     }
   }
 
@@ -239,16 +226,6 @@ export default function HabitsPage() {
               <span>Enable Phone Alerts</span>
             </button>
           )}
-
-          <button
-            onClick={handleTestAlert}
-            disabled={isTestingNotif}
-            className="px-3 py-1.5 rounded-xl bg-stone-900 hover:bg-stone-800 border border-stone-700 hover:border-amber-400/40 text-stone-200 text-xs font-semibold flex items-center gap-1.5 transition-colors cursor-pointer"
-            title="Send an immediate test alert to verify notification delivery"
-          >
-            <Sparkles className="w-3 h-3 text-amber-400" />
-            <span>{isTestingNotif ? 'Sending...' : 'Test Notification Now'}</span>
-          </button>
         </div>
       </div>
 
