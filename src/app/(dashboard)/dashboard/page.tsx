@@ -26,8 +26,10 @@ import {
   Bot,
   Sparkles,
   Calendar,
+  Download,
 } from 'lucide-react'
 import { format } from 'date-fns'
+import { usePwa } from '@/components/pwa/PwaProvider'
 
 export default function DashboardPage() {
   const userName = useAppStore((s) => s.preferences.displayName) || 'Explorer'
@@ -35,6 +37,7 @@ export default function DashboardPage() {
   const characterConfig = useCharacterStore((s) => s.config)
   const celebrateCompanion = useCharacterStore((s) => s.celebrate)
   const toggleKyro = useKyroStore((s) => s.toggleOpen)
+  const { isInstalled, openDownloadModal } = usePwa()
 
   const tasks = useTaskStore((s) => s.tasks)
   const toggleTaskStatus = useTaskStore((s) => s.toggleStatus)
@@ -167,6 +170,16 @@ export default function DashboardPage() {
                 <Bot className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-amber-400" />
                 <span>Ask {agentName}</span>
               </button>
+
+              {!isInstalled && (
+                <button
+                  onClick={openDownloadModal}
+                  className="px-3.5 sm:px-4 py-2 sm:py-2.5 rounded-xl bg-gradient-to-r from-amber-400/20 to-amber-500/20 hover:from-amber-400/30 hover:to-amber-500/30 border border-amber-400/40 text-amber-300 font-bold text-xs flex items-center gap-1.5 transition-all cursor-pointer shadow-[0_0_12px_rgba(212,168,83,0.15)]"
+                >
+                  <Download className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-amber-400" />
+                  <span>Download App / APK</span>
+                </button>
+              )}
             </div>
           </div>
 

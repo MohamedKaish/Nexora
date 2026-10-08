@@ -6,7 +6,7 @@ import { NexoraLogo } from '@/components/brand/NexoraLogo'
 import { Download, X } from 'lucide-react'
 
 export function PwaInstallBanner() {
-  const { isInstallable, isInstalled, showBanner, installApp, dismissInstallBanner, isIos } = usePwa()
+  const { isInstalled, showBanner, openDownloadModal, dismissInstallBanner, isIos } = usePwa()
 
   if (isInstalled || !showBanner) return null
 
@@ -31,7 +31,7 @@ export function PwaInstallBanner() {
 
         <div className="flex items-center gap-2 shrink-0">
           <button
-            onClick={() => installApp()}
+            onClick={openDownloadModal}
             className="px-3.5 py-2 rounded-xl bg-amber-400 hover:bg-amber-300 text-stone-950 font-bold text-xs flex items-center gap-1.5 shadow-[0_0_15px_rgba(212,168,83,0.35)] transition-all cursor-pointer"
           >
             <Download className="w-3.5 h-3.5" />

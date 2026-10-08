@@ -1,6 +1,7 @@
 'use client'
 
 import React, { createContext, useContext, useEffect, useState } from 'react'
+import { AppDownloadModal } from './AppDownloadModal'
 
 interface BeforeInstallPromptEvent extends Event {
   readonly platforms: string[]
@@ -19,6 +20,9 @@ interface PwaContextType {
   dismissInstallBanner: () => void
   showBanner: boolean
   openInstallGuide: () => void
+  openDownloadModal: () => void
+  closeDownloadModal: () => void
+  isDownloadModalOpen: boolean
 }
 
 const PwaContext = createContext<PwaContextType>({
@@ -29,6 +33,9 @@ const PwaContext = createContext<PwaContextType>({
   dismissInstallBanner: () => {},
   showBanner: false,
   openInstallGuide: () => {},
+  openDownloadModal: () => {},
+  closeDownloadModal: () => {},
+  isDownloadModalOpen: false,
 })
 
 export function PwaProvider({ children }: { children: React.ReactNode }) {
@@ -37,6 +44,7 @@ export function PwaProvider({ children }: { children: React.ReactNode }) {
   const [isInstalled, setIsInstalled] = useState(false)
   const [isIos, setIsIos] = useState(false)
   const [showBanner, setShowBanner] = useState(false)
+  const [isDownloadModalOpen, setIsDownloadModalOpen] = useState(false)
 
   useEffect(() => {
     // 1. Register Service Worker in production/supporting browsers
@@ -93,6 +101,7 @@ export function PwaProvider({ children }: { children: React.ReactNode }) {
       setIsInstallable(false)
       setShowBanner(false)
       setDeferredPrompt(null)
+      setIsDownloadModalOpen(false)
       console.log('Nexora was successfully installed as a Web App.')
     }
 
@@ -107,10 +116,8 @@ export function PwaProvider({ children }: { children: React.ReactNode }) {
 
   const installApp = async (): Promise<boolean> => {
     if (!deferredPrompt) {
-      if (isIos) {
-        alert("To install Nexora on your iPhone/iPad:\n1. Tap the Share icon ⎋ at the bottom of Safari.\n2. Scroll down and tap 'Add to Home Screen' ⊕.")
-        return false
-      }
+      // If native deferred prompt isn't directly available, open download modal
+      setIsDownloadModalOpen(true)
       return false
     }
 
@@ -121,11 +128,13 @@ export function PwaProvider({ children }: { children: React.ReactNode }) {
         setIsInstalled(true)
         setShowBanner(false)
         setDeferredPrompt(null)
+        setIsDownloadModalOpen(false)
         return true
       }
       return false
     } catch (err) {
       console.error('Error invoking PWA install prompt:', err)
+      setIsDownloadModalOpen(true)
       return false
     }
   }
@@ -136,13 +145,15 @@ export function PwaProvider({ children }: { children: React.ReactNode }) {
   }
 
   const openInstallGuide = () => {
-    if (deferredPrompt) {
-      installApp()
-    } else if (isIos) {
-      alert("To install Nexora on iOS:\n1. Tap Share ⎋ in Safari\n2. Select 'Add to Home Screen' ⊕\n3. Tap 'Add' to launch full screen!")
-    } else {
-      alert("To install Nexora on your PC or Mobile:\n• In Chrome/Edge: Click the Install icon in the browser address bar (top right) or press the Install button in the header.\n• On Android: Tap the menu (⋮) -> 'Add to Home screen' / 'Install app'.")
-    }
+    setIsDownloadModalOpen(true)
+  }
+
+  const openDownloadModal = () => {
+    setIsDownloadModalOpen(true)
+  }
+
+  const closeDownloadModal = () => {
+    setIsDownloadModalOpen(false)
   }
 
   return (
@@ -155,9 +166,16 @@ export function PwaProvider({ children }: { children: React.ReactNode }) {
         dismissInstallBanner,
         showBanner,
         openInstallGuide,
+        openDownloadModal,
+        closeDownloadModal,
+        isDownloadModalOpen,
       }}
     >
       {children}
+      <AppDownloadModal
+        isOpen={isDownloadModalOpen}
+        onClose={closeDownloadModal}
+      />
     </PwaContext.Provider>
   )
 }

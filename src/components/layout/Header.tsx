@@ -25,7 +25,7 @@ export function Header({ onOpenTutorial, onOpenMobileDrawer }: HeaderProps) {
   const isFocusRunning = useFocusStore((s) => s.isRunning)
   const remainingSeconds = useFocusStore((s) => s.remainingSeconds)
   const toggleKyro = useKyroStore((s) => s.toggleOpen)
-  const { isInstallable, isInstalled, installApp } = usePwa()
+  const { isInstalled, openDownloadModal } = usePwa()
 
   const tasks = useTaskStore((s) => s.tasks)
   const habits = useHabitStore((s) => s.habits)
@@ -112,15 +112,15 @@ export function Header({ onOpenTutorial, onOpenMobileDrawer }: HeaderProps) {
           </Link>
         )}
 
-        {/* Install Web App Button (Desktop only - mobile is clean in drawer) */}
-        {isInstallable && !isInstalled && (
+        {/* Download & Install App Button */}
+        {!isInstalled && (
           <button
-            onClick={() => installApp()}
-            className="hidden sm:flex items-center gap-1.5 px-2.5 sm:px-3 py-1.5 rounded-full bg-gradient-to-r from-amber-400 to-amber-500 hover:from-amber-300 hover:to-amber-400 text-stone-950 font-bold text-xs shadow-[0_0_12px_rgba(212,168,83,0.3)] transition-all cursor-pointer"
-            title="Install Nexora App on PC or Mobile"
+            onClick={openDownloadModal}
+            className="flex items-center gap-1.5 px-2.5 sm:px-3 py-1.5 rounded-full bg-gradient-to-r from-amber-400 to-amber-500 hover:from-amber-300 hover:to-amber-400 text-stone-950 font-bold text-xs shadow-[0_0_12px_rgba(212,168,83,0.3)] transition-all cursor-pointer"
+            title="Download Android APK or Install App directly"
           >
             <Download className="w-3.5 h-3.5 shrink-0" />
-            <span className="hidden md:inline">Install App</span>
+            <span className="hidden sm:inline">Download App</span>
           </button>
         )}
 

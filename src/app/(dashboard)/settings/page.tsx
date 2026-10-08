@@ -228,15 +228,17 @@ export default function SettingsPage() {
                 Turn your live Nexora web app into a signed installable Android APK or Google Play Store bundle (.aab) with 1 click via PWABuilder.
               </p>
             </div>
-            <a
-              href="https://www.pwabuilder.com"
-              target="_blank"
-              rel="noopener noreferrer"
-              className="px-4 py-2 rounded-xl bg-stone-900 border border-amber-400/40 hover:bg-stone-800 text-amber-300 font-bold text-xs flex items-center gap-1.5 shrink-0 transition-colors"
-            >
-              <Download className="w-3.5 h-3.5" />
-              <span>Generate Android APK ↗</span>
-            </a>
+            <div className="flex items-center gap-2 shrink-0">
+              <a
+                href="https://www.pwabuilder.com?url=https%3A%2F%2Fnexora-nine-kappa.vercel.app"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="px-4 py-2.5 rounded-xl bg-gradient-to-r from-amber-400 to-amber-500 hover:from-amber-300 hover:to-amber-400 text-stone-950 font-bold text-xs flex items-center gap-1.5 transition-all shadow-[0_0_15px_rgba(212,168,83,0.3)]"
+              >
+                <Download className="w-3.5 h-3.5" />
+                <span>Download Android APK ↗</span>
+              </a>
+            </div>
           </div>
         </div>
 
