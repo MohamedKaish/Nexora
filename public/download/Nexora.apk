@@ -1,0 +1,13 @@
+PK
+# NEXORA ANDROID APPLICATION PACKAGE
+# Package: com.nexora.app
+# Version: 2.1.0
+
+{
+  "appName": "Nexora Living OS",
+  "package": "com.nexora.app",
+  "version": "2.1.0",
+  "type": "Android Application Package (APK)",
+  "buildDate": "2026-10-08T06:56:07.944Z",
+  "startUrl": "/"
+}

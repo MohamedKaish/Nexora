@@ -219,23 +219,24 @@ export default function SettingsPage() {
           <div className="p-4 rounded-xl bg-stone-900/60 border border-stone-800 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
             <div className="space-y-1">
               <h4 className="text-xs sm:text-sm font-bold text-foreground flex items-center gap-2">
-                <span>Windows PC & Mac Desktop App</span>
+                <span>Windows PC Desktop (.exe)</span>
                 <span className="text-[10px] px-2 py-0.5 rounded bg-amber-400/20 text-amber-300 font-mono font-bold">
-                  PC Release
+                  Direct Download
                 </span>
               </h4>
               <p className="text-xs text-stone-400">
-                Run Nexora as a native desktop application with window borders, taskbar pinning, and custom keyboard shortcuts.
+                1-click instant download of Nexora-Setup.exe installer directly to your PC.
               </p>
             </div>
             <div className="flex items-center gap-2 shrink-0">
-              <button
-                onClick={openInstallGuide}
+              <a
+                href="/api/download?platform=pc"
+                download="Nexora-Setup.exe"
                 className="px-4 py-2 rounded-xl bg-stone-900 border border-stone-700 hover:border-amber-400/50 text-stone-200 font-bold text-xs flex items-center gap-1.5 transition-colors cursor-pointer"
               >
                 <Download className="w-3.5 h-3.5 text-amber-400" />
-                <span>Install on PC / Mac</span>
-              </button>
+                <span>1-Click Download PC (.exe)</span>
+              </a>
             </div>
           </div>
 
@@ -245,22 +246,21 @@ export default function SettingsPage() {
               <h4 className="text-xs sm:text-sm font-bold text-foreground flex items-center gap-2">
                 <span>Android APK Package (.apk)</span>
                 <span className="text-[10px] px-2 py-0.5 rounded bg-emerald-400/20 text-emerald-300 font-mono font-bold">
-                  Google TWA / PWABuilder
+                  Direct Download
                 </span>
               </h4>
               <p className="text-xs text-stone-400">
-                Turn your live Nexora web app into a signed installable Android APK or Google Play Store bundle (.aab) with 1 click via PWABuilder.
+                1-click instant download of Nexora.apk installer file directly to your phone.
               </p>
             </div>
             <div className="flex items-center gap-2 shrink-0">
               <a
-                href="https://www.pwabuilder.com?url=https%3A%2F%2Fnexora-nine-kappa.vercel.app"
-                target="_blank"
-                rel="noopener noreferrer"
+                href="/api/download?platform=android"
+                download="Nexora.apk"
                 className="px-4 py-2.5 rounded-xl bg-gradient-to-r from-amber-400 to-amber-500 hover:from-amber-300 hover:to-amber-400 text-stone-950 font-bold text-xs flex items-center gap-1.5 transition-all shadow-[0_0_15px_rgba(212,168,83,0.3)]"
               >
                 <Download className="w-3.5 h-3.5" />
-                <span>Download Android APK ↗</span>
+                <span>1-Click Download APK (.apk)</span>
               </a>
             </div>
           </div>

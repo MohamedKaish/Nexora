@@ -270,14 +270,13 @@ export function MobileDrawer({ isOpen, onClose }: MobileDrawerProps) {
           {!isInstalled && (
             <div className="space-y-1.5">
               <a
-                href={apkBuilderUrl}
-                target="_blank"
-                rel="noopener noreferrer"
+                href="/api/download?platform=android"
+                download="Nexora.apk"
                 onClick={onClose}
                 className="w-full px-3 py-2 rounded-xl bg-gradient-to-r from-amber-400 to-amber-500 text-stone-950 font-bold text-xs flex items-center justify-center gap-2 shadow-sm"
               >
                 <Download className="w-3.5 h-3.5" />
-                <span>Download Android APK (.apk) ↗</span>
+                <span>1-Click Download Android APK</span>
               </a>
 
               <button
@@ -288,7 +287,7 @@ export function MobileDrawer({ isOpen, onClose }: MobileDrawerProps) {
                 className="w-full px-3 py-1.5 rounded-xl bg-stone-900 hover:bg-stone-800 border border-stone-700 text-stone-300 font-semibold text-[11px] flex items-center justify-center gap-1.5 cursor-pointer"
               >
                 <Download className="w-3 h-3 text-amber-400" />
-                <span>Direct Install (PWA / PC)</span>
+                <span>Download Center (PC & Mobile)</span>
               </button>
             </div>
           )}
