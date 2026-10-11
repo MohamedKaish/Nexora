@@ -81,14 +81,13 @@ export function PwaProvider({ children }: { children: React.ReactNode }) {
       setIsInstallable(true)
     }
 
-    // 4. Listen for Chrome's native beforeinstallprompt
+    // 4. Listen for Chrome / Edge native beforeinstallprompt
     const handleBeforeInstallPrompt = (e: Event) => {
       e.preventDefault()
       const installEvent = e as BeforeInstallPromptEvent
       setDeferredPrompt(installEvent)
       setIsInstallable(true)
 
-      // Only show banner if user hasn't dismissed it in current session
       const dismissed = sessionStorage.getItem('nexora_pwa_banner_dismissed')
       if (!dismissed && !isStandalone) {
         setShowBanner(true)
@@ -102,7 +101,7 @@ export function PwaProvider({ children }: { children: React.ReactNode }) {
       setShowBanner(false)
       setDeferredPrompt(null)
       setIsDownloadModalOpen(false)
-      console.log('Nexora was successfully installed as a Web App.')
+      console.log('Nexora was successfully installed as a native app.')
     }
 
     window.addEventListener('beforeinstallprompt', handleBeforeInstallPrompt)
@@ -115,28 +114,36 @@ export function PwaProvider({ children }: { children: React.ReactNode }) {
   }, [])
 
   const installApp = async (): Promise<boolean> => {
-    if (!deferredPrompt) {
-      // If native deferred prompt isn't directly available, open download modal
-      setIsDownloadModalOpen(true)
-      return false
+    // If browser install prompt is captured, run it directly
+    if (deferredPrompt) {
+      try {
+        await deferredPrompt.prompt()
+        const choice = await deferredPrompt.userChoice
+        if (choice.outcome === 'accepted') {
+          setIsInstalled(true)
+          setShowBanner(false)
+          setDeferredPrompt(null)
+          setIsDownloadModalOpen(false)
+          return true
+        }
+        return false
+      } catch (err) {
+        console.error('Error invoking install prompt:', err)
+      }
     }
 
-    try {
-      await deferredPrompt.prompt()
-      const choice = await deferredPrompt.userChoice
-      if (choice.outcome === 'accepted') {
-        setIsInstalled(true)
-        setShowBanner(false)
-        setDeferredPrompt(null)
-        setIsDownloadModalOpen(false)
-        return true
+    // If deferredPrompt is not available (e.g. user already clicked once or desktop browser toolbar),
+    // alert clear 1-click instruction for Chrome/Edge address bar install button
+    if (typeof window !== 'undefined') {
+      const isMobile = /android|iphone|ipad|ipod/i.test(navigator.userAgent)
+      if (isMobile) {
+        alert("To install Nexora on your phone:\n\n1. In Chrome: Tap the 3 dots (⋮) in the top-right.\n2. Tap 'Install app' or 'Add to Home screen'.\n\nNexora will immediately install onto your phone home screen!")
+      } else {
+        alert("To install Nexora on your PC Desktop:\n\nLook at the right side of your browser URL/address bar at the top:\nClick the 'Install' icon (⊕) or open menu (⋮) -> 'Cast, save, and share' -> 'Install Nexora'.\n\nThis creates a standalone desktop app on your PC Taskbar!")
       }
-      return false
-    } catch (err) {
-      console.error('Error invoking PWA install prompt:', err)
-      setIsDownloadModalOpen(true)
-      return false
     }
+
+    return false
   }
 
   const dismissInstallBanner = () => {
