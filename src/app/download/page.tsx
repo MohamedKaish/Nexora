@@ -27,7 +27,7 @@ export default function DownloadPage() {
   const [copiedSha, setCopiedSha] = useState(false)
   const [activePlatform, setActivePlatform] = useState<'android' | 'desktop' | 'ios'>('android')
 
-  const sha256Fingerprint = '14:6D:E9:A5:0F:8E:27:19:53:7E:85:48:92:4E:A8:1A:39:6C:54:1B:32:04:47:6B:8F:7C:1E:83:B2:D0:65:42'
+  const sha256Fingerprint = 'AA:41:09:2C:90:BC:E4:27:DB:15:E2:08:B1:C7:28:EF:83:2B:32:1B:C3:03:6D:CB:1B:4F:96:89:6A:AF:BA:60'
   const apkDownloadUrl = '/download/Nexora.apk'
   const liveAppUrl = 'https://nexora-nine-kappa.vercel.app'
 
@@ -208,7 +208,7 @@ export default function DownloadPage() {
                       Direct Package
                     </span>
                     <span className="text-xs text-stone-400 font-mono">
-                      ~2.4 MB
+                      2.2 MB
                     </span>
                   </div>
 
