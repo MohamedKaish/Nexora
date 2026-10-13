@@ -21,6 +21,7 @@ import {
   Download,
 } from 'lucide-react'
 import { useAppStore } from '@/store/appStore'
+import { usePwa } from '@/components/pwa/PwaProvider'
 import { NexoraLogo } from '@/components/brand/NexoraLogo'
 
 interface NavSection {
@@ -73,6 +74,7 @@ const NAV_SECTIONS: NavSection[] = [
 export function Sidebar() {
   const pathname = usePathname()
   const agentName = useAppStore((s) => s.agentConfig.name) || 'Kyro'
+  const { isInstalled } = usePwa()
 
   return (
     <aside className="hidden lg:flex w-64 flex-col fixed inset-y-0 left-0 z-40 bg-stone-950/80 border-r border-stone-800/80 backdrop-blur-xl">
@@ -120,13 +122,15 @@ export function Sidebar() {
 
       {/* Ambient Footer */}
       <div className="p-4 border-t border-stone-800/80 flex flex-col items-center gap-1.5">
-        <Link
-          href="/download"
-          className="text-[11px] text-amber-400/90 hover:text-amber-300 font-semibold flex items-center gap-1.5 transition-colors"
-        >
-          <Download className="w-3.5 h-3.5" />
-          <span>Get Android &amp; Desktop App</span>
-        </Link>
+        {!isInstalled && (
+          <Link
+            href="/download"
+            className="text-[11px] text-amber-400/90 hover:text-amber-300 font-semibold flex items-center gap-1.5 transition-colors"
+          >
+            <Download className="w-3.5 h-3.5" />
+            <span>Get Android &amp; Desktop App</span>
+          </Link>
+        )}
         <p className="text-[10px] text-stone-500 font-medium">Nexora v2.0 · Sanctuary Active</p>
       </div>
     </aside>

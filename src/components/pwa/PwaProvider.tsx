@@ -16,7 +16,9 @@ interface PwaContextType {
   isInstallable: boolean
   isInstalled: boolean
   isIos: boolean
+  isNativeApk: boolean
   installApp: () => Promise<boolean>
+  markAsInstalled: () => void
   dismissInstallBanner: () => void
   showBanner: boolean
   openInstallGuide: () => void
@@ -29,7 +31,9 @@ const PwaContext = createContext<PwaContextType>({
   isInstallable: false,
   isInstalled: false,
   isIos: false,
+  isNativeApk: false,
   installApp: async () => false,
+  markAsInstalled: () => {},
   dismissInstallBanner: () => {},
   showBanner: false,
   openInstallGuide: () => {},
@@ -43,8 +47,18 @@ export function PwaProvider({ children }: { children: React.ReactNode }) {
   const [isInstallable, setIsInstallable] = useState(false)
   const [isInstalled, setIsInstalled] = useState(false)
   const [isIos, setIsIos] = useState(false)
+  const [isNativeApk, setIsNativeApk] = useState(false)
   const [showBanner, setShowBanner] = useState(false)
   const [isDownloadModalOpen, setIsDownloadModalOpen] = useState(false)
+
+  const markAsInstalled = () => {
+    try {
+      localStorage.setItem('nexora_apk_installed', 'true')
+    } catch {}
+    setIsInstalled(true)
+    setShowBanner(false)
+    setIsInstallable(false)
+  }
 
   useEffect(() => {
     // 1. Register Service Worker in production/supporting browsers
@@ -61,24 +75,49 @@ export function PwaProvider({ children }: { children: React.ReactNode }) {
       })
     }
 
-    // 2. Check if already installed / standalone mode
-    const isStandalone =
-      window.matchMedia('(display-mode: standalone)').matches ||
-      (window.navigator as unknown as { standalone?: boolean }).standalone === true ||
-      document.referrer.includes('android-app://')
+    // 2. Comprehensive check for installed environment (Native Android APK / PWA Standalone / Previously Downloaded)
+    if (typeof window !== 'undefined') {
+      const userAgent = window.navigator.userAgent || ''
+      const isApkWrapper =
+        userAgent.includes('NexoraNativeAndroid') ||
+        userAgent.includes('; wv') ||
+        (userAgent.includes('Android') && userAgent.includes('Version/'))
 
-    if (isStandalone) {
-      setIsInstalled(true)
-    }
+      if (isApkWrapper) {
+        setIsNativeApk(true)
+      }
 
-    // 3. Detect iOS Safari
-    const userAgent = window.navigator.userAgent.toLowerCase()
-    const isIosDevice = /iphone|ipad|ipod/.test(userAgent) && !(window as unknown as { MSStream?: unknown }).MSStream
-    const isSafari = /safari/.test(userAgent) && !/chrome|crios|crmo/.test(userAgent)
+      const isStandaloneDisplay =
+        window.matchMedia('(display-mode: standalone)').matches ||
+        (window.navigator as unknown as { standalone?: boolean }).standalone === true ||
+        document.referrer.includes('android-app://') ||
+        window.location.search.includes('source=pwa') ||
+        window.location.search.includes('source=apk')
 
-    if (isIosDevice && isSafari && !isStandalone) {
-      setIsIos(true)
-      setIsInstallable(true)
+      const hasInstalledFlag =
+        localStorage.getItem('nexora_apk_installed') === 'true' ||
+        localStorage.getItem('nexora_pwa_installed') === 'true'
+
+      if (isApkWrapper || isStandaloneDisplay || hasInstalledFlag) {
+        setIsInstalled(true)
+        setShowBanner(false)
+        setIsInstallable(false)
+        return
+      }
+
+      // 3. Detect iOS Safari
+      const uaLower = userAgent.toLowerCase()
+      const isIosDevice =
+        /iphone|ipad|ipod/.test(uaLower) &&
+        !(window as unknown as { MSStream?: unknown }).MSStream
+      const isSafari =
+        /safari/.test(uaLower) &&
+        !/chrome|crios|crmo/.test(uaLower)
+
+      if (isIosDevice && isSafari) {
+        setIsIos(true)
+        setIsInstallable(true)
+      }
     }
 
     // 4. Listen for Chrome / Edge native beforeinstallprompt
@@ -89,16 +128,16 @@ export function PwaProvider({ children }: { children: React.ReactNode }) {
       setIsInstallable(true)
 
       const dismissed = sessionStorage.getItem('nexora_pwa_banner_dismissed')
-      if (!dismissed && !isStandalone) {
+      const hasInstalledFlag = localStorage.getItem('nexora_apk_installed') === 'true'
+
+      if (!dismissed && !hasInstalledFlag) {
         setShowBanner(true)
       }
     }
 
     // 5. Listen for successful installation
     const handleAppInstalled = () => {
-      setIsInstalled(true)
-      setIsInstallable(false)
-      setShowBanner(false)
+      markAsInstalled()
       setDeferredPrompt(null)
       setIsDownloadModalOpen(false)
       console.log('Nexora was successfully installed as a native app.')
@@ -120,29 +159,16 @@ export function PwaProvider({ children }: { children: React.ReactNode }) {
         await deferredPrompt.prompt()
         const choice = await deferredPrompt.userChoice
         if (choice.outcome === 'accepted') {
-          setIsInstalled(true)
-          setShowBanner(false)
-          setDeferredPrompt(null)
-          setIsDownloadModalOpen(false)
+          markAsInstalled()
           return true
         }
-        return false
       } catch (err) {
-        console.error('Error invoking install prompt:', err)
+        console.warn('Install prompt error:', err)
       }
     }
 
-    // If deferredPrompt is not available (e.g. user already clicked once or desktop browser toolbar),
-    // alert clear 1-click instruction for Chrome/Edge address bar install button
-    if (typeof window !== 'undefined') {
-      const isMobile = /android|iphone|ipad|ipod/i.test(navigator.userAgent)
-      if (isMobile) {
-        alert("To install Nexora on your phone:\n\n1. In Chrome: Tap the 3 dots (⋮) in the top-right.\n2. Tap 'Install app' or 'Add to Home screen'.\n\nNexora will immediately install onto your phone home screen!")
-      } else {
-        alert("To install Nexora on your PC Desktop:\n\nLook at the right side of your browser URL/address bar at the top:\nClick the 'Install' icon (⊕) or open menu (⋮) -> 'Cast, save, and share' -> 'Install Nexora'.\n\nThis creates a standalone desktop app on your PC Taskbar!")
-      }
-    }
-
+    // Otherwise, open our download / installation modal
+    openDownloadModal()
     return false
   }
 
@@ -169,7 +195,9 @@ export function PwaProvider({ children }: { children: React.ReactNode }) {
         isInstallable,
         isInstalled,
         isIos,
+        isNativeApk,
         installApp,
+        markAsInstalled,
         dismissInstallBanner,
         showBanner,
         openInstallGuide,

@@ -20,6 +20,7 @@ import {
   Edit3,
   X,
   Check,
+  Zap,
 } from 'lucide-react'
 import { format, subDays } from 'date-fns'
 import { toast } from 'sonner'
@@ -71,6 +72,11 @@ export default function HabitsPage() {
     } else if (perm === 'denied') {
       toast.error('Permission blocked. Please tap the padlock/tune icon in your browser URL bar to allow notifications.')
     }
+  }
+
+  const handleTestAlert = async () => {
+    await sendTestNotification()
+    toast.success('Phone system tested! Alert sound, vibration & transmission dispatched.')
   }
 
   const todayStr = format(new Date(), 'yyyy-MM-dd')
@@ -216,8 +222,8 @@ export default function HabitsPage() {
           </div>
         </div>
 
-        <div className="flex items-center gap-2 self-start sm:self-auto shrink-0">
-          {notifPermission !== 'granted' && notifPermission !== 'denied' && (
+        <div className="flex flex-wrap items-center gap-2 self-start sm:self-auto shrink-0">
+          {notifPermission !== 'granted' && (
             <button
               onClick={handleRequestPermission}
               className="px-3.5 py-1.5 rounded-xl bg-amber-400 hover:bg-amber-300 text-stone-950 font-bold text-xs flex items-center gap-1.5 shadow-[0_0_12px_rgba(212,168,83,0.3)] transition-all cursor-pointer"
@@ -226,6 +232,15 @@ export default function HabitsPage() {
               <span>Enable Phone Alerts</span>
             </button>
           )}
+
+          <button
+            onClick={handleTestAlert}
+            className="px-3.5 py-1.5 rounded-xl bg-stone-900 hover:bg-stone-800 border border-stone-700 hover:border-amber-400 text-amber-300 font-semibold text-xs flex items-center gap-1.5 transition-all cursor-pointer"
+            title="Dispatch a test alert with sound, vibration, and inbox transmission"
+          >
+            <Zap className="w-3.5 h-3.5" />
+            <span>Test Phone System</span>
+          </button>
         </div>
       </div>
 

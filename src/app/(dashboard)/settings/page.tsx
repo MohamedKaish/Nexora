@@ -185,94 +185,105 @@ export default function SettingsPage() {
         <div className="world-surface p-6 space-y-4">
           <div className="flex items-center gap-2.5 pb-2 border-b border-stone-800">
             <Smartphone className="w-4 h-4 text-amber-400" />
-            <h3 className="text-sm font-bold text-foreground">Web App & Android APK</h3>
+            <h3 className="text-sm font-bold text-foreground">App Status & Installation</h3>
           </div>
 
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 p-4 rounded-xl bg-stone-900/60 border border-stone-800">
-            <div className="space-y-1">
-              <div className="flex items-center gap-2">
-                <h4 className="text-xs sm:text-sm font-bold text-foreground">
-                  Standalone Desktop & Mobile App
-                </h4>
-                {isInstalled ? (
-                  <span className="px-2 py-0.5 rounded-full bg-emerald-400/20 text-emerald-300 text-[10px] font-bold flex items-center gap-1">
-                    <CheckCircle2 className="w-3 h-3" /> Installed
-                  </span>
-                ) : (
-                  <span className="px-2 py-0.5 rounded-full bg-amber-400/20 text-amber-300 text-[10px] font-bold">
-                    PWA Ready
-                  </span>
-                )}
+          {isInstalled ? (
+            <div className="p-4 rounded-xl bg-emerald-950/20 border border-emerald-500/30 flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <div className="p-2 rounded-lg bg-emerald-500/10 text-emerald-400">
+                  <CheckCircle2 className="w-5 h-5" />
+                </div>
+                <div>
+                  <h4 className="text-xs sm:text-sm font-bold text-foreground">
+                    Nexora Standalone Application Active
+                  </h4>
+                  <p className="text-xs text-stone-400">
+                    You are currently running the official installed Nexora habitat (v1.0.0). Automatic cloud updates and offline caching are active.
+                  </p>
+                </div>
               </div>
-              <p className="text-xs text-stone-400">
-                Install Nexora directly to your PC, Mac, Android, or iOS device for offline caching, windowed desktop mode, and zero browser toolbar distraction.
-              </p>
+              <span className="text-[11px] font-mono font-bold text-emerald-400 px-2.5 py-1 rounded-full bg-emerald-500/10 border border-emerald-500/20 shrink-0">
+                Installed & Active
+              </span>
             </div>
+          ) : (
+            <>
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 p-4 rounded-xl bg-stone-900/60 border border-stone-800">
+                <div className="space-y-1">
+                  <div className="flex items-center gap-2">
+                    <h4 className="text-xs sm:text-sm font-bold text-foreground">
+                      Standalone Desktop & Mobile App
+                    </h4>
+                    <span className="px-2 py-0.5 rounded-full bg-amber-400/20 text-amber-300 text-[10px] font-bold">
+                      PWA Ready
+                    </span>
+                  </div>
+                  <p className="text-xs text-stone-400">
+                    Install Nexora directly to your device for offline caching, windowed desktop mode, and zero browser toolbar distraction.
+                  </p>
+                </div>
 
-            <div className="shrink-0">
-              {isInstalled ? (
-                <span className="text-xs text-emerald-300 font-semibold flex items-center gap-1">
-                  <Check className="w-4 h-4" /> Active in Standalone Mode
-                </span>
-              ) : (
-                <button
-                  onClick={openInstallGuide}
-                  className="px-4 py-2.5 rounded-xl bg-amber-400 hover:bg-amber-300 text-stone-950 font-bold text-xs flex items-center gap-2 shadow-[0_0_15px_rgba(212,168,83,0.3)] transition-all cursor-pointer"
-                >
-                  <Download className="w-4 h-4" />
-                  <span>Install Web App</span>
-                </button>
-              )}
-            </div>
-          </div>
+                <div className="shrink-0">
+                  <button
+                    onClick={openInstallGuide}
+                    className="px-4 py-2.5 rounded-xl bg-amber-400 hover:bg-amber-300 text-stone-950 font-bold text-xs flex items-center gap-2 shadow-[0_0_15px_rgba(212,168,83,0.3)] transition-all cursor-pointer"
+                  >
+                    <Download className="w-4 h-4" />
+                    <span>Install Web App</span>
+                  </button>
+                </div>
+              </div>
 
-          {/* Windows PC & Mac Desktop App Card */}
-          <div className="p-4 rounded-xl bg-stone-900/60 border border-stone-800 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-            <div className="space-y-1">
-              <h4 className="text-xs sm:text-sm font-bold text-foreground flex items-center gap-2">
-                <span>Windows PC Desktop App</span>
-                <span className="text-[10px] px-2 py-0.5 rounded bg-amber-400/20 text-amber-300 font-mono font-bold">
-                  Desktop Native
-                </span>
-              </h4>
-              <p className="text-xs text-stone-400">
-                1-click install Nexora directly onto your PC desktop and taskbar as a standalone app.
-              </p>
-            </div>
-            <div className="flex items-center gap-2 shrink-0">
-              <button
-                onClick={openInstallGuide}
-                className="px-4 py-2 rounded-xl bg-gradient-to-r from-amber-400 to-amber-500 hover:from-amber-300 hover:to-amber-400 text-stone-950 font-bold text-xs flex items-center gap-1.5 transition-all cursor-pointer shadow-sm"
-              >
-                <Download className="w-3.5 h-3.5" />
-                <span>1-Click Install to Desktop</span>
-              </button>
-            </div>
-          </div>
+              {/* Windows PC & Mac Desktop App Card */}
+              <div className="p-4 rounded-xl bg-stone-900/60 border border-stone-800 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                <div className="space-y-1">
+                  <h4 className="text-xs sm:text-sm font-bold text-foreground flex items-center gap-2">
+                    <span>Windows PC Desktop App</span>
+                    <span className="text-[10px] px-2 py-0.5 rounded bg-amber-400/20 text-amber-300 font-mono font-bold">
+                      Desktop Native
+                    </span>
+                  </h4>
+                  <p className="text-xs text-stone-400">
+                    1-click install Nexora directly onto your PC desktop and taskbar as a standalone app.
+                  </p>
+                </div>
+                <div className="flex items-center gap-2 shrink-0">
+                  <button
+                    onClick={openInstallGuide}
+                    className="px-4 py-2 rounded-xl bg-gradient-to-r from-amber-400 to-amber-500 hover:from-amber-300 hover:to-amber-400 text-stone-950 font-bold text-xs flex items-center gap-1.5 transition-all cursor-pointer shadow-sm"
+                  >
+                    <Download className="w-3.5 h-3.5" />
+                    <span>1-Click Install to Desktop</span>
+                  </button>
+                </div>
+              </div>
 
-          {/* Android APK Direct Export Card */}
-          <div className="p-4 rounded-xl bg-gradient-to-r from-amber-500/10 via-stone-900/40 to-transparent border border-amber-400/20 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-            <div className="space-y-1">
-              <h4 className="text-xs sm:text-sm font-bold text-foreground flex items-center gap-2">
-                <span>Android Phone & Tablet App</span>
-                <span className="text-[10px] px-2 py-0.5 rounded bg-emerald-400/20 text-emerald-300 font-mono font-bold">
-                  Direct Install
-                </span>
-              </h4>
-              <p className="text-xs text-stone-400">
-                Installs directly to your Android home screen without package parsing errors.
-              </p>
-            </div>
-            <div className="flex items-center gap-2 shrink-0">
-              <a
-                href="/download"
-                className="px-4 py-2.5 rounded-xl bg-gradient-to-r from-amber-400 to-amber-500 hover:from-amber-300 hover:to-amber-400 text-stone-950 font-bold text-xs flex items-center gap-1.5 transition-all shadow-sm"
-              >
-                <Download className="w-3.5 h-3.5" />
-                <span>Open Download Hub</span>
-              </a>
-            </div>
-          </div>
+              {/* Android APK Direct Export Card */}
+              <div className="p-4 rounded-xl bg-gradient-to-r from-amber-500/10 via-stone-900/40 to-transparent border border-amber-400/20 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                <div className="space-y-1">
+                  <h4 className="text-xs sm:text-sm font-bold text-foreground flex items-center gap-2">
+                    <span>Android Phone & Tablet App</span>
+                    <span className="text-[10px] px-2 py-0.5 rounded bg-emerald-400/20 text-emerald-300 font-mono font-bold">
+                      Direct Install
+                    </span>
+                  </h4>
+                  <p className="text-xs text-stone-400">
+                    Installs directly to your Android home screen as a native 2.2 MB app.
+                  </p>
+                </div>
+                <div className="flex items-center gap-2 shrink-0">
+                  <a
+                    href="/download"
+                    className="px-4 py-2.5 rounded-xl bg-gradient-to-r from-amber-400 to-amber-500 hover:from-amber-300 hover:to-amber-400 text-stone-950 font-bold text-xs flex items-center gap-1.5 transition-all shadow-sm"
+                  >
+                    <Download className="w-3.5 h-3.5" />
+                    <span>Open Download Hub</span>
+                  </a>
+                </div>
+              </div>
+            </>
+          )}
         </div>
 
         {/* Habitat Aesthetics & Environment */}

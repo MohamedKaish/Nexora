@@ -9,6 +9,50 @@ export function getNotificationPermission(): NotificationPermission | 'unsupport
   return Notification.permission
 }
 
+// Play a crystal-clear sanctuary alert chime using Web Audio API
+export function playNotificationSound() {
+  try {
+    if (typeof window === 'undefined') return
+    const AudioContextClass =
+      window.AudioContext ||
+      (window as unknown as { webkitAudioContext?: typeof AudioContext }).webkitAudioContext
+    if (!AudioContextClass) return
+
+    const ctx = new AudioContextClass()
+    if (ctx.state === 'suspended') {
+      ctx.resume().catch(() => {})
+    }
+
+    const now = ctx.currentTime
+    const osc = ctx.createOscillator()
+    const gain = ctx.createGain()
+
+    osc.type = 'sine'
+    osc.frequency.setValueAtTime(587.33, now) // D5
+    osc.frequency.exponentialRampToValueAtTime(880, now + 0.15) // A5
+
+    gain.gain.setValueAtTime(0.25, now)
+    gain.gain.exponentialRampToValueAtTime(0.001, now + 0.45)
+
+    osc.connect(gain)
+    gain.connect(ctx.destination)
+
+    osc.start(now)
+    osc.stop(now + 0.45)
+  } catch (e) {
+    console.warn('Audio chime error:', e)
+  }
+}
+
+// Trigger device haptics
+export function triggerHapticFeedback(pattern: number[] = [150, 80, 150]) {
+  if (typeof window !== 'undefined' && 'vibrate' in navigator) {
+    try {
+      navigator.vibrate(pattern)
+    } catch {}
+  }
+}
+
 export async function requestNotificationPermission(): Promise<NotificationPermission | 'unsupported'> {
   if (!isNotificationSupported()) return 'unsupported'
 
@@ -32,9 +76,16 @@ export async function sendNotification(
     type?: 'habit' | 'kyro' | 'focus' | 'task'
     link?: string
     silentStore?: boolean
+    playSound?: boolean
   } = {}
 ): Promise<boolean> {
   const messageBody = options.body || 'Habit reminder from Nexora'
+
+  // Trigger device sound & haptics
+  if (options.playSound !== false) {
+    playNotificationSound()
+    triggerHapticFeedback([150, 80, 150])
+  }
 
   // Always log to persistent Sanctuary Notifications Inbox so users never lose alerts
   if (!options.silentStore) {
@@ -50,7 +101,7 @@ export async function sendNotification(
     }
   }
 
-  if (!isNotificationSupported()) return false
+  if (!isNotificationSupported()) return true
 
   if (Notification.permission !== 'granted') {
     const perm = await requestNotificationPermission()
@@ -72,10 +123,6 @@ export async function sendNotification(
       const reg = await navigator.serviceWorker.ready
       if (reg && 'showNotification' in reg) {
         await reg.showNotification(title, notificationOptions as NotificationOptions)
-        // Vibrate if supported on device
-        if ('vibrate' in navigator) {
-          navigator.vibrate([150, 80, 150])
-        }
         return true
       }
     } catch (swErr) {
@@ -94,11 +141,12 @@ export async function sendNotification(
 }
 
 export async function sendTestNotification(): Promise<boolean> {
-  return sendNotification('⚡ Nexora Habit Notification Test', {
-    body: 'Your device is successfully connected! You will receive timely alerts when scheduled habit windows open.',
+  return sendNotification('⚡ Nexora Sanctuary System Alert', {
+    body: 'Phone system is active! Your device will sound and vibrate when scheduled habit windows open.',
     icon: '/icon-192.png',
     tag: 'nexora-test-alert',
     type: 'habit',
     link: '/habits',
+    playSound: true,
   })
 }
