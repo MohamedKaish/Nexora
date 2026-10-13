@@ -21,6 +21,9 @@ export interface LocalTask extends LocalEntity {
   timeframe?: TaskTimeframe
   projectId: string | null
   dueDate: string | null
+  startTime?: string | null
+  endTime?: string | null
+  enableReminder?: boolean
   isScheduleForToday?: boolean
   estimatedTimeMinutes?: number | null
   actualTimeMinutes?: number

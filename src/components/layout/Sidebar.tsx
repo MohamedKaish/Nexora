@@ -131,6 +131,11 @@ export function Sidebar() {
             <span>Get Android &amp; Desktop App</span>
           </Link>
         )}
+        <div className="flex items-center gap-2 text-[10px] text-stone-500 pt-0.5">
+          <Link href="/terms" className="hover:text-amber-400 transition-colors">Terms</Link>
+          <span>·</span>
+          <Link href="/privacy" className="hover:text-amber-400 transition-colors">Privacy</Link>
+        </div>
         <p className="text-[10px] text-stone-500 font-medium">Nexora v2.0 · Sanctuary Active</p>
       </div>
     </aside>

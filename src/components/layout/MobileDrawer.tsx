@@ -291,7 +291,11 @@ export function MobileDrawer({ isOpen, onClose }: MobileDrawerProps) {
           )}
 
           <div className="flex items-center justify-between text-[10px] text-stone-500 px-1 pt-1">
-            <span>Nexora Habitat v2.0</span>
+            <div className="flex items-center gap-2">
+              <Link href="/terms" onClick={onClose} className="hover:text-amber-400 transition-colors">Terms</Link>
+              <span>·</span>
+              <Link href="/privacy" onClick={onClose} className="hover:text-amber-400 transition-colors">Privacy</Link>
+            </div>
             <span className="flex items-center gap-1 text-emerald-400 font-mono">
               <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" /> Online
             </span>

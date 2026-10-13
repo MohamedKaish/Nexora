@@ -69,6 +69,26 @@ self.addEventListener('push', (event) => {
   )
 })
 
+// Client message handler for Android APK & Web local notifications
+self.addEventListener('message', (event) => {
+  if (event.data && event.data.type === 'SHOW_NOTIFICATION') {
+    const { title, options } = event.data
+    const notifOptions = {
+      body: options?.body || 'Sanctuary reminder from Nexora',
+      icon: options?.icon || '/icon-192.png',
+      badge: options?.badge || '/icon-192.png',
+      tag: options?.tag || 'nexora-alert',
+      vibrate: options?.vibrate || [150, 80, 150],
+      data: options?.data || { url: '/dashboard' },
+      renotify: true,
+    }
+
+    event.waitUntil(
+      self.registration.showNotification(title, notifOptions)
+    )
+  }
+})
+
 // Notification Click Handler
 self.addEventListener('notificationclick', (event) => {
   event.notification.close()

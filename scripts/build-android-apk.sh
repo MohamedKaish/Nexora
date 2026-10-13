@@ -194,6 +194,7 @@ cat << 'EOF' > "$BUILD_DIR/AndroidManifest.xml"
     <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
     <uses-permission android:name="android.permission.VIBRATE" />
     <uses-permission android:name="android.permission.WAKE_LOCK" />
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
 
     <application
         android:allowBackup="true"
@@ -230,19 +231,119 @@ import android.webkit.WebChromeClient;
 import android.webkit.WebSettings;
 import android.webkit.WebView;
 import android.webkit.WebViewClient;
+import android.webkit.JavascriptInterface;
 import android.widget.ProgressBar;
 import android.graphics.Color;
+import android.app.Notification;
+import android.app.NotificationManager;
+import android.app.NotificationChannel;
+import android.app.PendingIntent;
+import android.content.Intent;
+import android.os.Build;
+import android.content.pm.PackageManager;
 
 public class MainActivity extends Activity {
     private WebView webView;
     private ProgressBar progressBar;
     private static final String APP_URL = "https://nexora-nine-kappa.vercel.app/dashboard";
     private static final String OFFLINE_URL = "file:///android_asset/app/index.html";
+    private static final String CHANNEL_ID = "nexora_alerts_channel";
+
+    public class NativeBridge {
+        @JavascriptInterface
+        public void showNotification(final String title, final String message, final String tag) {
+            runOnUiThread(new Runnable() {
+                @Override
+                public void run() {
+                    displayNativeNotification(title, message, tag);
+                }
+            });
+        }
+
+        @JavascriptInterface
+        public void requestNotificationPermission() {
+            runOnUiThread(new Runnable() {
+                @Override
+                public void run() {
+                    if (Build.VERSION.SDK_INT >= 33) {
+                        requestPermissions(new String[]{"android.permission.POST_NOTIFICATIONS"}, 101);
+                    }
+                }
+            });
+        }
+
+        @JavascriptInterface
+        public boolean isNative() {
+            return true;
+        }
+    }
+
+    private void createNotificationChannel() {
+        if (Build.VERSION.SDK_INT >= 26) {
+            NotificationChannel channel = new NotificationChannel(
+                CHANNEL_ID,
+                "Nexora Sanctuary Alerts",
+                NotificationManager.IMPORTANCE_HIGH
+            );
+            channel.setDescription("Habit windows, task timers, and companion transmissions");
+            channel.enableVibration(true);
+            channel.setVibrationPattern(new long[]{100, 200, 100, 200});
+            NotificationManager manager = getSystemService(NotificationManager.class);
+            if (manager != null) {
+                manager.createNotificationChannel(channel);
+            }
+        }
+    }
+
+    private void displayNativeNotification(String title, String message, String tag) {
+        try {
+            Intent intent = new Intent(this, MainActivity.class);
+            intent.setFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP | Intent.FLAG_ACTIVITY_SINGLE_TOP);
+            PendingIntent pendingIntent = PendingIntent.getActivity(
+                this, 0, intent,
+                PendingIntent.FLAG_UPDATE_CURRENT | (Build.VERSION.SDK_INT >= 23 ? PendingIntent.FLAG_IMMUTABLE : 0)
+            );
+
+            Notification.Builder builder;
+            if (Build.VERSION.SDK_INT >= 26) {
+                builder = new Notification.Builder(this, CHANNEL_ID);
+            } else {
+                builder = new Notification.Builder(this);
+            }
+
+            builder.setContentTitle(title)
+                   .setContentText(message)
+                   .setSmallIcon(R.mipmap.ic_launcher)
+                   .setContentIntent(pendingIntent)
+                   .setAutoCancel(true);
+
+            if (Build.VERSION.SDK_INT >= 21) {
+                builder.setPriority(Notification.PRIORITY_HIGH);
+                builder.setVisibility(Notification.VISIBILITY_PUBLIC);
+            }
+
+            NotificationManager manager = (NotificationManager) getSystemService(NOTIFICATION_SERVICE);
+            if (manager != null) {
+                int notifId = (int) (System.currentTimeMillis() % 100000);
+                manager.notify(tag != null && !tag.isEmpty() ? tag : "nexora", notifId, builder.build());
+            }
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+    }
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
+
+        createNotificationChannel();
+
+        if (Build.VERSION.SDK_INT >= 33) {
+            if (checkSelfPermission("android.permission.POST_NOTIFICATIONS") != PackageManager.PERMISSION_GRANTED) {
+                requestPermissions(new String[]{"android.permission.POST_NOTIFICATIONS"}, 101);
+            }
+        }
 
         // Obsidian immersion
         getWindow().getDecorView().setBackgroundColor(Color.parseColor("#0C0A09"));
@@ -262,11 +363,12 @@ public class MainActivity extends Activity {
 
         android.webkit.CookieManager cookieManager = android.webkit.CookieManager.getInstance();
         cookieManager.setAcceptCookie(true);
-        if (android.os.Build.VERSION.SDK_INT >= 21) {
+        if (Build.VERSION.SDK_INT >= 21) {
             cookieManager.setAcceptThirdPartyCookies(webView, true);
         }
 
         webView.setBackgroundColor(Color.parseColor("#0C0A09"));
+        webView.addJavascriptInterface(new NativeBridge(), "NexoraNativeBridge");
 
         webView.setWebViewClient(new WebViewClient() {
             @Override

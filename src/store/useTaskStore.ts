@@ -12,6 +12,9 @@ interface TaskState {
     timeframe?: TaskTimeframe
     projectId?: string | null
     dueDate?: string | null
+    startTime?: string | null
+    endTime?: string | null
+    enableReminder?: boolean
     estimatedTimeMinutes?: number | null
   }) => LocalTask
   updateTask: (id: string, partial: Partial<LocalTask>) => void
@@ -40,6 +43,9 @@ export const useTaskStore = create<TaskState>()(
           timeframe: params.timeframe ?? 'none',
           projectId: params.projectId ?? null,
           dueDate: params.dueDate ?? null,
+          startTime: params.startTime ?? null,
+          endTime: params.endTime ?? null,
+          enableReminder: params.enableReminder ?? true,
           estimatedTimeMinutes: params.estimatedTimeMinutes ?? null,
           actualTimeMinutes: 0,
           createdAt: new Date().toISOString(),

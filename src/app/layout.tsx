@@ -3,8 +3,10 @@ import '../styles/globals.css'
 import { PwaProvider } from '@/components/pwa/PwaProvider'
 import { PwaInstallBanner } from '@/components/pwa/PwaInstallBanner'
 import { NexoraCursor } from '@/components/cursor/NexoraCursor'
+import { ScheduleWatcherProvider } from '@/components/notifications/ScheduleWatcherProvider'
 
 export const metadata: Metadata = {
+  metadataBase: new URL('https://nexora-nine-kappa.vercel.app'),
   title: 'Nexora — Living Productivity OS',
   description: 'A living digital productivity habitat with an AI companion, deep focus chamber, habit momentum, and quest matrix.',
   manifest: '/manifest.webmanifest',
@@ -49,6 +51,7 @@ export default function RootLayout({
         <PwaProvider>
           {children}
           <PwaInstallBanner />
+          <ScheduleWatcherProvider />
           <NexoraCursor />
         </PwaProvider>
       </body>

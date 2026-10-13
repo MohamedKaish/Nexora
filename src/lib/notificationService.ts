@@ -54,6 +54,13 @@ export function triggerHapticFeedback(pattern: number[] = [150, 80, 150]) {
 }
 
 export async function requestNotificationPermission(): Promise<NotificationPermission | 'unsupported'> {
+  // Native Android APK bridge permission invocation
+  if (typeof window !== 'undefined' && (window as unknown as { NexoraNativeBridge?: { requestNotificationPermission: () => void } }).NexoraNativeBridge?.requestNotificationPermission) {
+    try {
+      (window as unknown as { NexoraNativeBridge: { requestNotificationPermission: () => void } }).NexoraNativeBridge.requestNotificationPermission()
+    } catch {}
+  }
+
   if (!isNotificationSupported()) return 'unsupported'
 
   try {
@@ -117,9 +124,31 @@ export async function sendNotification(
     data: options.data,
   }
 
+  // 0. Native Android APK Bridge Delivery
+  if (typeof window !== 'undefined' && (window as unknown as { NexoraNativeBridge?: { showNotification: (t: string, m: string, tag: string) => void } }).NexoraNativeBridge?.showNotification) {
+    try {
+      (window as unknown as { NexoraNativeBridge: { showNotification: (t: string, m: string, tag: string) => void } }).NexoraNativeBridge.showNotification(
+        title,
+        messageBody,
+        options.tag || 'nexora-alert'
+      )
+      return true
+    } catch (bridgeErr) {
+      console.warn('Native APK bridge notification failed:', bridgeErr)
+    }
+  }
+
   // 1. Android & PWA Service Worker Delivery (Highest reliability on mobile)
   if ('serviceWorker' in navigator) {
     try {
+      if (navigator.serviceWorker.controller) {
+        navigator.serviceWorker.controller.postMessage({
+          type: 'SHOW_NOTIFICATION',
+          title,
+          options: notificationOptions,
+        })
+      }
+
       const reg = await navigator.serviceWorker.ready
       if (reg && 'showNotification' in reg) {
         await reg.showNotification(title, notificationOptions as NotificationOptions)

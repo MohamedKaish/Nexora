@@ -14,6 +14,7 @@ import {
   Trash2,
   Folder,
   Clock,
+  Bell,
   Sparkles,
   ChevronDown,
   ChevronUp,
@@ -37,6 +38,9 @@ export default function TasksPage() {
   const [newPriority, setNewPriority] = useState<TaskPriority>('medium')
   const [newTimeframe, setNewTimeframe] = useState<TaskTimeframe>('daily')
   const [selectedProjectId, setSelectedProjectId] = useState<string>('')
+  const [newStartTime, setNewStartTime] = useState<string>('')
+  const [newEndTime, setNewEndTime] = useState<string>('')
+  const [enableReminder, setEnableReminder] = useState<boolean>(true)
   const [expandedTaskId, setExpandedTaskId] = useState<string | null>(null)
   const [newSubtaskTitle, setNewSubtaskTitle] = useState('')
 
@@ -55,9 +59,14 @@ export default function TasksPage() {
       priority: newPriority,
       timeframe: newTimeframe,
       projectId: selectedProjectId || null,
+      startTime: newStartTime || null,
+      endTime: newEndTime || null,
+      enableReminder,
     })
     setNewTitle('')
     setNewDesc('')
+    setNewStartTime('')
+    setNewEndTime('')
     setShowAddModal(false)
   }
 
@@ -224,6 +233,15 @@ export default function TasksPage() {
                         </span>
                       )}
 
+                      {/* Scheduled Time Window & Phone Notification */}
+                      {task.startTime && (
+                        <span className="text-[10px] px-2 py-0.5 rounded bg-amber-400/10 text-amber-300 font-mono font-semibold flex items-center gap-1 border border-amber-400/20">
+                          <Clock className="w-2.5 h-2.5" />
+                          <span>{task.startTime}{task.endTime ? ` - ${task.endTime}` : ''}</span>
+                          <Bell className="w-2.5 h-2.5 text-amber-400" />
+                        </span>
+                      )}
+
                       {/* Subtasks Count toggle */}
                       {taskSubtasks.length > 0 && (
                         <button
@@ -385,6 +403,37 @@ export default function TasksPage() {
                     </option>
                   ))}
                 </select>
+              </div>
+
+              <div>
+                <label className="block text-xs font-semibold text-stone-400 mb-1">
+                  Scheduled Time Window (Phone Alerts)
+                </label>
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <span className="text-[10px] text-stone-500 block mb-0.5">Start Time</span>
+                    <input
+                      type="time"
+                      value={newStartTime}
+                      onChange={(e) => setNewStartTime(e.target.value)}
+                      className="w-full bg-stone-900 border border-stone-800 rounded-xl px-3 py-2 text-xs text-foreground focus:outline-none focus:border-amber-400"
+                    />
+                  </div>
+                  <div>
+                    <span className="text-[10px] text-stone-500 block mb-0.5">End Time</span>
+                    <input
+                      type="time"
+                      value={newEndTime}
+                      onChange={(e) => setNewEndTime(e.target.value)}
+                      className="w-full bg-stone-900 border border-stone-800 rounded-xl px-3 py-2 text-xs text-foreground focus:outline-none focus:border-amber-400"
+                    />
+                  </div>
+                </div>
+                {newStartTime && (
+                  <p className="text-[11px] text-amber-300/80 mt-1.5 flex items-center gap-1 font-mono">
+                    <span>🔔 Phone alerts 15m before and at start time ({newStartTime}).</span>
+                  </p>
+                )}
               </div>
             </div>
 
