@@ -18,6 +18,7 @@ import {
   Bot,
   Settings,
   User,
+  Download,
 } from 'lucide-react'
 import { useAppStore } from '@/store/appStore'
 import { NexoraLogo } from '@/components/brand/NexoraLogo'
@@ -118,8 +119,15 @@ export function Sidebar() {
       </div>
 
       {/* Ambient Footer */}
-      <div className="p-4 border-t border-stone-800/80 text-center">
-        <p className="text-[11px] text-stone-500 font-medium">Nexora v2.0 · Sanctuary Active</p>
+      <div className="p-4 border-t border-stone-800/80 flex flex-col items-center gap-1.5">
+        <Link
+          href="/download"
+          className="text-[11px] text-amber-400/90 hover:text-amber-300 font-semibold flex items-center gap-1.5 transition-colors"
+        >
+          <Download className="w-3.5 h-3.5" />
+          <span>Get Android &amp; Desktop App</span>
+        </Link>
+        <p className="text-[10px] text-stone-500 font-medium">Nexora v2.0 · Sanctuary Active</p>
       </div>
     </aside>
   )

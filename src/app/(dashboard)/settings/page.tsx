@@ -103,11 +103,22 @@ export default function SettingsPage() {
     setTimeout(() => setIsSaved(false), 2000)
   }
 
-  // Reset database with warning
-  const handleResetData = () => {
-    if (window.confirm('Are you sure you want to reset all local tasks, habits, and focus logs? This action cannot be undone.')) {
-      localStorage.clear()
-      window.location.reload()
+  // Delete account and purge data (Google Play Policy Compliant)
+  const handleDeleteAccountAndData = async () => {
+    if (window.confirm('Delete Account & Purge Data?\n\nThis will permanently delete your callsign, quest ledger, companion memories, and local offline cache. This cannot be undone.')) {
+      try {
+        localStorage.clear()
+        sessionStorage.clear()
+        if ('caches' in window) {
+          const keys = await caches.keys()
+          await Promise.all(keys.map((k) => caches.delete(k)))
+        }
+        toast.success('Account and data purged. Reinitializing sanctuary...')
+        window.location.href = '/setup'
+      } catch {
+        localStorage.clear()
+        window.location.href = '/setup'
+      }
     }
   }
 
@@ -253,13 +264,13 @@ export default function SettingsPage() {
               </p>
             </div>
             <div className="flex items-center gap-2 shrink-0">
-              <button
-                onClick={openInstallGuide}
-                className="px-4 py-2.5 rounded-xl bg-stone-900 border border-amber-400/50 hover:border-amber-400 text-amber-300 font-bold text-xs flex items-center gap-1.5 transition-all cursor-pointer"
+              <a
+                href="/download"
+                className="px-4 py-2.5 rounded-xl bg-gradient-to-r from-amber-400 to-amber-500 hover:from-amber-300 hover:to-amber-400 text-stone-950 font-bold text-xs flex items-center gap-1.5 transition-all shadow-sm"
               >
                 <Download className="w-3.5 h-3.5" />
-                <span>Install on Phone</span>
-              </button>
+                <span>Open Download Hub</span>
+              </a>
             </div>
           </div>
         </div>
@@ -359,15 +370,15 @@ export default function SettingsPage() {
             </button>
 
             <button
-              onClick={handleResetData}
-              className="p-4 rounded-xl bg-stone-900/80 border border-stone-800 hover:border-rose-400/40 text-left transition-all cursor-pointer flex items-center gap-3"
+              onClick={handleDeleteAccountAndData}
+              className="p-4 rounded-xl bg-rose-950/20 border border-rose-900/50 hover:border-rose-500/60 text-left transition-all cursor-pointer flex items-center gap-3"
             >
-              <div className="p-2.5 rounded-lg bg-rose-400/10 text-rose-400 shrink-0">
+              <div className="p-2.5 rounded-lg bg-rose-500/10 text-rose-400 shrink-0">
                 <RotateCcw className="w-5 h-5" />
               </div>
               <div>
-                <h4 className="text-xs font-bold text-rose-300">Reset Storage</h4>
-                <p className="text-[11px] text-stone-400">Clear cache & reload defaults.</p>
+                <h4 className="text-xs font-bold text-rose-300">Delete Account &amp; Purge Data</h4>
+                <p className="text-[11px] text-stone-400">Permanently erase identity, quests, and cache (Play compliant).</p>
               </div>
             </button>
           </div>

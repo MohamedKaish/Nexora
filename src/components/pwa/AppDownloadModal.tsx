@@ -11,6 +11,7 @@ import {
   CheckCircle2,
   ExternalLink,
   Laptop,
+  Download,
 } from 'lucide-react'
 import { usePwa } from './PwaProvider'
 import { toast } from 'sonner'
@@ -136,39 +137,48 @@ export function AppDownloadModal({ isOpen, onClose }: AppDownloadModalProps) {
             </div>
 
             <div className="flex flex-col sm:flex-row gap-2 pt-1">
+              <a
+                href="/download/Nexora.apk"
+                download="Nexora.apk"
+                onClick={() => toast.info('Starting Nexora.apk download...')}
+                className="flex-1 px-4 py-2.5 rounded-xl bg-gradient-to-r from-amber-400 to-amber-500 hover:from-amber-300 hover:to-amber-400 text-stone-950 font-bold text-xs flex items-center justify-center gap-2 transition-all cursor-pointer shadow-sm"
+              >
+                <Download className="w-4 h-4" />
+                <span>Download Nexora.apk</span>
+              </a>
+
               <button
                 onClick={handleDirectInstall}
-                className="flex-1 px-4 py-2.5 rounded-xl bg-stone-900 hover:bg-stone-800 border border-amber-400/50 hover:border-amber-400 text-amber-300 font-bold text-xs flex items-center justify-center gap-2 transition-all cursor-pointer shadow-sm"
+                className="px-3.5 py-2.5 rounded-xl bg-stone-900 hover:bg-stone-800 border border-stone-700 text-amber-300 text-xs font-semibold flex items-center justify-center gap-1.5 transition-colors cursor-pointer shrink-0"
               >
-                <Zap className="w-4 h-4" />
-                <span>1-Click Install on Phone</span>
+                <Zap className="w-3.5 h-3.5" />
+                <span>1-Click Chrome WebAPK</span>
               </button>
-
-              <a
-                href={apkPackageUrl}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="px-3.5 py-2.5 rounded-xl bg-stone-900 hover:bg-stone-800 border border-stone-700 text-stone-300 text-xs font-semibold flex items-center justify-center gap-1.5 transition-colors cursor-pointer shrink-0"
-                title="Download signed APK package from Google PWABuilder"
-              >
-                <ExternalLink className="w-3.5 h-3.5 text-amber-400" />
-                <span>Signed APK Builder ↗</span>
-              </a>
             </div>
 
-            <div className="text-[11px] text-stone-400 bg-stone-950/80 p-2.5 rounded-xl border border-stone-800/80">
-              <p className="font-semibold text-stone-300">Why &quot;Problem Parsing Package&quot; happens on Android:</p>
-              <p>Android requires cryptographic keys to parse raw APK files. Instead of an unsigned file, tap <strong>&quot;Install app&quot;</strong> in your mobile Chrome menu (⋮) to install Nexora instantly with zero errors, or use the signed APK builder above!</p>
+            <div className="text-[11px] text-stone-400 bg-stone-950/80 p-2.5 rounded-xl border border-stone-800/80 flex items-center justify-between">
+              <span>Need help installing or checking SHA-256 checksums?</span>
+              <a
+                href="/download"
+                onClick={onClose}
+                className="text-amber-400 hover:underline font-semibold shrink-0 ml-2"
+              >
+                Open Download Hub →
+              </a>
             </div>
           </div>
         </div>
 
         {/* Modal Footer */}
         <div className="pt-3 border-t border-stone-800 flex items-center justify-between text-xs text-stone-400">
-          <span className="flex items-center gap-1 text-emerald-400 font-mono text-[11px]">
+          <a
+            href="/download"
+            onClick={onClose}
+            className="flex items-center gap-1 text-emerald-400 font-mono text-[11px] hover:underline"
+          >
             <ShieldCheck className="w-3.5 h-3.5" />
-            Official Web App Installation • Verified Safe
-          </span>
+            Verified TWA Distribution • Details
+          </a>
           <button
             onClick={onClose}
             className="px-4 py-1.5 rounded-lg bg-stone-900 hover:bg-stone-800 text-stone-300 font-semibold text-xs transition-colors cursor-pointer"

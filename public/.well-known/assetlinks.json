@@ -1,0 +1,13 @@
+[
+  {
+    "relation": ["delegate_permission/common.handle_all_urls"],
+    "target": {
+      "namespace": "android_app",
+      "package_name": "com.nexora.app",
+      "sha256_cert_fingerprints": [
+        "14:6D:E9:A5:0F:8E:27:19:53:7E:85:48:92:4E:A8:1A:39:6C:54:1B:32:04:47:6B:8F:7C:1E:83:B2:D0:65:42",
+        "CC:DD:EE:FF:00:11:22:33:44:55:66:77:88:99:AA:BB:CC:DD:EE:FF:00:11:22:33:44:55:66:77:88:99:AA:BB"
+      ]
+    }
+  }
+]
