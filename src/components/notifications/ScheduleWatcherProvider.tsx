@@ -13,15 +13,22 @@ export function ScheduleWatcherProvider() {
     // 1. Start background schedule watcher for task & habit 15m and start alerts
     startScheduleNotificationWatcher()
 
-    // 2. Check if we should politely prompt for phone/browser notification permission
+    // 2. If running inside native Android APK wrapper, invoke native permission dialog immediately
+    if (typeof window !== 'undefined') {
+      const nativeBridge = (window as unknown as { NexoraNativeBridge?: { requestNotificationPermission: () => void } }).NexoraNativeBridge
+      if (nativeBridge?.requestNotificationPermission) {
+        nativeBridge.requestNotificationPermission()
+      }
+    }
+
+    // 3. Prompt for phone/browser notification permission
     const perm = getNotificationPermission()
     const dismissed = sessionStorage.getItem('nexora_notif_prompt_dismissed')
 
-    if (perm === 'default' && !dismissed) {
-      // Delay prompt slightly so user gets oriented first
+    if (perm !== 'granted' && !dismissed) {
       const timer = setTimeout(() => {
         setShowPermissionPrompt(true)
-      }, 3500)
+      }, 800)
       return () => clearTimeout(timer)
     }
   }, [])

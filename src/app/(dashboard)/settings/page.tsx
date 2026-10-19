@@ -7,6 +7,7 @@ import { useHabitStore } from '@/store/useHabitStore'
 import { useGoalStore } from '@/store/useGoalStore'
 import { useProjectStore } from '@/store/useProjectStore'
 import { useFocusStore } from '@/store/useFocusStore'
+import { useKyroStore } from '@/store/kyroStore'
 import { usePwa } from '@/components/pwa/PwaProvider'
 import {
   Settings,
@@ -180,6 +181,9 @@ export default function SettingsPage() {
             </div>
           </form>
         </div>
+
+        {/* ── Kyro AI Brain & 3D Companion Matrix ── */}
+        <KyroBrainSettingsCard />
 
         {/* Web App Installation (PWA) & Android APK */}
         <div className="world-surface p-6 space-y-4">
@@ -398,3 +402,193 @@ export default function SettingsPage() {
     </div>
   )
 }
+
+function KyroBrainSettingsCard() {
+  const { settings, setAnchor, toggleVoice, toggleMinimized, speak } = useKyroStore()
+  const [apiKey, setApiKey] = useState(() => {
+    if (typeof window !== 'undefined') {
+      return localStorage.getItem('nexora_gemini_api_key') || ''
+    }
+    return ''
+  })
+  const [isTesting, setIsTesting] = useState(false)
+  const [testResult, setTestResult] = useState<string | null>(null)
+
+  const isGeminiActive = Boolean(apiKey.trim().length > 20)
+
+  const handleSaveKey = (e: React.FormEvent) => {
+    e.preventDefault()
+    if (typeof window !== 'undefined') {
+      if (apiKey.trim()) {
+        localStorage.setItem('nexora_gemini_api_key', apiKey.trim())
+        toast.success('Gemini API key saved! Kyro is now operating with Gemini 2.5 Flash.')
+        speak('Neural uplink established with Gemini 2.5 Flash. High-bandwidth intelligence online, Boss!', 5000)
+      } else {
+        localStorage.removeItem('nexora_gemini_api_key')
+        toast.info('API key removed. Kyro switched to 0ms Local Context Engine.')
+        speak('Operating in 0ms Local Context Engine mode. All sanctuary systems secure offline.', 4000)
+      }
+    }
+  }
+
+  const handleTestPing = async () => {
+    setIsTesting(true)
+    setTestResult(null)
+    try {
+      const res = await fetch('/api/kyro', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          message: 'Telemetry ping test.',
+          userApiKey: apiKey.trim() || undefined,
+          context: { userName: 'Explorer', agentName: 'Kyro' },
+        }),
+      })
+      const data = await res.json()
+      setTestResult(`${data.provider}: "${data.speechBubble || data.reply}"`)
+      speak(data.speechBubble || 'Uplink test successful!', 4000)
+    } catch {
+      setTestResult('Ping failed. Operating in offline local engine.')
+    } finally {
+      setIsTesting(false)
+    }
+  }
+
+  return (
+    <div className="world-deck p-6 space-y-5 border border-amber-500/30">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pb-3 border-b border-stone-800">
+        <div className="flex items-center gap-2.5">
+          <Bot className="w-5 h-5 text-amber-400" />
+          <div>
+            <h3 className="text-sm font-bold text-foreground">Kyro 3D Companion &amp; AI Brain</h3>
+            <p className="text-xs text-stone-400">Powered by Gemini 2.5 Flash Free Tier with 0ms Local Engine fallback.</p>
+          </div>
+        </div>
+
+        <div>
+          {isGeminiActive ? (
+            <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-emerald-500/15 border border-emerald-500/30 text-emerald-300 text-xs font-semibold font-mono">
+              <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
+              <span>Gemini 2.5 Flash Active</span>
+            </span>
+          ) : (
+            <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-cyan-500/15 border border-cyan-500/30 text-cyan-300 text-xs font-semibold font-mono">
+              <span className="w-2 h-2 rounded-full bg-cyan-400 animate-pulse" />
+              <span>0ms Local Engine (Offline Ready)</span>
+            </span>
+          )}
+        </div>
+      </div>
+
+      {/* API Key Form */}
+      <form onSubmit={handleSaveKey} className="space-y-3">
+        <div>
+          <div className="flex items-center justify-between mb-1.5">
+            <label className="text-xs font-semibold text-stone-300">
+              Google AI Studio API Key (Optional Free Key for Android APK)
+            </label>
+            <a
+              href="https://aistudio.google.com/app/apikey"
+              target="_blank"
+              rel="noreferrer"
+              className="text-[11px] text-amber-400 hover:text-amber-300 underline font-medium"
+            >
+              Get Free Gemini Key ↗
+            </a>
+          </div>
+          <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2">
+            <input
+              type="password"
+              value={apiKey}
+              onChange={(e) => setApiKey(e.target.value)}
+              placeholder="Paste AIzaSy... or leave blank for 0ms local offline mode"
+              className="flex-1 px-3.5 py-2.5 rounded-xl bg-stone-900 border border-stone-800 focus:border-amber-400 text-xs text-stone-100 placeholder:text-stone-500 outline-none font-mono"
+            />
+            <button
+              type="submit"
+              className="px-4 py-2.5 rounded-xl bg-amber-400 hover:bg-amber-300 text-stone-950 font-bold text-xs transition-colors cursor-pointer shrink-0"
+            >
+              Save Key
+            </button>
+            <button
+              type="button"
+              onClick={handleTestPing}
+              disabled={isTesting}
+              className="px-4 py-2.5 rounded-xl bg-stone-900 hover:bg-stone-800 border border-stone-800 text-stone-200 text-xs font-semibold transition-colors cursor-pointer shrink-0"
+            >
+              {isTesting ? 'Pinging...' : 'Test Ping'}
+            </button>
+          </div>
+          {testResult && (
+            <p className="mt-2 text-xs font-mono text-amber-300 bg-stone-900/80 p-2 rounded-lg border border-stone-800">
+              {testResult}
+            </p>
+          )}
+          <p className="text-[11px] text-stone-500 mt-1">
+            Keys are stored strictly in local device memory (`localStorage`) and never transmitted to third-party trackers.
+          </p>
+        </div>
+      </form>
+
+      {/* Companion Controls & Anchoring */}
+      <div className="pt-2 border-t border-stone-800/80 grid grid-cols-1 sm:grid-cols-2 gap-3">
+        <div className="p-3 rounded-xl bg-stone-900/60 border border-stone-800 flex items-center justify-between">
+          <div>
+            <h4 className="text-xs font-bold text-foreground">Vocal Synthesis (TTS)</h4>
+            <p className="text-[11px] text-stone-400">Let Kyro speak out loud like J.A.R.V.I.S.</p>
+          </div>
+          <button
+            onClick={toggleVoice}
+            className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-colors cursor-pointer ${
+              settings.voiceEnabled
+                ? 'bg-amber-400 text-stone-950'
+                : 'bg-stone-800 text-stone-400 hover:text-stone-200'
+            }`}
+          >
+            {settings.voiceEnabled ? 'Enabled' : 'Muted'}
+          </button>
+        </div>
+
+        <div className="p-3 rounded-xl bg-stone-900/60 border border-stone-800 flex items-center justify-between">
+          <div>
+            <h4 className="text-xs font-bold text-foreground">Screen Anchor</h4>
+            <p className="text-[11px] text-stone-400">Position where Kyro docks by default.</p>
+          </div>
+          <div className="flex items-center gap-1">
+            <button
+              onClick={() => setAnchor('bottom-right')}
+              className={`px-2 py-1 rounded-md text-[10px] font-bold cursor-pointer transition-colors ${
+                settings.anchor === 'bottom-right'
+                  ? 'bg-amber-400 text-stone-950'
+                  : 'bg-stone-800 text-stone-400'
+              }`}
+            >
+              Bottom R
+            </button>
+            <button
+              onClick={() => setAnchor('bottom-left')}
+              className={`px-2 py-1 rounded-md text-[10px] font-bold cursor-pointer transition-colors ${
+                settings.anchor === 'bottom-left'
+                  ? 'bg-amber-400 text-stone-950'
+                  : 'bg-stone-800 text-stone-400'
+              }`}
+            >
+              Bottom L
+            </button>
+            <button
+              onClick={() => setAnchor('top-right')}
+              className={`px-2 py-1 rounded-md text-[10px] font-bold cursor-pointer transition-colors ${
+                settings.anchor === 'top-right'
+                  ? 'bg-amber-400 text-stone-950'
+                  : 'bg-stone-800 text-stone-400'
+              }`}
+            >
+              Top R
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  )
+}
+

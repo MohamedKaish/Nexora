@@ -236,7 +236,6 @@ import android.widget.ProgressBar;
 import android.graphics.Color;
 import android.app.Notification;
 import android.app.NotificationManager;
-import android.app.NotificationChannel;
 import android.app.PendingIntent;
 import android.content.Intent;
 import android.os.Build;
@@ -280,17 +279,27 @@ public class MainActivity extends Activity {
 
     private void createNotificationChannel() {
         if (Build.VERSION.SDK_INT >= 26) {
-            NotificationChannel channel = new NotificationChannel(
-                CHANNEL_ID,
-                "Nexora Sanctuary Alerts",
-                NotificationManager.IMPORTANCE_HIGH
-            );
-            channel.setDescription("Habit windows, task timers, and companion transmissions");
-            channel.enableVibration(true);
-            channel.setVibrationPattern(new long[]{100, 200, 100, 200});
-            NotificationManager manager = getSystemService(NotificationManager.class);
-            if (manager != null) {
-                manager.createNotificationChannel(channel);
+            try {
+                Class<?> channelClass = Class.forName("android.app.NotificationChannel");
+                java.lang.reflect.Constructor<?> constructor = channelClass.getConstructor(
+                    String.class, CharSequence.class, int.class
+                );
+                // NotificationManager.IMPORTANCE_HIGH = 4
+                Object channel = constructor.newInstance(CHANNEL_ID, "Nexora Sanctuary Alerts", 4);
+
+                java.lang.reflect.Method setDesc = channelClass.getMethod("setDescription", String.class);
+                setDesc.invoke(channel, "Habit windows, task timers, and companion transmissions");
+
+                java.lang.reflect.Method enableVib = channelClass.getMethod("enableVibration", boolean.class);
+                enableVib.invoke(channel, true);
+
+                NotificationManager manager = (NotificationManager) getSystemService(NOTIFICATION_SERVICE);
+                if (manager != null) {
+                    java.lang.reflect.Method createMethod = manager.getClass().getMethod("createNotificationChannel", channelClass);
+                    createMethod.invoke(manager, channel);
+                }
+            } catch (Exception e) {
+                e.printStackTrace();
             }
         }
     }
@@ -306,7 +315,12 @@ public class MainActivity extends Activity {
 
             Notification.Builder builder;
             if (Build.VERSION.SDK_INT >= 26) {
-                builder = new Notification.Builder(this, CHANNEL_ID);
+                try {
+                    java.lang.reflect.Constructor<Notification.Builder> c = Notification.Builder.class.getConstructor(android.content.Context.class, String.class);
+                    builder = c.newInstance(this, CHANNEL_ID);
+                } catch (Exception e) {
+                    builder = new Notification.Builder(this);
+                }
             } else {
                 builder = new Notification.Builder(this);
             }
@@ -321,6 +335,9 @@ public class MainActivity extends Activity {
                 builder.setPriority(Notification.PRIORITY_HIGH);
                 builder.setVisibility(Notification.VISIBILITY_PUBLIC);
             }
+
+            // Also trigger default sound and vibration
+            builder.setDefaults(Notification.DEFAULT_ALL);
 
             NotificationManager manager = (NotificationManager) getSystemService(NOTIFICATION_SERVICE);
             if (manager != null) {
@@ -339,6 +356,7 @@ public class MainActivity extends Activity {
 
         createNotificationChannel();
 
+        // Immediately prompt for system notification permission on Android 13+
         if (Build.VERSION.SDK_INT >= 33) {
             if (checkSelfPermission("android.permission.POST_NOTIFICATIONS") != PackageManager.PERMISSION_GRANTED) {
                 requestPermissions(new String[]{"android.permission.POST_NOTIFICATIONS"}, 101);

@@ -30,13 +30,15 @@ export class KyroAIService {
     companionController.onKyroThinking()
 
     try {
-      const response = await fetch('/api/kyro/chat', {
+      const userApiKey = typeof window !== 'undefined' ? localStorage.getItem('nexora_gemini_api_key') || undefined : undefined
+      const response = await fetch('/api/kyro', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           message: userText,
           context: structuredContext,
           history: history.slice(-6),
+          userApiKey,
         }),
       })
 
@@ -49,8 +51,14 @@ export class KyroAIService {
       const replyText = data.reply || 'Kyro received your transmission.'
       const speechBubble = data.speechBubble || replyText.substring(0, 80)
 
-      // 3. Trigger speaking state on companion
+      // 3. Trigger speaking state on 3D companion & controller
       companionController.onKyroSpeaking(speechBubble)
+      try {
+        const { useKyroStore } = await import('@/store/kyroStore')
+        useKyroStore.getState().speak(speechBubble, 6000)
+      } catch {
+        // Ignore store import error if isolated
+      }
 
       return {
         responseText: replyText,

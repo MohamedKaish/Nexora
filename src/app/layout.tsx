@@ -4,6 +4,7 @@ import { PwaProvider } from '@/components/pwa/PwaProvider'
 import { PwaInstallBanner } from '@/components/pwa/PwaInstallBanner'
 import { NexoraCursor } from '@/components/cursor/NexoraCursor'
 import { ScheduleWatcherProvider } from '@/components/notifications/ScheduleWatcherProvider'
+import { KyroCompanion3D } from '@/components/companion/KyroCompanion3D'
 
 export const metadata: Metadata = {
   metadataBase: new URL('https://nexora-nine-kappa.vercel.app'),
@@ -52,6 +53,7 @@ export default function RootLayout({
           {children}
           <PwaInstallBanner />
           <ScheduleWatcherProvider />
+          <KyroCompanion3D />
           <NexoraCursor />
         </PwaProvider>
       </body>

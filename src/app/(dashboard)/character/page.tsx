@@ -22,7 +22,15 @@ import {
   HelpCircle,
   Moon,
   BatteryCharging,
+  Bot,
+  Volume2,
+  VolumeX,
+  Upload,
+  CheckCircle2,
+  Play,
 } from 'lucide-react'
+import { useKyroStore } from '@/store/kyroStore'
+import { KyroCharacterModel, KyroAnimationState } from '@/types/kyro'
 
 const MOOD_TESTS: Array<{ id: CompanionMood; label: string; icon: React.ElementType; quote: string }> = [
   { id: 'idle', label: 'Idle (Breath & Blink)', icon: Heart, quote: 'Breathing peacefully in the sanctuary.' },
@@ -51,7 +59,7 @@ export default function CharacterAtelierPage() {
   const agentName = useAppStore((s) => s.agentConfig.name) || 'Kyro'
   const setAgentName = useAppStore((s) => s.setAgentName)
 
-  const [activeTab, setActiveTab] = useState<'creature' | 'states' | 'lore'>('creature')
+  const [activeTab, setActiveTab] = useState<'3d_companion' | 'creature' | 'states' | 'lore'>('3d_companion')
   const [testedMood, setTestedMood] = useState<CompanionMood>(config.mood || 'idle')
   const [bubblePreview, setBubblePreview] = useState<string>(
     `I stand with you, Explorer. Let us shape our sanctuary.`
@@ -132,38 +140,52 @@ export default function CharacterAtelierPage() {
         {/* Customization & State Tester Controls (Right 7 cols) */}
         <div className="lg:col-span-7 space-y-6">
           {/* Navigation Tabs */}
-          <div className="flex gap-2 p-1.5 rounded-2xl bg-stone-900/80 border border-stone-800">
+          <div className="flex flex-wrap gap-2 p-1.5 rounded-2xl bg-stone-900/80 border border-stone-800">
+            <button
+              onClick={() => setActiveTab('3d_companion')}
+              className={`flex-1 py-2 px-2.5 rounded-xl text-xs font-bold transition-all cursor-pointer flex items-center justify-center gap-1.5 ${
+                activeTab === '3d_companion'
+                  ? 'bg-amber-400 text-stone-950 shadow'
+                  : 'text-stone-400 hover:text-stone-200'
+              }`}
+            >
+              <Sparkles className="w-3.5 h-3.5" />
+              <span>3D Kyro Companion</span>
+            </button>
             <button
               onClick={() => setActiveTab('creature')}
-              className={`flex-1 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer ${
+              className={`flex-1 py-2 px-2.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
                 activeTab === 'creature'
                   ? 'bg-amber-400 text-stone-950 shadow'
                   : 'text-stone-400 hover:text-stone-200'
               }`}
             >
-              Original Creatures
+              2D Sanctuary Allies
             </button>
             <button
               onClick={() => setActiveTab('states')}
-              className={`flex-1 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer ${
+              className={`flex-1 py-2 px-2.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
                 activeTab === 'states'
                   ? 'bg-amber-400 text-stone-950 shadow'
                   : 'text-stone-400 hover:text-stone-200'
               }`}
             >
-              Expressive State Machine
+              State Machine
             </button>
             <button
               onClick={() => setActiveTab('lore')}
-              className={`flex-1 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer ${
+              className={`flex-1 py-2 px-2.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
                 activeTab === 'lore'
                   ? 'bg-amber-400 text-stone-950 shadow'
                   : 'text-stone-400 hover:text-stone-200'
               }`}
             >
-              Sanctuary Bond
+              Sanctuary Lore
             </button>
           </div>
+
+          {/* TAB 0: 3D COMPANION ATELIER (Kyro Prime, Pyro Fox, Aegis Bot, Blender GLB) */}
+          {activeTab === '3d_companion' && <Kyro3DAtelierPanel />}
 
           {/* TAB 1: ORIGINAL CREATURES (Nyxen, Aerix, Vayron) */}
           {activeTab === 'creature' && (
@@ -334,3 +356,248 @@ export default function CharacterAtelierPage() {
     </div>
   )
 }
+
+function Kyro3DAtelierPanel() {
+  const { settings, setModel, setAnimationState, toggleVoice, setAnchor, speak } = useKyroStore()
+  const fileInputRef = React.useRef<HTMLInputElement | null>(null)
+
+  const handleGlbUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (!file) return
+    const objectUrl = URL.createObjectURL(file)
+    setModel('custom_glb', objectUrl)
+    speak(`Loaded custom 3D model "${file.name}" into the Sanctuary!`, 4000)
+  }
+
+  const testAnimation = (anim: KyroAnimationState, speechText: string) => {
+    setAnimationState(anim, 4000, 'IDLE')
+    speak(speechText, 4000)
+  }
+
+  return (
+    <div className="space-y-6 animate-in fade-in duration-300">
+      {/* 3D Model Archetype Selector */}
+      <div className="world-surface p-5 space-y-4">
+        <div className="flex items-center justify-between pb-2 border-b border-stone-800">
+          <div className="flex items-center gap-2">
+            <Bot className="w-4 h-4 text-amber-400" />
+            <h4 className="text-xs font-bold text-stone-200 uppercase tracking-wider">
+              3D Character Entity Matrix
+            </h4>
+          </div>
+          <span className="text-[11px] font-mono text-amber-300 font-bold">
+            Active: {settings.model.replace('_', ' ').toUpperCase()}
+          </span>
+        </div>
+
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+          {/* 1. Kyro Prime */}
+          <div
+            onClick={() => setModel('kyro_prime')}
+            className={`p-4 rounded-2xl border transition-all cursor-pointer flex flex-col justify-between ${
+              settings.model === 'kyro_prime'
+                ? 'bg-amber-400/15 border-amber-400 shadow-[0_0_20px_rgba(212,168,83,0.25)]'
+                : 'bg-stone-900/60 border-stone-800 hover:border-stone-700'
+            }`}
+          >
+            <div>
+              <div className="flex items-center justify-between mb-2">
+                <span className="text-2xl">✨</span>
+                {settings.model === 'kyro_prime' && (
+                  <CheckCircle2 className="w-4 h-4 text-amber-400" />
+                )}
+              </div>
+              <h5 className="text-sm font-bold text-stone-100">Kyro Prime</h5>
+              <p className="text-[11px] text-stone-400 mt-1 leading-relaxed">
+                Chibi Cyber-Spirit &amp; J.A.R.V.I.S. Core with expressive cartoon eyes, floating hands, and gold halo ring.
+              </p>
+            </div>
+            <span className="mt-3 text-[10px] font-mono text-amber-300 font-bold">Procedural Three.js</span>
+          </div>
+
+          {/* 2. Pyro Fox */}
+          <div
+            onClick={() => setModel('pyro_fox')}
+            className={`p-4 rounded-2xl border transition-all cursor-pointer flex flex-col justify-between ${
+              settings.model === 'pyro_fox'
+                ? 'bg-amber-400/15 border-amber-400 shadow-[0_0_20px_rgba(212,168,83,0.25)]'
+                : 'bg-stone-900/60 border-stone-800 hover:border-stone-700'
+            }`}
+          >
+            <div>
+              <div className="flex items-center justify-between mb-2">
+                <span className="text-2xl">🦊</span>
+                {settings.model === 'pyro_fox' && (
+                  <CheckCircle2 className="w-4 h-4 text-amber-400" />
+                )}
+              </div>
+              <h5 className="text-sm font-bold text-stone-100">Pyro Fox</h5>
+              <p className="text-[11px] text-stone-400 mt-1 leading-relaxed">
+                Cute stylized elemental creature with animated twitching fox ears, flame gradient tail, and snout.
+              </p>
+            </div>
+            <span className="mt-3 text-[10px] font-mono text-amber-300 font-bold">Procedural Three.js</span>
+          </div>
+
+          {/* 3. Aegis Bot */}
+          <div
+            onClick={() => setModel('aegis_bot')}
+            className={`p-4 rounded-2xl border transition-all cursor-pointer flex flex-col justify-between ${
+              settings.model === 'aegis_bot'
+                ? 'bg-amber-400/15 border-amber-400 shadow-[0_0_20px_rgba(212,168,83,0.25)]'
+                : 'bg-stone-900/60 border-stone-800 hover:border-stone-700'
+            }`}
+          >
+            <div>
+              <div className="flex items-center justify-between mb-2">
+                <span className="text-2xl">🤖</span>
+                {settings.model === 'aegis_bot' && (
+                  <CheckCircle2 className="w-4 h-4 text-amber-400" />
+                )}
+              </div>
+              <h5 className="text-sm font-bold text-stone-100">Aegis Bot</h5>
+              <p className="text-[11px] text-stone-400 mt-1 leading-relaxed">
+                Armored Defender with obsidian shell, cyan LED eye matrix visor, and hovering jet thruster.
+              </p>
+            </div>
+            <span className="mt-3 text-[10px] font-mono text-amber-300 font-bold">Procedural Three.js</span>
+          </div>
+        </div>
+
+        {/* Custom Blender .GLB Loader Card */}
+        <div className="p-4 rounded-2xl bg-stone-900/40 border border-stone-800 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+          <div>
+            <h5 className="text-xs font-bold text-amber-300 flex items-center gap-1.5">
+              <Upload className="w-3.5 h-3.5" />
+              <span>Custom Blender 3D Model (.GLB / .GLTF)</span>
+            </h5>
+            <p className="text-[11px] text-stone-400 mt-0.5">
+              Upload custom character models generated via Blender or Antigravity with embedded animations.
+            </p>
+          </div>
+          <div className="shrink-0">
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept=".glb,.gltf"
+              onChange={handleGlbUpload}
+              className="hidden"
+            />
+            <button
+              onClick={() => fileInputRef.current?.click()}
+              className="px-4 py-2 rounded-xl bg-amber-400 hover:bg-amber-300 text-stone-950 font-bold text-xs flex items-center gap-1.5 transition-colors cursor-pointer"
+            >
+              <Upload className="w-3.5 h-3.5" />
+              <span>Choose .GLB File</span>
+            </button>
+          </div>
+        </div>
+      </div>
+
+      {/* 3D Animation State Tester */}
+      <div className="world-surface p-5 space-y-3">
+        <h4 className="text-xs font-bold text-stone-200 uppercase tracking-wider">
+          Test 3D Animation States (Live Preview)
+        </h4>
+        <div className="grid grid-cols-2 sm:grid-cols-5 gap-2">
+          <button
+            onClick={() => testAnimation('IDLE', 'Breathing calmly and tracking your cursor, Boss.')}
+            className="p-3 rounded-xl bg-stone-900/80 hover:bg-stone-800 border border-stone-800 text-left transition-colors cursor-pointer"
+          >
+            <div className="text-xs font-bold text-amber-300">IDLE</div>
+            <p className="text-[10px] text-stone-500 mt-0.5">Breathing &amp; Blinking</p>
+          </button>
+          <button
+            onClick={() => testAnimation('TALKING', 'Speaking pulse engaged! Hand gestures synchronized with audio.')}
+            className="p-3 rounded-xl bg-stone-900/80 hover:bg-stone-800 border border-stone-800 text-left transition-colors cursor-pointer"
+          >
+            <div className="text-xs font-bold text-cyan-300">TALKING</div>
+            <p className="text-[10px] text-stone-500 mt-0.5">Mouth &amp; Hand Wave</p>
+          </button>
+          <button
+            onClick={() => testAnimation('WALKING', 'Gliding and hopping across the UI, Boss!')}
+            className="p-3 rounded-xl bg-stone-900/80 hover:bg-stone-800 border border-stone-800 text-left transition-colors cursor-pointer"
+          >
+            <div className="text-xs font-bold text-emerald-300">WALKING</div>
+            <p className="text-[10px] text-stone-500 mt-0.5">Hop &amp; Tilt Motion</p>
+          </button>
+          <button
+            onClick={() => testAnimation('CELEBRATING', 'Quest cleared! Victory backflip with gold confetti!')}
+            className="p-3 rounded-xl bg-amber-400/10 hover:bg-amber-400/20 border border-amber-400/30 text-left transition-colors cursor-pointer"
+          >
+            <div className="text-xs font-bold text-amber-400">CELEBRATING</div>
+            <p className="text-[10px] text-stone-500 mt-0.5">Backflip &amp; Confetti</p>
+          </button>
+          <button
+            onClick={() => testAnimation('FOCUS_MODE', 'Focus Chamber locked. Meditative hover active.')}
+            className="p-3 rounded-xl bg-stone-900/80 hover:bg-stone-800 border border-stone-800 text-left transition-colors cursor-pointer"
+          >
+            <div className="text-xs font-bold text-purple-300">FOCUS MODE</div>
+            <p className="text-[10px] text-stone-500 mt-0.5">Calm Hover &amp; Visor</p>
+          </button>
+        </div>
+      </div>
+
+      {/* Screen Anchoring & Voice Controls */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+        <div className="p-4 rounded-2xl bg-stone-900/60 border border-stone-800 flex items-center justify-between">
+          <div>
+            <h5 className="text-xs font-bold text-foreground">Voice Synthesis (TTS)</h5>
+            <p className="text-[11px] text-stone-400">Kyro speaks out loud like J.A.R.V.I.S.</p>
+          </div>
+          <button
+            onClick={toggleVoice}
+            className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-colors cursor-pointer flex items-center gap-1.5 ${
+              settings.voiceEnabled
+                ? 'bg-amber-400 text-stone-950'
+                : 'bg-stone-800 text-stone-400 hover:text-stone-200'
+            }`}
+          >
+            {settings.voiceEnabled ? <Volume2 className="w-3.5 h-3.5" /> : <VolumeX className="w-3.5 h-3.5" />}
+            <span>{settings.voiceEnabled ? 'Active' : 'Muted'}</span>
+          </button>
+        </div>
+
+        <div className="p-4 rounded-2xl bg-stone-900/60 border border-stone-800 flex items-center justify-between">
+          <div>
+            <h5 className="text-xs font-bold text-foreground">Screen Anchor</h5>
+            <p className="text-[11px] text-stone-400">Default corner positioning.</p>
+          </div>
+          <div className="flex items-center gap-1">
+            <button
+              onClick={() => setAnchor('bottom-right')}
+              className={`px-2.5 py-1 rounded-lg text-[10px] font-bold cursor-pointer transition-colors ${
+                settings.anchor === 'bottom-right'
+                  ? 'bg-amber-400 text-stone-950'
+                  : 'bg-stone-800 text-stone-400'
+              }`}
+            >
+              Bottom R
+            </button>
+            <button
+              onClick={() => setAnchor('bottom-left')}
+              className={`px-2.5 py-1 rounded-lg text-[10px] font-bold cursor-pointer transition-colors ${
+                settings.anchor === 'bottom-left'
+                  ? 'bg-amber-400 text-stone-950'
+                  : 'bg-stone-800 text-stone-400'
+              }`}
+            >
+              Bottom L
+            </button>
+            <button
+              onClick={() => setAnchor('top-right')}
+              className={`px-2.5 py-1 rounded-lg text-[10px] font-bold cursor-pointer transition-colors ${
+                settings.anchor === 'top-right'
+                  ? 'bg-amber-400 text-stone-950'
+                  : 'bg-stone-800 text-stone-400'
+              }`}
+            >
+              Top R
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  )
+}
+
