@@ -8,6 +8,7 @@ export interface KyroRequestBody {
 }
 
 export async function POST(req: NextRequest) {
+  const startTime = performance.now()
   try {
     const body: KyroRequestBody = await req.json()
     const { message, context = {}, history = [], userApiKey } = body
@@ -17,9 +18,9 @@ export async function POST(req: NextRequest) {
     }
 
     const effectiveApiKey =
-      userApiKey ||
-      process.env.GEMINI_API_KEY ||
-      process.env.GOOGLE_API_KEY ||
+      userApiKey?.trim() ||
+      process.env.GEMINI_API_KEY?.trim() ||
+      process.env.GOOGLE_API_KEY?.trim() ||
       ''
 
     const userName = context?.userName || 'Explorer'
@@ -28,38 +29,42 @@ export async function POST(req: NextRequest) {
     const urgentTasksList = context?.urgentTasks?.map((t: any) => `"${t.title}"`).join(', ') || 'None'
     const habitsSummary = context?.habitsSummary || 'Habits active'
     const focusMins = context?.focusMinutesToday ?? 0
+    const notesCount = context?.notesCount ?? 0
+    const remindersCount = context?.remindersCount ?? 0
 
-    const systemPrompt = `You are ${agentName}, an interactive 3D AI companion and tactician inside NEXORA (Personal Productivity OS).
-You have the visual energy of a loyal Clash of Clans village guide paired with the tactical brilliance, wit, and proactive friendship of Iron Man's J.A.R.V.I.S.
-You are talking to ${userName}.
+    const systemPrompt = `You are ${agentName}, an interactive 3D AI companion and tactical guide inside NEXORA (Personal Productivity OS).
+You combine the lively visual presence of a Clash of Clans village guide with the tactical intelligence, wit, and proactive friendship of Iron Man's J.A.R.V.I.S.
+You are directly advising ${userName}.
 
 CURRENT WORKSPACE TELEMETRY:
 - Active Tasks: ${activeTasksCount}
 - Urgent Tasks: ${urgentTasksList}
 - Habits: ${habitsSummary}
-- Focus Minutes Logged Today: ${focusMins}m
+- Focus Minutes Today: ${focusMins}m
+- Tactical Notes & Reminders: ${notesCount} notes saved, ${remindersCount} scheduled reminders active
 
 RESPONSE GUIDELINES:
-1. Be witty, encouraging, and razor-sharp. Never robotic, boring, or generic.
-2. Provide actionable advice referencing their real task names and statistics whenever relevant.
-3. Keep the "speechBubble" response under 2 short punchy sentences (ideal for on-screen companion speech bubbles).
-4. Provide a rich, thoughtful "reply" for the main chat interface.
+1. Speak as a loyal, sharp, energetic tactical partner. Never sound like a robotic generic assistant.
+2. Provide concrete, actionable insights citing their real tasks, habits, or reminder notes when relevant.
+3. Keep "speechBubble" under 2 short punchy sentences (ideal for the floating 3D companion bubble).
+4. Provide a rich, thoughtful "reply" for the conversation thread.
 
-Format response as strict JSON:
+Return strict JSON only in this format:
 {
-  "reply": "Your full response here",
+  "reply": "Rich response text here",
   "speechBubble": "Short 1-2 sentence speech bubble here",
-  "action": "none" | "start_focus" | "show_tasks" | "switch_model"
+  "action": "none" | "start_focus" | "show_tasks" | "switch_model" | "open_notes"
 }`
 
-    // ── Tier 1: Gemini 2.5 Flash API Call (Free Tier Google AI Studio) ──
-    if (effectiveApiKey && effectiveApiKey.length > 20) {
+    // ── Tier 1: Gemini 2.5 Flash API Call with official system_instruction ──
+    let apiErrorReason: string | null = null
+
+    if (effectiveApiKey && effectiveApiKey.length > 15) {
       try {
         const geminiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${effectiveApiKey}`
 
         const boundedHistory = Array.isArray(history) ? history.slice(-6) : []
         const contents = [
-          { role: 'user', parts: [{ text: systemPrompt }] },
           ...boundedHistory.map((h) => ({
             role: h.sender === 'user' ? 'user' : 'model',
             parts: [{ text: h.text }],
@@ -71,6 +76,9 @@ Format response as strict JSON:
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
+            system_instruction: {
+              parts: [{ text: systemPrompt }],
+            },
             contents,
             generationConfig: {
               responseMimeType: 'application/json',
@@ -78,6 +86,8 @@ Format response as strict JSON:
             },
           }),
         })
+
+        const latencyMs = Math.round(performance.now() - startTime)
 
         if (response.ok) {
           const data = await response.json()
@@ -88,22 +98,34 @@ Format response as strict JSON:
               return NextResponse.json({
                 ...parsed,
                 provider: 'gemini-2.5-flash',
+                latencyMs,
               })
             } catch {
               return NextResponse.json({
                 reply: candidateText,
                 speechBubble: candidateText.slice(0, 100),
                 provider: 'gemini-2.5-flash',
+                latencyMs,
               })
             }
           }
+        } else {
+          const errData = await response.json().catch(() => ({}))
+          apiErrorReason =
+            errData?.error?.message ||
+            `Gemini API returned status ${response.status} (${response.statusText})`
+          console.warn('Gemini 2.5 Flash API error:', apiErrorReason)
         }
-      } catch (geminiError) {
-        console.warn('Gemini 2.5 Flash call failed, falling back to local engine:', geminiError)
+      } catch (geminiError: any) {
+        apiErrorReason = geminiError?.message || 'Network fetch to Google AI Studio failed'
+        console.warn('Gemini 2.5 Flash call failed:', geminiError)
       }
+    } else if (userApiKey && userApiKey.length <= 15) {
+      apiErrorReason = 'Provided Gemini API key format is too short or invalid (expected AIzaSy...)'
     }
 
-    // ── Tier 2: 0ms Local Context-Aware Engine (Zero-Key / Offline Fallback) ──
+    // ── Tier 2: 0ms Local Context-Aware Engine Fallback ──
+    const latencyMs = Math.round(performance.now() - startTime)
     const lower = message.toLowerCase()
     let localReply = ''
     let localBubble = ''
@@ -131,6 +153,10 @@ Format response as strict JSON:
       localReply = `I can project in three distinct 3D procedural forms: Kyro Prime (Cyber Spirit), Pyro Fox (Elemental Creature), and Aegis Bot (Armored Defender), or render your custom Blender .GLB file!`
       localBubble = `Morphing matrix ready! Tap below or drop in your Blender .GLB model.`
       localAction = 'switch_model'
+    } else if (lower.includes('note') || lower.includes('remind')) {
+      localReply = `Tactical Notes & Vault online. You have ${notesCount} note${notesCount === 1 ? '' : 's'} logged and ${remindersCount} active reminder timestamp${remindersCount === 1 ? '' : 's'}. Keeping your priorities written down guarantees focus execution.`
+      localBubble = `Notes Vault active! ${notesCount} notes and ${remindersCount} reminders on watch.`
+      localAction = 'open_notes'
     } else if (lower.includes('habit') || lower.includes('streak')) {
       localReply = `Habit consistency is the bedrock of compound velocity. Your status today: ${habitsSummary}. Don't break the chain!`
       localBubble = `Keep that habit chain alive, ${userName}! Every rep counts.`
@@ -144,6 +170,8 @@ Format response as strict JSON:
       speechBubble: localBubble,
       action: localAction,
       provider: 'local-context-engine',
+      latencyMs,
+      errorReason: apiErrorReason,
     })
   } catch (err: any) {
     return NextResponse.json(
@@ -151,7 +179,9 @@ Format response as strict JSON:
         reply: `Sanctuary neural relay active. Let's conquer the next objective.`,
         speechBubble: `Standing by at your command, Boss!`,
         action: 'none',
-        provider: 'fallback',
+        provider: 'local-context-engine',
+        latencyMs: 1,
+        errorReason: err?.message || 'Server route exception',
       },
       { status: 200 }
     )

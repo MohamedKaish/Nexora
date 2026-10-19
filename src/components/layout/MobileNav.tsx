@@ -3,14 +3,14 @@
 import React from 'react'
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
-import { Compass, CheckSquare, Zap, Flame, User } from 'lucide-react'
+import { Compass, CheckSquare, Zap, Flame, User, StickyNote } from 'lucide-react'
 
 const MOBILE_ITEMS = [
   { name: 'World', href: '/dashboard', icon: Compass },
   { name: 'Tasks', href: '/tasks', icon: CheckSquare },
+  { name: 'Notes', href: '/notes', icon: StickyNote },
   { name: 'Focus', href: '/focus', icon: Zap },
   { name: 'Habits', href: '/habits', icon: Flame },
-  { name: 'Profile', href: '/account', icon: User },
 ]
 
 export function MobileNav() {

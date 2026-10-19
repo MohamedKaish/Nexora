@@ -37,7 +37,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
     setMounted(true)
   }, [])
 
-  // Enforce First-Time 5-Question Onboarding with hydration barrier (prevents repeated questions loop)
+  // Enforce First-Time 5-Step Calibration with hydration barrier
   useEffect(() => {
     if (!mounted) return
 
@@ -47,8 +47,8 @@ export function AppShell({ children }: { children: React.ReactNode }) {
     // Wait for Zustand hydration to finish before evaluating store state
     if (!hasHydrated) return
 
-    if (!onboardingComplete && pathname !== '/setup') {
-      router.replace('/setup')
+    if (!onboardingComplete && pathname !== '/login' && pathname !== '/onboarding' && pathname !== '/setup') {
+      router.replace('/login')
     }
   }, [mounted, hasHydrated, onboardingComplete, pathname, router])
 

@@ -1,14 +1,14 @@
 'use client'
 
 import React, { useState, useMemo } from 'react'
+import { useRouter } from 'next/navigation'
+import Link from 'next/link'
 import { useAppStore } from '@/store/appStore'
 import { useTaskStore } from '@/store/useTaskStore'
 import { useHabitStore } from '@/store/useHabitStore'
 import { useGoalStore } from '@/store/useGoalStore'
 import { useFocusStore } from '@/store/useFocusStore'
-import { useCharacterStore } from '@/store/characterStore'
-import { Companion } from '@/components/companion/Companion'
-import { CompanionSelector } from '@/components/companion/CompanionSelector'
+import { useKyroStore } from '@/store/kyroStore'
 import { calculateProductivityLevel, getProductivityBadges } from '@/lib/gamification'
 import {
   User,
@@ -38,9 +38,10 @@ const GENDER_OPTIONS = [
 ]
 
 export default function AccountPage() {
-  const { preferences, updatePreferences } = useAppStore()
+  const router = useRouter()
+  const { preferences, updatePreferences, logout } = useAppStore()
   const agentName = useAppStore((s) => s.agentConfig.name) || 'Kyro'
-  const charConfig = useCharacterStore((s) => s.config)
+  const kyroSettings = useKyroStore((s) => s.settings)
 
   const tasks = useTaskStore((s) => s.tasks)
   const habits = useHabitStore((s) => s.habits)
@@ -343,33 +344,64 @@ export default function AccountPage() {
 
       {/* ─── ALLY BOND & ACCOUNTS DETAILS ─── */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
-        {/* Left: Active Companion Bond */}
+        {/* Left: Active 3D Companion Vessel & Sanctuary Actions */}
         <div className="lg:col-span-5 world-deck p-6 space-y-4">
           <div className="flex items-center justify-between">
             <h3 className="text-sm font-bold text-foreground uppercase tracking-wider flex items-center gap-2">
               <Sparkles className="w-4 h-4 text-amber-400" />
-              Active Sanctuary Ally
+              Active 3D Companion Vessel
             </h3>
             <span className="text-xs font-mono font-bold text-amber-300">
               {agentName}
             </span>
           </div>
 
-          <div className="flex flex-col items-center p-4 rounded-2xl bg-stone-900/50 border border-stone-800/80">
-            <Companion size={130} showPlatform={true} showGlow={true} />
-            <div className="mt-3 text-center">
-              <span className="text-xs font-bold text-stone-200">
-                Partnered with {charConfig.archetype?.toUpperCase() || 'NYXEN'}
+          <div className="p-4 rounded-2xl bg-stone-900/60 border border-stone-800 space-y-3">
+            <div className="flex items-center justify-between text-xs">
+              <span className="text-stone-400">Model:</span>
+              <span className="font-mono font-bold text-stone-200 uppercase">
+                {kyroSettings.model.replace('_', ' ')}
               </span>
-              <p className="text-[11px] text-stone-400 mt-0.5">
-                Earn XP together by completing daily quests & focus sessions.
-              </p>
             </div>
+            <div className="flex items-center justify-between text-xs">
+              <span className="text-stone-400">Costume Gear:</span>
+              <span className="font-mono font-bold text-amber-300 uppercase">
+                {kyroSettings.costume.replace('_', ' ')}
+              </span>
+            </div>
+            <div className="flex items-center justify-between text-xs">
+              <span className="text-stone-400">Chromatic Aura:</span>
+              <span className="font-mono font-bold text-stone-200 uppercase">
+                {kyroSettings.colorTheme.replace('_', ' ')}
+              </span>
+            </div>
+
+            <Link
+              href="/character"
+              className="w-full py-2.5 rounded-xl bg-amber-400/10 hover:bg-amber-400/20 border border-amber-400/30 text-amber-300 font-bold text-xs flex items-center justify-center gap-2 transition-colors"
+            >
+              <Sparkles className="w-3.5 h-3.5" />
+              <span>Open 3D Companion Atelier</span>
+            </Link>
           </div>
 
-          <div className="pt-2 border-t border-stone-800/80">
-            <span className="text-xs font-semibold text-stone-400 block mb-2">Switch Ally:</span>
-            <CompanionSelector variant="pills" />
+          <div className="pt-2 border-t border-stone-800/80 space-y-2">
+            <Link
+              href="/login?tab=setup&recalibrate=true"
+              className="w-full py-2.5 px-3 rounded-xl bg-stone-900 hover:bg-stone-800 border border-stone-800 text-stone-200 text-xs font-semibold flex items-center justify-center gap-1.5 transition-colors"
+            >
+              <span>✨ Recalibrate Onboarding Flow</span>
+            </Link>
+
+            <button
+              onClick={() => {
+                logout()
+                router.push('/login')
+              }}
+              className="w-full py-2.5 px-3 rounded-xl bg-rose-950/20 hover:bg-rose-950/40 border border-rose-900/40 text-rose-300 text-xs font-semibold flex items-center justify-center gap-1.5 transition-colors cursor-pointer"
+            >
+              <span>🔐 Sign Out of Sanctuary</span>
+            </button>
           </div>
         </div>
 

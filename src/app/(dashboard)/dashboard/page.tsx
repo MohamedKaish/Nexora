@@ -10,6 +10,7 @@ import { useProjectStore } from '@/store/useProjectStore'
 import { useFocusStore } from '@/store/useFocusStore'
 import { useCharacterStore } from '@/store/characterStore'
 import { useKyroStore } from '@/store/kyroStore'
+import { useNoteStore } from '@/store/useNoteStore'
 import { Companion } from '@/components/companion/Companion'
 import { CompanionSelector } from '@/components/companion/CompanionSelector'
 import { companionController } from '@/components/companion/CompanionController'
@@ -27,6 +28,9 @@ import {
   Sparkles,
   Calendar,
   Download,
+  StickyNote,
+  Clock,
+  Pin,
 } from 'lucide-react'
 import { format } from 'date-fns'
 import { usePwa } from '@/components/pwa/PwaProvider'
@@ -391,6 +395,98 @@ export default function DashboardPage() {
           </div>
         </div>
       </div>
+
+      {/* ─── PINNED TACTICAL NOTES & REMINDERS ─── */}
+      <DashboardNotesSection />
     </div>
   )
 }
+
+function DashboardNotesSection() {
+  const notes = useNoteStore((s) => s.notes)
+  const toggleChecklistItem = useNoteStore((s) => s.toggleChecklistItem)
+  const pinnedOrReminders = useMemo(
+    () => notes.filter((n) => n.isPinned || (n.remindAt && !n.reminderFired)).slice(0, 3),
+    [notes]
+  )
+
+  if (pinnedOrReminders.length === 0) return null
+
+  return (
+    <div className="space-y-3 pt-2">
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-2">
+          <StickyNote className="w-4 h-4 text-amber-400" />
+          <h3 className="text-sm font-bold text-foreground uppercase tracking-wider">
+            Pinned Protocols &amp; Upcoming Reminders
+          </h3>
+        </div>
+        <Link
+          href="/notes"
+          className="text-xs font-semibold text-amber-400 hover:underline flex items-center gap-1"
+        >
+          View Vault <ArrowRight className="w-3 h-3" />
+        </Link>
+      </div>
+
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+        {pinnedOrReminders.map((note) => (
+          <div
+            key={note.id}
+            className="p-4 rounded-2xl bg-stone-950/80 border border-stone-800/80 hover:border-amber-400/40 transition-all flex flex-col justify-between space-y-3"
+          >
+            <div className="space-y-1.5">
+              <div className="flex items-center justify-between">
+                <span className="text-[10px] font-mono font-bold uppercase px-2 py-0.5 rounded bg-amber-400/10 text-amber-300 border border-amber-400/20 flex items-center gap-1">
+                  {note.isPinned ? <Pin className="w-2.5 h-2.5" /> : <Clock className="w-2.5 h-2.5" />}
+                  <span>{note.isPinned ? 'PINNED' : 'REMINDER'}</span>
+                </span>
+                {note.remindAt && (
+                  <span className="text-[10px] font-mono text-cyan-300">
+                    {note.remindAt.replace('T', ' ')}
+                  </span>
+                )}
+              </div>
+              <h4 className="text-xs font-bold text-stone-100 line-clamp-1">{note.title}</h4>
+              {note.content && (
+                <p className="text-[11px] text-stone-400 line-clamp-2 leading-relaxed">{note.content}</p>
+              )}
+
+              {/* Checklist preview */}
+              {note.checklist.length > 0 && (
+                <div className="space-y-1 pt-1">
+                  {note.checklist.slice(0, 2).map((item) => (
+                    <div
+                      key={item.id}
+                      onClick={(e) => {
+                        e.stopPropagation()
+                        toggleChecklistItem(note.id, item.id)
+                      }}
+                      className="flex items-center gap-2 text-[11px] text-stone-300 cursor-pointer hover:text-amber-300"
+                    >
+                      <span className={`w-3 h-3 rounded flex items-center justify-center border ${item.done ? 'bg-amber-400 border-amber-400 text-stone-950 font-bold text-[9px]' : 'border-stone-700'}`}>
+                        {item.done ? '✓' : ''}
+                      </span>
+                      <span className={`truncate ${item.done ? 'line-through text-stone-500' : ''}`}>
+                        {item.text}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            <Link
+              href="/notes"
+              className="text-[11px] text-amber-400/80 hover:text-amber-300 font-semibold flex items-center gap-1 pt-1"
+            >
+              <span>Open Note</span>
+              <ArrowRight className="w-3 h-3" />
+            </Link>
+          </div>
+        ))}
+      </div>
+    </div>
+  )
+}
+

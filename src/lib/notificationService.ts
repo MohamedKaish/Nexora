@@ -1,10 +1,32 @@
 import { useNotificationStore } from '@/store/useNotificationStore'
 
+export function isNativeAndroidApp(): boolean {
+  if (typeof window === 'undefined') return false
+  return Boolean(
+    (window as unknown as { NexoraNativeBridge?: unknown }).NexoraNativeBridge ||
+    /NexoraNativeAndroid/i.test(navigator.userAgent)
+  )
+}
+
 export function isNotificationSupported(): boolean {
-  return typeof window !== 'undefined' && 'Notification' in window
+  if (typeof window === 'undefined') return false
+  if (isNativeAndroidApp()) return true
+  return 'Notification' in window
 }
 
 export function getNotificationPermission(): NotificationPermission | 'unsupported' {
+  if (typeof window === 'undefined') return 'unsupported'
+  if (isNativeAndroidApp()) {
+    const bridge = (window as unknown as { NexoraNativeBridge?: { hasNotificationPermission?: () => boolean } }).NexoraNativeBridge
+    if (bridge && typeof bridge.hasNotificationPermission === 'function') {
+      try {
+        return bridge.hasNotificationPermission() ? 'granted' : 'default'
+      } catch {
+        return 'default'
+      }
+    }
+    return 'default'
+  }
   if (!isNotificationSupported()) return 'unsupported'
   return Notification.permission
 }
@@ -54,11 +76,18 @@ export function triggerHapticFeedback(pattern: number[] = [150, 80, 150]) {
 }
 
 export async function requestNotificationPermission(): Promise<NotificationPermission | 'unsupported'> {
-  // Native Android APK bridge permission invocation
-  if (typeof window !== 'undefined' && (window as unknown as { NexoraNativeBridge?: { requestNotificationPermission: () => void } }).NexoraNativeBridge?.requestNotificationPermission) {
-    try {
-      (window as unknown as { NexoraNativeBridge: { requestNotificationPermission: () => void } }).NexoraNativeBridge.requestNotificationPermission()
-    } catch {}
+  // 1. Native Android APK bridge permission invocation
+  if (isNativeAndroidApp()) {
+    const bridge = (window as unknown as { NexoraNativeBridge?: { requestNotificationPermission?: () => void; hasNotificationPermission?: () => boolean } }).NexoraNativeBridge
+    if (bridge?.requestNotificationPermission) {
+      try {
+        bridge.requestNotificationPermission()
+        return 'granted'
+      } catch (e) {
+        console.warn('Native permission request failed:', e)
+      }
+    }
+    return 'granted'
   }
 
   if (!isNotificationSupported()) return 'unsupported'
@@ -108,9 +137,26 @@ export async function sendNotification(
     }
   }
 
+  // 0. Native Android APK Bridge Delivery (PRIORITY 1 - Direct hardware transmission)
+  if (typeof window !== 'undefined') {
+    const bridge = (window as unknown as { NexoraNativeBridge?: { showNotification: (t: string, m: string, tag: string) => void } }).NexoraNativeBridge
+    if (bridge?.showNotification) {
+      try {
+        bridge.showNotification(
+          title,
+          messageBody,
+          options.tag || 'nexora-alert'
+        )
+        return true
+      } catch (bridgeErr) {
+        console.warn('Native APK bridge notification failed:', bridgeErr)
+      }
+    }
+  }
+
   if (!isNotificationSupported()) return true
 
-  if (Notification.permission !== 'granted') {
+  if (typeof Notification !== 'undefined' && Notification.permission !== 'granted') {
     const perm = await requestNotificationPermission()
     if (perm !== 'granted') return false
   }
@@ -122,20 +168,6 @@ export async function sendNotification(
     tag: options.tag || 'nexora-habit-alert',
     vibrate: [150, 80, 150],
     data: options.data,
-  }
-
-  // 0. Native Android APK Bridge Delivery
-  if (typeof window !== 'undefined' && (window as unknown as { NexoraNativeBridge?: { showNotification: (t: string, m: string, tag: string) => void } }).NexoraNativeBridge?.showNotification) {
-    try {
-      (window as unknown as { NexoraNativeBridge: { showNotification: (t: string, m: string, tag: string) => void } }).NexoraNativeBridge.showNotification(
-        title,
-        messageBody,
-        options.tag || 'nexora-alert'
-      )
-      return true
-    } catch (bridgeErr) {
-      console.warn('Native APK bridge notification failed:', bridgeErr)
-    }
   }
 
   // 1. Android & PWA Service Worker Delivery (Highest reliability on mobile)

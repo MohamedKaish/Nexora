@@ -4,12 +4,15 @@ import { KyroMessage, KyroProposedAction } from '@/types/local'
 import { KyroAIService } from '@/features/kyro/KyroAIService'
 import { RawContextInputs } from '@/features/kyro/KyroContextBuilder'
 import { companionController } from '@/components/companion/CompanionController'
+import { playChime, speakWithKyroVoice } from '@/utils/soundEngine'
 import {
   KyroAnimationState,
   KyroCompanionSettings,
   DEFAULT_KYRO_SETTINGS,
   KyroActionChip,
   KyroCharacterModel,
+  KyroCostume,
+  KyroColorTheme,
   KyroScreenAnchor,
 } from '@/types/kyro'
 
@@ -20,7 +23,7 @@ interface KyroChatState {
   lastFailedText: string | null
   messages: KyroMessage[]
   quickPrompts: string[]
-  
+
   // ── 3D Companion State ──
   animationState: KyroAnimationState
   activeSpeech: string | null
@@ -28,21 +31,34 @@ interface KyroChatState {
   actionChips: KyroActionChip[]
   settings: KyroCompanionSettings
   customPosition: { x: number; y: number } | null
-  
+
+  // ── Live Telemetry ──
+  lastProvider: 'gemini-2.5-flash' | 'local-context-engine' | null
+  lastLatencyMs: number | null
+  lastErrorReason: string | null
+
   // Actions
   setOpen: (open: boolean) => void
   toggleOpen: () => void
   notifyTyping: () => void
   setAnimationState: (state: KyroAnimationState, revertAfterMs?: number, revertTo?: KyroAnimationState) => void
-  speak: (text: string, durationMs?: number, chips?: KyroActionChip[]) => void
+  speak: (text: string, durationMs?: number, chips?: KyroActionChip[], forceShow?: boolean) => void
   dismissSpeech: () => void
   updateSettings: (partial: Partial<KyroCompanionSettings>) => void
   setModel: (model: KyroCharacterModel, customGlbUrl?: string | null) => void
+  setCostume: (costume: KyroCostume) => void
+  setColorTheme: (colorTheme: KyroColorTheme) => void
   setAnchor: (anchor: KyroScreenAnchor) => void
   setCustomPosition: (pos: { x: number; y: number } | null) => void
   toggleMinimized: () => void
+  togglePinned: () => void
   toggleVoice: () => void
-  
+  setProviderTelemetry: (
+    provider: 'gemini-2.5-flash' | 'local-context-engine',
+    latencyMs?: number | null,
+    errorReason?: string | null
+  ) => void
+
   sendMessage: (text: string, contextInputs: RawContextInputs) => Promise<void>
   retryLastMessage: (contextInputs: RawContextInputs) => Promise<void>
   executeProposedAction: (actionId: string, onExecute: (action: KyroProposedAction) => void) => void
@@ -54,7 +70,7 @@ const INITIAL_MESSAGES: KyroMessage[] = [
   {
     id: 'msg-welcome',
     sender: 'kyro',
-    text: "Welcome to Nexora. I am Kyro, your AI companion living inside this sanctuary. I monitor your tasks, habits, focus chambers, and timetable to keep your momentum aligned. How can we make meaningful progress today?",
+    text: "Sanctuary neural link verified. I am Kyro, your 3D J.A.R.V.I.S. companion and tactical guide. I track your tasks, habit horizons, focus sessions, and timetable to keep your momentum aligned. How shall we make meaningful progress today?",
     timestamp: new Date().toISOString(),
   },
 ]
@@ -63,11 +79,10 @@ export const QUICK_PROMPTS = [
   "What should I work on today?",
   "How am I doing today?",
   "What's my next priority?",
-  "Plan my day.",
   "Start a focus session.",
-  "How are my habits?",
-  "Review my goals.",
-  "Motivate me.",
+  "Review my habits.",
+  "Switch to Pyro Fox.",
+  "Wear the Sovereign Crown.",
 ]
 
 let animationTimer: NodeJS.Timeout | null = null
@@ -85,11 +100,19 @@ export const useKyroStore = create<KyroChatState>()(
 
       // ── 3D Companion Initial State ──
       animationState: 'IDLE',
-      activeSpeech: null,
-      speechBubbleVisible: false,
-      actionChips: [],
+      activeSpeech: "Sanctuary systems online. Standing by at your side, Boss!",
+      speechBubbleVisible: true,
+      actionChips: [
+        { id: 'next', label: '🎯 What next?', action: 'ask_next_task' },
+        { id: 'focus', label: '⚡ 25m Focus', action: 'start_focus' },
+      ],
       settings: DEFAULT_KYRO_SETTINGS,
       customPosition: null,
+
+      // ── Live Telemetry ──
+      lastProvider: null,
+      lastLatencyMs: null,
+      lastErrorReason: null,
 
       setOpen: (open) => set({ isOpen: open }),
       toggleOpen: () => set((state) => ({ isOpen: !state.isOpen })),
@@ -102,6 +125,16 @@ export const useKyroStore = create<KyroChatState>()(
       setAnimationState: (animState, revertAfterMs, revertTo = 'IDLE') => {
         if (animationTimer) clearTimeout(animationTimer)
         set({ animationState: animState })
+
+        // Trigger thematic sound effects if sound is enabled
+        if (get().settings.soundEnabled) {
+          if (animState === 'CELEBRATING') {
+            playChime('celebrate')
+          } else if (animState === 'FOCUS_MODE') {
+            playChime('focus_start')
+          }
+        }
+
         if (revertAfterMs && revertAfterMs > 0) {
           animationTimer = setTimeout(() => {
             set({ animationState: revertTo })
@@ -109,38 +142,26 @@ export const useKyroStore = create<KyroChatState>()(
         }
       },
 
-      speak: (text, durationMs = 5000, chips = []) => {
+      speak: (text, durationMs = 10000, chips = [], forceShow = true) => {
         if (speechTimer) clearTimeout(speechTimer)
-        
-        // Voice synthesis if enabled
-        if (get().settings.voiceEnabled && typeof window !== 'undefined' && 'speechSynthesis' in window) {
-          try {
-            window.speechSynthesis.cancel()
-            const cleanText = text.replace(/[*_#`]/g, '')
-            const utterance = new SpeechSynthesisUtterance(cleanText)
-            utterance.rate = 1.05
-            utterance.pitch = 1.0
-            // Prefer natural English voices
-            const voices = window.speechSynthesis.getVoices()
-            const preferred = voices.find(
-              (v) => (v.name.includes('Natural') || v.name.includes('Google') || v.name.includes('Samantha') || v.lang.startsWith('en'))
-            )
-            if (preferred) utterance.voice = preferred
-            window.speechSynthesis.speak(utterance)
-          } catch (e) {
-            console.warn('Speech synthesis failed:', e)
-          }
+
+        // Android APK Native TTS + Web Speech API fallback
+        if (get().settings.voiceEnabled) {
+          speakWithKyroVoice(text)
+        } else if (get().settings.soundEnabled) {
+          playChime('notification')
         }
 
-        get().setAnimationState('TALKING', Math.min(durationMs, 4000), 'IDLE')
+        get().setAnimationState('TALKING', Math.min(durationMs, 4500), 'IDLE')
 
         set({
           activeSpeech: text,
-          speechBubbleVisible: true,
-          actionChips: chips,
+          speechBubbleVisible: forceShow ? true : get().speechBubbleVisible,
+          actionChips: chips.length > 0 ? chips : get().actionChips,
         })
 
-        if (durationMs > 0) {
+        // Auto-fade only if NOT pinned and duration is positive
+        if (!get().settings.isPinned && durationMs > 0) {
           speechTimer = setTimeout(() => {
             set({ speechBubbleVisible: false })
           }, durationMs)
@@ -149,7 +170,7 @@ export const useKyroStore = create<KyroChatState>()(
 
       dismissSpeech: () => {
         if (speechTimer) clearTimeout(speechTimer)
-        set({ speechBubbleVisible: false, activeSpeech: null })
+        set({ speechBubbleVisible: false })
       },
 
       updateSettings: (partial) => {
@@ -160,9 +181,41 @@ export const useKyroStore = create<KyroChatState>()(
 
       setModel: (model, customGlbUrl = null) => {
         set((state) => ({
-          settings: { ...state.settings, model, customGlbUrl: customGlbUrl ?? state.settings.customGlbUrl },
+          settings: {
+            ...state.settings,
+            model,
+            customGlbUrl: customGlbUrl !== undefined ? customGlbUrl : state.settings.customGlbUrl,
+          },
         }))
-        get().speak(`Shifted to ${model.replace('_', ' ').toUpperCase()} matrix.`, 2800)
+        const names: Record<string, string> = {
+          kyro_prime: 'Kyro Prime (Cyber Spirit)',
+          pyro_fox: 'Pyro Fox (Elemental Creature)',
+          aegis_bot: 'Aegis Bot (Armored Defender)',
+          custom_glb: 'Custom 3D Blender GLB',
+        }
+        get().speak(`Transmuted into ${names[model] || model}. Matrix calibrated!`, 4000)
+      },
+
+      setCostume: (costume) => {
+        set((state) => ({
+          settings: { ...state.settings, costume },
+        }))
+        const costumeNames: Record<string, string> = {
+          none: 'Default Standard Attire',
+          royal_crown: 'Golden Sovereign Crown',
+          cyber_visor: 'Tactical AR Visor Glasses',
+          samurai_crest: 'Shogun Crest & Pauldrons',
+          wizard_hat: 'Star-Weaver Arcane Hat',
+          pro_headphones: 'Studio Deep-Focus Headphones',
+        }
+        get().speak(`Equipped ${costumeNames[costume] || costume}. Looking sharp!`, 3500)
+      },
+
+      setColorTheme: (colorTheme) => {
+        set((state) => ({
+          settings: { ...state.settings, colorTheme },
+        }))
+        get().speak(`Shifted aura to ${colorTheme.replace('_', ' ').toUpperCase()}.`, 3000)
       },
 
       setAnchor: (anchor) => {
@@ -180,16 +233,36 @@ export const useKyroStore = create<KyroChatState>()(
         }))
       },
 
+      togglePinned: () => {
+        const next = !get().settings.isPinned
+        set((state) => ({
+          settings: { ...state.settings, isPinned: next },
+        }))
+        if (next) {
+          get().speak("Speech bubble pinned. I'll stay open until you close me.", 3000)
+        } else {
+          get().speak("Speech bubble unpinned. Will auto-collapse after dialogue.", 3000)
+        }
+      },
+
       toggleVoice: () => {
         const next = !get().settings.voiceEnabled
         set((state) => ({
           settings: { ...state.settings, voiceEnabled: next },
         }))
         if (next) {
-          get().speak("Vocal synthesis matrix activated.", 2500)
+          get().speak("Vocal synthesis matrix activated. I can speak aloud now!", 3000)
         } else {
-          get().speak("Audio silenced. Operating in silent stealth.", 2000)
+          get().speak("Vocal synthesis silenced. Operating in silent stealth.", 2500)
         }
+      },
+
+      setProviderTelemetry: (provider, latencyMs = null, errorReason = null) => {
+        set({
+          lastProvider: provider,
+          lastLatencyMs: latencyMs,
+          lastErrorReason: errorReason,
+        })
       },
 
       sendMessage: async (text: string, contextInputs: RawContextInputs) => {
@@ -231,10 +304,11 @@ export const useKyroStore = create<KyroChatState>()(
             hasError: false,
           }))
 
-          // Return companion to calm idle after speaking window
-          setTimeout(() => {
-            companionController.onKyroIdle()
-          }, 4500)
+          // Also set companion speech bubble
+          get().speak(result.speechBubble || result.responseText, 10000, [
+            { id: 'next', label: '🎯 What next?', action: 'ask_next_task' },
+            { id: 'focus', label: '⚡ 25m Focus', action: 'start_focus' },
+          ])
         } catch (error) {
           set({
             isTyping: false,

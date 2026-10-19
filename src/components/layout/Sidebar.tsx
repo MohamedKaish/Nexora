@@ -19,6 +19,7 @@ import {
   Settings,
   User,
   Download,
+  StickyNote,
 } from 'lucide-react'
 import { useAppStore } from '@/store/appStore'
 import { usePwa } from '@/components/pwa/PwaProvider'
@@ -40,6 +41,7 @@ const NAV_SECTIONS: NavSection[] = [
     items: [
       { name: 'World Hub', href: '/dashboard', icon: Compass },
       { name: 'Tasks', href: '/tasks', icon: CheckSquare },
+      { name: 'Notes & Vault', href: '/notes', icon: StickyNote },
       { name: 'Habits', href: '/habits', icon: Flame },
       { name: 'Focus Chamber', href: '/focus', icon: Zap },
     ],

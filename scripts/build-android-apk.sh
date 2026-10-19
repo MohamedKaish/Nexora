@@ -19,9 +19,17 @@ mkdir -p "$BUILD_DIR/assets/app/icons"
 mkdir -p "$BUILD_DIR/bin"
 
 PUBLIC_DIR="/app/applet/public"
-ANDROID_JAR="/usr/share/java/com.android.android-23.jar"
+ANDROID_JAR="/usr/share/java/android.jar"
+if [ ! -f "$ANDROID_JAR" ]; then
+  ANDROID_JAR="/usr/share/java/com.android.android-23.jar"
+fi
+if [ ! -f "$ANDROID_JAR" ]; then
+  ANDROID_JAR=$(find /usr -name "*android*.jar" 2>/dev/null | head -n 1)
+fi
 
-# 1. Copy app icons for launcher mipmaps
+echo "Using ANDROID_JAR: $ANDROID_JAR"
+
+# 1. Copy app icons for launcher mipmaps & notification drawables
 cp "$PUBLIC_DIR/icon-192.png" "$BUILD_DIR/res/mipmap-hdpi/ic_launcher.png"
 cp "$PUBLIC_DIR/icon-192.png" "$BUILD_DIR/res/mipmap-xhdpi/ic_launcher.png"
 cp "$PUBLIC_DIR/icon-512.png" "$BUILD_DIR/res/mipmap-xxhdpi/ic_launcher.png"
@@ -29,14 +37,14 @@ cp "$PUBLIC_DIR/icon-512.png" "$BUILD_DIR/res/mipmap-xxxhdpi/ic_launcher.png"
 cp "$PUBLIC_DIR/icon-192.png" "$BUILD_DIR/res/drawable/ic_launcher.png"
 
 # 2. Bundle offline assets into assets/ directory to make this a true standalone multi-MB app
-cp -r "$PUBLIC_DIR/avatars/"* "$BUILD_DIR/assets/app/avatars/"
-cp -r "$PUBLIC_DIR/screenshots/"* "$BUILD_DIR/assets/app/screenshots/"
+cp -r "$PUBLIC_DIR/avatars/"* "$BUILD_DIR/assets/app/avatars/" 2>/dev/null || true
+cp -r "$PUBLIC_DIR/screenshots/"* "$BUILD_DIR/assets/app/screenshots/" 2>/dev/null || true
 cp "$PUBLIC_DIR/icon-192.png" "$BUILD_DIR/assets/app/icons/"
 cp "$PUBLIC_DIR/icon-512.png" "$BUILD_DIR/assets/app/icons/"
 cp "$PUBLIC_DIR/icon.svg" "$BUILD_DIR/assets/app/"
 cp "$PUBLIC_DIR/manifest.webmanifest" "$BUILD_DIR/assets/app/"
 
-# 3. Create rich offline standalone sanctuary HTML shell
+# 3. Create rich offline standalone sanctuary HTML shell with working notification test button
 cat << 'EOF' > "$BUILD_DIR/assets/app/index.html"
 <!DOCTYPE html>
 <html lang="en">
@@ -108,6 +116,19 @@ cat << 'EOF' > "$BUILD_DIR/assets/app/index.html"
       margin-bottom: 12px;
       box-shadow: 0 0 15px rgba(245, 158, 11, 0.35);
     }
+    .btn-secondary {
+      display: block;
+      width: 100%;
+      padding: 12px;
+      border-radius: 12px;
+      background: #292524;
+      color: #FCD34D;
+      font-weight: 700;
+      font-size: 13px;
+      cursor: pointer;
+      border: 1px solid rgba(212, 168, 83, 0.3);
+      margin-bottom: 12px;
+    }
     .stats {
       display: flex;
       justify-content: space-around;
@@ -124,12 +145,13 @@ cat << 'EOF' > "$BUILD_DIR/assets/app/index.html"
   <div class="card">
     <div class="badge">Nexora Standalone Habitat</div>
     <h1>Sanctuary Active</h1>
-    <p>Your local productivity OS is connected. Tap below to launch your live workspace matrix.</p>
+    <p>Your local productivity OS is connected. Tap below to launch your live workspace or test phone notifications.</p>
     <button class="btn" onclick="window.location.href='https://nexora-nine-kappa.vercel.app/dashboard'">Enter Sanctuary Live</button>
+    <button class="btn-secondary" onclick="if(window.NexoraNativeBridge){window.NexoraNativeBridge.requestNotificationPermission();window.NexoraNativeBridge.showNotification('⚡ Nexora Alert Test','Phone notifications and vibration are working properly!','nexora-test');}">🔔 Test Phone Notification</button>
     <div class="stats">
       <div class="stat-item"><div class="stat-num">Level 14</div><div class="stat-lbl">Rank</div></div>
       <div class="stat-item"><div class="stat-num">Active</div><div class="stat-lbl">Kyro AI</div></div>
-      <div class="stat-item"><div class="stat-num">Offline</div><div class="stat-lbl">Ready</div></div>
+      <div class="stat-item"><div class="stat-num">Ready</div><div class="stat-lbl">Alerts</div></div>
     </div>
   </div>
 </body>
@@ -183,8 +205,8 @@ cat << 'EOF' > "$BUILD_DIR/AndroidManifest.xml"
 <?xml version="1.0" encoding="utf-8"?>
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
     package="com.nexora.app"
-    android:versionCode="1"
-    android:versionName="1.0.0">
+    android:versionCode="2"
+    android:versionName="1.1.0">
 
     <uses-sdk
         android:minSdkVersion="21"
@@ -224,29 +246,45 @@ cat << 'EOF' > "$BUILD_DIR/src/com/nexora/app/MainActivity.java"
 package com.nexora.app;
 
 import android.app.Activity;
+import android.app.AlertDialog;
+import android.app.Notification;
+import android.app.NotificationManager;
+import android.app.PendingIntent;
+import android.content.Context;
+import android.content.DialogInterface;
+import android.content.Intent;
+import android.content.SharedPreferences;
+import android.content.pm.PackageManager;
+import android.graphics.Bitmap;
+import android.graphics.Color;
+import android.os.Build;
 import android.os.Bundle;
+import android.os.Handler;
+import android.os.Looper;
+import android.os.Vibrator;
+import android.speech.tts.TextToSpeech;
+import java.util.Locale;
 import android.view.KeyEvent;
 import android.view.View;
+import android.webkit.CookieManager;
+import android.webkit.JavascriptInterface;
 import android.webkit.WebChromeClient;
 import android.webkit.WebSettings;
 import android.webkit.WebView;
 import android.webkit.WebViewClient;
-import android.webkit.JavascriptInterface;
 import android.widget.ProgressBar;
-import android.graphics.Color;
-import android.app.Notification;
-import android.app.NotificationManager;
-import android.app.PendingIntent;
-import android.content.Intent;
-import android.os.Build;
-import android.content.pm.PackageManager;
+import android.widget.Toast;
 
-public class MainActivity extends Activity {
+public class MainActivity extends Activity implements TextToSpeech.OnInitListener {
     private WebView webView;
     private ProgressBar progressBar;
     private static final String APP_URL = "https://nexora-nine-kappa.vercel.app/dashboard";
     private static final String OFFLINE_URL = "file:///android_asset/app/index.html";
-    private static final String CHANNEL_ID = "nexora_alerts_channel";
+    private static final String CHANNEL_ID = "nexora_high_priority_channel";
+    private static final String PREFS_NAME = "nexora_native_prefs";
+    private static final int REQ_POST_NOTIFICATIONS = 101;
+    private TextToSpeech tts;
+    private boolean ttsReady = false;
 
     public class NativeBridge {
         @JavascriptInterface
@@ -254,7 +292,11 @@ public class MainActivity extends Activity {
             runOnUiThread(new Runnable() {
                 @Override
                 public void run() {
-                    displayNativeNotification(title, message, tag);
+                    displayNativeNotification(
+                        title != null && !title.isEmpty() ? title : "Nexora Sanctuary",
+                        message != null && !message.isEmpty() ? message : "Scheduled reminder active.",
+                        tag != null ? tag : "nexora-alert"
+                    );
                 }
             });
         }
@@ -264,16 +306,157 @@ public class MainActivity extends Activity {
             runOnUiThread(new Runnable() {
                 @Override
                 public void run() {
-                    if (Build.VERSION.SDK_INT >= 33) {
-                        requestPermissions(new String[]{"android.permission.POST_NOTIFICATIONS"}, 101);
+                    askOrTriggerNotificationPermission(true);
+                }
+            });
+        }
+
+        @JavascriptInterface
+        public boolean hasNotificationPermission() {
+            return isNotificationPermissionGranted();
+        }
+
+        @JavascriptInterface
+        public boolean isNative() {
+            return true;
+        }
+
+        @JavascriptInterface
+        public void vibrate(final long ms) {
+            runOnUiThread(new Runnable() {
+                @Override
+                public void run() {
+                    try {
+                        Vibrator v = (Vibrator) getSystemService(Context.VIBRATOR_SERVICE);
+                        if (v != null) {
+                            long duration = ms > 0 ? Math.min(ms, 2000L) : 50L;
+                            v.vibrate(duration);
+                        }
+                    } catch (Throwable ignored) {}
+                }
+            });
+        }
+
+        @JavascriptInterface
+        public void speakText(final String text) {
+            if (text == null || text.trim().isEmpty()) return;
+            runOnUiThread(new Runnable() {
+                @Override
+                public void run() {
+                    try {
+                        if (tts != null && ttsReady) {
+                            if (Build.VERSION.SDK_INT >= 21) {
+                                tts.speak(text, TextToSpeech.QUEUE_FLUSH, null, "nexora_tts_" + System.currentTimeMillis());
+                            } else {
+                                tts.speak(text, TextToSpeech.QUEUE_FLUSH, null);
+                            }
+                        }
+                    } catch (Throwable t) {
+                        t.printStackTrace();
                     }
                 }
             });
         }
 
         @JavascriptInterface
-        public boolean isNative() {
-            return true;
+        public void stopSpeaking() {
+            runOnUiThread(new Runnable() {
+                @Override
+                public void run() {
+                    try {
+                        if (tts != null) {
+                            tts.stop();
+                        }
+                    } catch (Throwable ignored) {}
+                }
+            });
+        }
+    }
+
+    private boolean isNotificationPermissionGranted() {
+        if (Build.VERSION.SDK_INT >= 33) {
+            try {
+                return checkSelfPermission("android.permission.POST_NOTIFICATIONS") == PackageManager.PERMISSION_GRANTED;
+            } catch (Throwable t) {
+                return true;
+            }
+        }
+        SharedPreferences prefs = getSharedPreferences(PREFS_NAME, MODE_PRIVATE);
+        return prefs.getBoolean("notif_allowed", true);
+    }
+
+    private void askOrTriggerNotificationPermission(final boolean fromUserAction) {
+        final SharedPreferences prefs = getSharedPreferences(PREFS_NAME, MODE_PRIVATE);
+
+        if (Build.VERSION.SDK_INT >= 33) {
+            if (checkSelfPermission("android.permission.POST_NOTIFICATIONS") != PackageManager.PERMISSION_GRANTED) {
+                requestPermissions(new String[]{"android.permission.POST_NOTIFICATIONS"}, REQ_POST_NOTIFICATIONS);
+                return;
+            }
+        }
+
+        if (!prefs.getBoolean("notif_prompt_shown", false)) {
+            try {
+                AlertDialog.Builder dlg = new AlertDialog.Builder(this);
+                dlg.setTitle("Enable Nexora Notifications");
+                dlg.setMessage("Allow Nexora to send phone notifications with sound and vibration 15 minutes before your scheduled tasks and habit windows?");
+                dlg.setCancelable(false);
+                dlg.setPositiveButton("Allow", new DialogInterface.OnClickListener() {
+                    @Override
+                    public void onClick(DialogInterface dialog, int which) {
+                        prefs.edit().putBoolean("notif_prompt_shown", true).putBoolean("notif_allowed", true).apply();
+                        if (Build.VERSION.SDK_INT >= 33 && checkSelfPermission("android.permission.POST_NOTIFICATIONS") != PackageManager.PERMISSION_GRANTED) {
+                            requestPermissions(new String[]{"android.permission.POST_NOTIFICATIONS"}, REQ_POST_NOTIFICATIONS);
+                        } else {
+                            displayNativeNotification(
+                                "⚡ Nexora Alerts Active",
+                                "Notifications are now working! You will be alerted before tasks and habit windows.",
+                                "nexora-welcome"
+                            );
+                            notifyWebPermissionResult(true);
+                        }
+                    }
+                });
+                dlg.setNegativeButton("Later", new DialogInterface.OnClickListener() {
+                    @Override
+                    public void onClick(DialogInterface dialog, int which) {
+                        prefs.edit().putBoolean("notif_prompt_shown", true).apply();
+                        dialog.dismiss();
+                    }
+                });
+                dlg.show();
+                return;
+            } catch (Throwable t) {
+                t.printStackTrace();
+            }
+        }
+
+        if (fromUserAction) {
+            prefs.edit().putBoolean("notif_allowed", true).apply();
+            displayNativeNotification(
+                "⚡ Nexora Alerts Active",
+                "Phone notifications are enabled and working properly!",
+                "nexora-confirm"
+            );
+            notifyWebPermissionResult(true);
+        }
+    }
+
+    private void notifyWebPermissionResult(final boolean granted) {
+        if (webView != null) {
+            webView.post(new Runnable() {
+                @Override
+                public void run() {
+                    if (Build.VERSION.SDK_INT >= 19) {
+                        webView.evaluateJavascript(
+                            "window.__nexoraNotifGranted = " + granted + "; if (window.onNexoraNotificationPermissionResult) { window.onNexoraNotificationPermissionResult(" + granted + "); }",
+                            null
+                        );
+                    } else {
+                        webView.loadUrl("javascript:window.__nexoraNotifGranted=" + granted + ";if(window.onNexoraNotificationPermissionResult){window.onNexoraNotificationPermissionResult(" + granted + ");}");
+                    }
+                }
+            });
         }
     }
 
@@ -284,7 +467,7 @@ public class MainActivity extends Activity {
                 java.lang.reflect.Constructor<?> constructor = channelClass.getConstructor(
                     String.class, CharSequence.class, int.class
                 );
-                // NotificationManager.IMPORTANCE_HIGH = 4
+                // IMPORTANCE_HIGH = 4 (Heads-up banner + sound + vibration)
                 Object channel = constructor.newInstance(CHANNEL_ID, "Nexora Sanctuary Alerts", 4);
 
                 java.lang.reflect.Method setDesc = channelClass.getMethod("setDescription", String.class);
@@ -293,12 +476,15 @@ public class MainActivity extends Activity {
                 java.lang.reflect.Method enableVib = channelClass.getMethod("enableVibration", boolean.class);
                 enableVib.invoke(channel, true);
 
+                java.lang.reflect.Method setVibPattern = channelClass.getMethod("setVibrationPattern", long[].class);
+                setVibPattern.invoke(channel, (Object) new long[]{0, 250, 100, 250});
+
                 NotificationManager manager = (NotificationManager) getSystemService(NOTIFICATION_SERVICE);
                 if (manager != null) {
                     java.lang.reflect.Method createMethod = manager.getClass().getMethod("createNotificationChannel", channelClass);
                     createMethod.invoke(manager, channel);
                 }
-            } catch (Exception e) {
+            } catch (Throwable e) {
                 e.printStackTrace();
             }
         }
@@ -306,46 +492,128 @@ public class MainActivity extends Activity {
 
     private void displayNativeNotification(String title, String message, String tag) {
         try {
+            createNotificationChannel();
+
+            // Trigger hardware vibration for tactile confirmation
+            try {
+                Vibrator v = (Vibrator) getSystemService(Context.VIBRATOR_SERVICE);
+                if (v != null) {
+                    v.vibrate(new long[]{0, 200, 100, 200}, -1);
+                }
+            } catch (Throwable ignored) {}
+
             Intent intent = new Intent(this, MainActivity.class);
             intent.setFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP | Intent.FLAG_ACTIVITY_SINGLE_TOP);
-            PendingIntent pendingIntent = PendingIntent.getActivity(
-                this, 0, intent,
-                PendingIntent.FLAG_UPDATE_CURRENT | (Build.VERSION.SDK_INT >= 23 ? PendingIntent.FLAG_IMMUTABLE : 0)
-            );
+            int flags = PendingIntent.FLAG_UPDATE_CURRENT;
+            if (Build.VERSION.SDK_INT >= 23) {
+                flags |= PendingIntent.FLAG_IMMUTABLE;
+            }
+            PendingIntent pendingIntent = PendingIntent.getActivity(this, 0, intent, flags);
 
-            Notification.Builder builder;
+            Notification.Builder builder = new Notification.Builder(this);
             if (Build.VERSION.SDK_INT >= 26) {
                 try {
-                    java.lang.reflect.Constructor<Notification.Builder> c = Notification.Builder.class.getConstructor(android.content.Context.class, String.class);
+                    java.lang.reflect.Constructor<Notification.Builder> c =
+                        Notification.Builder.class.getConstructor(Context.class, String.class);
                     builder = c.newInstance(this, CHANNEL_ID);
-                } catch (Exception e) {
-                    builder = new Notification.Builder(this);
+                } catch (Throwable e1) {
+                    try {
+                        java.lang.reflect.Method setChannel =
+                            builder.getClass().getMethod("setChannelId", String.class);
+                        setChannel.invoke(builder, CHANNEL_ID);
+                    } catch (Throwable ignored) {}
                 }
-            } else {
-                builder = new Notification.Builder(this);
+            }
+
+            int smallIcon = R.drawable.ic_launcher;
+            if (smallIcon == 0) {
+                smallIcon = getApplicationInfo().icon;
+            }
+            if (smallIcon == 0) {
+                smallIcon = android.R.drawable.ic_dialog_info;
             }
 
             builder.setContentTitle(title)
                    .setContentText(message)
-                   .setSmallIcon(R.mipmap.ic_launcher)
+                   .setSmallIcon(smallIcon)
                    .setContentIntent(pendingIntent)
-                   .setAutoCancel(true);
+                   .setAutoCancel(true)
+                   .setDefaults(Notification.DEFAULT_ALL);
 
             if (Build.VERSION.SDK_INT >= 21) {
                 builder.setPriority(Notification.PRIORITY_HIGH);
                 builder.setVisibility(Notification.VISIBILITY_PUBLIC);
             }
 
-            // Also trigger default sound and vibration
-            builder.setDefaults(Notification.DEFAULT_ALL);
-
             NotificationManager manager = (NotificationManager) getSystemService(NOTIFICATION_SERVICE);
             if (manager != null) {
-                int notifId = (int) (System.currentTimeMillis() % 100000);
-                manager.notify(tag != null && !tag.isEmpty() ? tag : "nexora", notifId, builder.build());
+                int notifId = (int) (System.currentTimeMillis() & 0x7fffffff);
+                manager.notify(notifId, builder.build());
             }
-        } catch (Exception e) {
+        } catch (Throwable e) {
             e.printStackTrace();
+            try {
+                Toast.makeText(this, title + ": " + message, Toast.LENGTH_LONG).show();
+            } catch (Throwable ignored) {}
+        }
+    }
+
+    private void injectWebNotificationPolyfill(WebView view) {
+        if (view == null) return;
+        String js = "(function(){" +
+            "if(window.__nexoraPolyfillInstalled) return;" +
+            "window.__nexoraPolyfillInstalled = true;" +
+            "var Bridge = window.NexoraNativeBridge;" +
+            "if(!Bridge) return;" +
+            "function NativeNotification(title, options){" +
+            "  var body = (options && options.body) ? options.body : '';" +
+            "  var tag = (options && options.tag) ? options.tag : 'nexora-alert';" +
+            "  Bridge.showNotification(String(title || 'Nexora Alert'), String(body), String(tag));" +
+            "  this.title = title;" +
+            "  this.body = body;" +
+            "  this.close = function(){};" +
+            "}" +
+            "NativeNotification.permission = 'granted';" +
+            "NativeNotification.requestPermission = function(cb){" +
+            "  Bridge.requestNotificationPermission();" +
+            "  if(typeof cb === 'function') cb('granted');" +
+            "  return Promise.resolve('granted');" +
+            "};" +
+            "window.Notification = NativeNotification;" +
+            "if(navigator.serviceWorker && window.ServiceWorkerRegistration){" +
+            "  ServiceWorkerRegistration.prototype.showNotification = function(title, options){" +
+            "    var body = (options && options.body) ? options.body : '';" +
+            "    var tag = (options && options.tag) ? options.tag : 'nexora-sw';" +
+            "    Bridge.showNotification(String(title || 'Nexora Alert'), String(body), String(tag));" +
+            "    return Promise.resolve();" +
+            "  };" +
+            "}" +
+            "})();";
+
+        if (Build.VERSION.SDK_INT >= 19) {
+            view.evaluateJavascript(js, null);
+        } else {
+            view.loadUrl("javascript:" + js);
+        }
+    }
+
+    @Override
+    public void onRequestPermissionsResult(int requestCode, String[] permissions, int[] grantResults) {
+        super.onRequestPermissionsResult(requestCode, permissions, grantResults);
+        if (requestCode == REQ_POST_NOTIFICATIONS) {
+            boolean granted = grantResults != null && grantResults.length > 0 && grantResults[0] == PackageManager.PERMISSION_GRANTED;
+            SharedPreferences prefs = getSharedPreferences(PREFS_NAME, MODE_PRIVATE);
+            prefs.edit().putBoolean("notif_prompt_shown", true).putBoolean("notif_allowed", granted).apply();
+
+            if (granted) {
+                displayNativeNotification(
+                    "⚡ Nexora Alerts Active",
+                    "Permission granted! Your phone will now sound and vibrate before scheduled tasks and habits.",
+                    "nexora-welcome"
+                );
+                Toast.makeText(this, "Nexora Notifications Enabled!", Toast.LENGTH_SHORT).show();
+            }
+            notifyWebPermissionResult(granted);
         }
     }
 
@@ -356,14 +624,6 @@ public class MainActivity extends Activity {
 
         createNotificationChannel();
 
-        // Immediately prompt for system notification permission on Android 13+
-        if (Build.VERSION.SDK_INT >= 33) {
-            if (checkSelfPermission("android.permission.POST_NOTIFICATIONS") != PackageManager.PERMISSION_GRANTED) {
-                requestPermissions(new String[]{"android.permission.POST_NOTIFICATIONS"}, 101);
-            }
-        }
-
-        // Obsidian immersion
         getWindow().getDecorView().setBackgroundColor(Color.parseColor("#0C0A09"));
 
         webView = (WebView) findViewById(R.id.webview);
@@ -377,9 +637,9 @@ public class MainActivity extends Activity {
         settings.setUseWideViewPort(true);
         settings.setLoadWithOverviewMode(true);
         settings.setCacheMode(WebSettings.LOAD_DEFAULT);
-        settings.setUserAgentString(settings.getUserAgentString() + " NexoraNativeAndroid/1.0.0");
+        settings.setUserAgentString(settings.getUserAgentString() + " NexoraNativeAndroid/1.1.0");
 
-        android.webkit.CookieManager cookieManager = android.webkit.CookieManager.getInstance();
+        CookieManager cookieManager = CookieManager.getInstance();
         cookieManager.setAcceptCookie(true);
         if (Build.VERSION.SDK_INT >= 21) {
             cookieManager.setAcceptThirdPartyCookies(webView, true);
@@ -393,6 +653,18 @@ public class MainActivity extends Activity {
             public boolean shouldOverrideUrlLoading(WebView view, String url) {
                 view.loadUrl(url);
                 return true;
+            }
+
+            @Override
+            public void onPageStarted(WebView view, String url, Bitmap favicon) {
+                super.onPageStarted(view, url, favicon);
+                injectWebNotificationPolyfill(view);
+            }
+
+            @Override
+            public void onPageFinished(WebView view, String url) {
+                super.onPageFinished(view, url);
+                injectWebNotificationPolyfill(view);
             }
 
             @Override
@@ -418,6 +690,46 @@ public class MainActivity extends Activity {
         } else {
             webView.restoreState(savedInstanceState);
         }
+
+        // Initialize native TextToSpeech engine
+        try {
+            tts = new TextToSpeech(this, this);
+        } catch (Throwable t) {
+            t.printStackTrace();
+        }
+
+        // Prompt for notification permission as soon as the Activity is visible
+        new Handler(Looper.getMainLooper()).postDelayed(new Runnable() {
+            @Override
+            public void run() {
+                askOrTriggerNotificationPermission(false);
+            }
+        }, 700);
+    }
+
+    @Override
+    public void onInit(int status) {
+        if (status == TextToSpeech.SUCCESS) {
+            try {
+                int res = tts.setLanguage(Locale.US);
+                if (res != TextToSpeech.LANG_MISSING_DATA && res != TextToSpeech.LANG_NOT_SUPPORTED) {
+                    ttsReady = true;
+                }
+            } catch (Throwable t) {
+                t.printStackTrace();
+            }
+        }
+    }
+
+    @Override
+    protected void onDestroy() {
+        if (tts != null) {
+            try {
+                tts.stop();
+                tts.shutdown();
+            } catch (Throwable ignored) {}
+        }
+        super.onDestroy();
     }
 
     @Override
@@ -455,7 +767,11 @@ javac -source 8 -target 8 \
 
 # 11. Dex byte-compilation
 echo "-> Converting class files to Dalvik DEX via dx..."
-java -jar /usr/share/java/com.android.dx.jar --dex --output="$BUILD_DIR/bin/classes.dex" "$BUILD_DIR/bin"
+DX_JAR="/usr/share/java/com.android.dx.jar"
+if [ ! -f "$DX_JAR" ]; then
+  DX_JAR="/usr/share/java/dx.jar"
+fi
+java -jar "$DX_JAR" --dex --output="$BUILD_DIR/bin/classes.dex" "$BUILD_DIR/bin"
 
 # 12. Package initial APK with aapt including raw assets (-A)
 echo "-> Packaging APK resources and assets with aapt..."

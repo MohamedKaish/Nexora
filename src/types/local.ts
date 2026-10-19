@@ -170,15 +170,27 @@ export const DEFAULT_AGENT_CONFIG: AgentConfig = {
   tone: 'Encouraging & concise',
 }
 
+export type MissionArchetype = 'software' | 'academic' | 'founder' | 'fitness' | string
+export type Chronotype = 'dawn' | 'solar' | 'midnight'
+export type CoachingTone = 'tactical' | 'hype' | 'zen'
+
 export interface LocalPreferences {
   displayName: string
   dateOfBirth?: string
   gender?: 'male' | 'female' | 'non-binary' | 'other' | 'prefer-not-to-say' | string
   title?: string
+  preferredTitle?: string
   bio?: string
   avatarUrl?: string
   theme: 'dark' | 'light' | 'system'
   onboardingComplete: boolean
+  isAuthenticated?: boolean
+  email?: string
+  missionArchetype?: MissionArchetype
+  chronotype?: Chronotype
+  wakeTime?: string
+  sleepTime?: string
+  coachingTone?: CoachingTone
   pomodoroDuration: number
   shortBreakDuration: number
   longBreakDuration: number
@@ -189,10 +201,18 @@ export const DEFAULT_PREFERENCES: LocalPreferences = {
   dateOfBirth: '',
   gender: 'prefer-not-to-say',
   title: 'Sanctuary Pioneer',
+  preferredTitle: 'Commander',
   bio: 'Navigating daily quests and mastering focus inside the Nexora habitat.',
   avatarUrl: '',
   theme: 'dark',
   onboardingComplete: false,
+  isAuthenticated: false,
+  email: '',
+  missionArchetype: 'software',
+  chronotype: 'dawn',
+  wakeTime: '07:00',
+  sleepTime: '22:30',
+  coachingTone: 'tactical',
   pomodoroDuration: 25,
   shortBreakDuration: 5,
   longBreakDuration: 15,

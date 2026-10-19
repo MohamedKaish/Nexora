@@ -5,6 +5,7 @@ import { usePathname, useRouter } from 'next/navigation'
 import { useTaskStore } from '@/store/useTaskStore'
 import { useHabitStore } from '@/store/useHabitStore'
 import { useFocusStore } from '@/store/useFocusStore'
+import { useNoteStore } from '@/store/useNoteStore'
 import { useAppStore } from '@/store/appStore'
 import { useKyroStore } from '@/store/kyroStore'
 import { KyroActionChip } from '@/types/kyro'
@@ -103,6 +104,17 @@ export function useKyroBrain() {
         case '/analytics':
           greeting = `Performance Intelligence loaded. Analyzing your streak retention and velocity curves.`
           break
+
+        case '/notes': {
+          const notesCount = useNoteStore.getState().notes.length
+          const remindersPending = useNoteStore.getState().notes.filter((n) => n.remindAt && !n.reminderFired).length
+          greeting = `Tactical Notes & Vault active, Boss! You have ${notesCount} active brief${notesCount === 1 ? '' : 's'} and ${remindersPending} scheduled reminder${remindersPending === 1 ? '' : 's'}.`
+          chips = [
+            { id: 'new_note', label: '➕ New Note', action: 'custom', payload: { actionType: 'create_note' } },
+            { id: 'check_reminders', label: '⏰ Check Reminders', action: 'custom', payload: { actionType: 'view_reminders' } },
+          ]
+          break
+        }
 
         case '/character':
           greeting = `Companion Atelier! Here you can customize my appearance, swap archetypes, or load 3D Blender models.`
@@ -243,6 +255,20 @@ export function useKyroBrain() {
 
       case 'toggle_voice': {
         toggleVoice()
+        break
+      }
+
+      case 'custom': {
+        if (chip.payload?.actionType === 'create_note') {
+          router.push('/notes')
+          speak('Opening Tactical Notes Vault to author a new objective brief.', 3500)
+        } else if (chip.payload?.actionType === 'view_reminders') {
+          router.push('/notes')
+          speak('Displaying all upcoming scheduled reminder timestamps.', 3500)
+        } else if (chip.payload?.taskId) {
+          router.push('/tasks')
+          speak('Locking on target task. Let us conquer it.', 3500)
+        }
         break
       }
 

@@ -2,11 +2,8 @@
 
 import React, { useState } from 'react'
 import { useAppStore } from '@/store/appStore'
-import { useCharacterStore } from '@/store/characterStore'
-import { Companion } from './Companion'
+import { useKyroStore } from '@/store/kyroStore'
 import { CompanionSelector } from './CompanionSelector'
-import { ORIGINAL_CREATURES } from './companion-data'
-import { normalizeArchetype } from './CompanionState'
 import {
   Sparkles,
   ArrowRight,
@@ -28,9 +25,7 @@ interface SanctuaryTutorialModalProps {
 export function SanctuaryTutorialModal({ isOpen, onClose }: SanctuaryTutorialModalProps) {
   const userName = useAppStore((s) => s.preferences.displayName) || 'Explorer'
   const agentName = useAppStore((s) => s.agentConfig.name) || 'Kyro'
-  const rawArch = useCharacterStore((s) => s.config.archetype)
-  const currentArchetype = normalizeArchetype(rawArch)
-  const creatureMeta = ORIGINAL_CREATURES[currentArchetype] || ORIGINAL_CREATURES.nyxen
+  const kyroSettings = useKyroStore((s) => s.settings)
 
   const [step, setStep] = useState(0)
   const [showSelector, setShowSelector] = useState(false)
@@ -40,9 +35,9 @@ export function SanctuaryTutorialModal({ isOpen, onClose }: SanctuaryTutorialMod
   const TUTORIAL_STEPS = [
     {
       title: `Welcome to your Sanctuary, ${userName}!`,
-      subtitle: `Bonded with ${creatureMeta.name} · ${creatureMeta.title}`,
+      subtitle: `Guided by ${agentName} · 3D Neural Companion`,
       mood: 'greeting' as const,
-      speech: `Greetings, ${userName}! I am ${creatureMeta.name}. I'm here not just as an assistant, but as your steadfast friend and ally in this digital realm.`,
+      speech: `Greetings, ${userName}! I am ${agentName}. I'm here not just as an assistant, but as your steadfast friend, J.A.R.V.I.S. guide, and tactical companion in this digital realm.`,
       content: (
         <div className="space-y-3 text-xs sm:text-sm text-stone-300 leading-relaxed">
           <p>
@@ -163,22 +158,26 @@ export function SanctuaryTutorialModal({ isOpen, onClose }: SanctuaryTutorialMod
         </button>
 
         <div className="grid grid-cols-1 sm:grid-cols-12 gap-6 items-center">
-          {/* Companion Stage (Left 5 cols) */}
+          {/* 3D Kyro Companion Stage (Left 5 cols) */}
           <div className="sm:col-span-5 flex flex-col items-center text-center">
-            <Companion
-              size={135}
-              showPlatform={true}
-              showGlow={true}
-              moodOverride={currentStepData.mood}
-              speechTextOverride={currentStepData.speech}
-            />
+            <div className="w-28 h-28 sm:w-32 sm:h-32 rounded-3xl bg-gradient-to-br from-amber-400/20 via-amber-500/10 to-stone-900 border border-amber-400/40 shadow-[0_0_30px_rgba(212,168,83,0.25)] flex flex-col items-center justify-center p-3 relative overflow-hidden group">
+              <span className="text-4xl drop-shadow mb-1 animate-bounce">
+                {kyroSettings.model === 'pyro_fox' ? '🦊' : kyroSettings.model === 'aegis_bot' ? '🛡️' : '✨'}
+              </span>
+              <span className="text-xs font-bold text-amber-300 font-serif">
+                {agentName}
+              </span>
+              <span className="text-[9px] font-mono text-stone-400 uppercase tracking-wider">
+                60 FPS 3D WebGL
+              </span>
+            </div>
 
             <div className="mt-3">
-              <span className="text-xs font-bold font-serif text-foreground block">
-                {creatureMeta.name}
+              <span className="text-xs font-bold font-serif text-foreground block uppercase">
+                {kyroSettings.model.replace('_', ' ')}
               </span>
               <span className="text-[10px] text-amber-400/80 font-semibold block">
-                {creatureMeta.title}
+                Costume: {kyroSettings.costume.replace('_', ' ')}
               </span>
 
               <button
@@ -186,7 +185,7 @@ export function SanctuaryTutorialModal({ isOpen, onClose }: SanctuaryTutorialMod
                 onClick={() => setShowSelector(!showSelector)}
                 className="mt-2 text-[10px] text-stone-400 hover:text-amber-300 underline font-medium cursor-pointer"
               >
-                {showSelector ? 'Hide Ally Selector' : 'Change Starting Ally'}
+                {showSelector ? 'Hide 3D Model Selector' : 'Change 3D Model'}
               </button>
             </div>
 

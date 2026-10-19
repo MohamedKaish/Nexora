@@ -2,7 +2,11 @@
 
 import React, { useEffect, useState } from 'react'
 import { startScheduleNotificationWatcher } from '@/lib/scheduleNotificationWatcher'
-import { getNotificationPermission, requestNotificationPermission, sendTestNotification } from '@/lib/notificationService'
+import {
+  getPhoneNotificationPermission,
+  requestPhoneNotificationPermission,
+  testPhoneNotificationAndSound,
+} from '@/utils/notificationBridge'
 import { Bell, X, ShieldCheck } from 'lucide-react'
 import { toast } from 'sonner'
 
@@ -10,35 +14,58 @@ export function ScheduleWatcherProvider() {
   const [showPermissionPrompt, setShowPermissionPrompt] = useState(false)
 
   useEffect(() => {
-    // 1. Start background schedule watcher for task & habit 15m and start alerts
+    // 1. Start background schedule watcher for tasks, habits, and tactical notes
     startScheduleNotificationWatcher()
 
-    // 2. If running inside native Android APK wrapper, invoke native permission dialog immediately
+    // 2. Listen for Native Android APK permission callback
     if (typeof window !== 'undefined') {
-      const nativeBridge = (window as unknown as { NexoraNativeBridge?: { requestNotificationPermission: () => void } }).NexoraNativeBridge
-      if (nativeBridge?.requestNotificationPermission) {
-        nativeBridge.requestNotificationPermission()
+      ;(window as unknown as { onNexoraNotificationPermissionResult?: (granted: boolean) => void }).onNexoraNotificationPermissionResult = (granted: boolean) => {
+        if (granted) {
+          localStorage.setItem('nexora_notif_granted', 'true')
+          setShowPermissionPrompt(false)
+          toast.success('Android Phone Alerts Active! Your device will sound and vibrate on schedule.')
+        }
+      }
+
+      const nativeBridge = (window as unknown as {
+        NexoraNativeBridge?: {
+          requestNotificationPermission?: () => void
+          hasNotificationPermission?: () => boolean
+        }
+      }).NexoraNativeBridge
+
+      if (nativeBridge) {
+        const alreadyGranted =
+          typeof nativeBridge.hasNotificationPermission === 'function'
+            ? nativeBridge.hasNotificationPermission()
+            : localStorage.getItem('nexora_notif_granted') === 'true'
+
+        if (!alreadyGranted && nativeBridge.requestNotificationPermission) {
+          nativeBridge.requestNotificationPermission()
+        }
       }
     }
 
-    // 3. Prompt for phone/browser notification permission
-    const perm = getNotificationPermission()
+    // 3. Prompt for phone/browser notification permission if not yet granted
+    const perm = getPhoneNotificationPermission()
+    const alreadyGrantedLocal = localStorage.getItem('nexora_notif_granted') === 'true'
     const dismissed = sessionStorage.getItem('nexora_notif_prompt_dismissed')
 
-    if (perm !== 'granted' && !dismissed) {
+    if (perm !== 'granted' && !alreadyGrantedLocal && !dismissed) {
       const timer = setTimeout(() => {
         setShowPermissionPrompt(true)
-      }, 800)
+      }, 700)
       return () => clearTimeout(timer)
     }
   }, [])
 
   const handleGrant = async () => {
     setShowPermissionPrompt(false)
-    const res = await requestNotificationPermission()
-    if (res === 'granted') {
-      toast.success('Phone alerts enabled! You will be alerted 15m before tasks and habit windows.')
-      await sendTestNotification()
+    const res = await requestPhoneNotificationPermission()
+    if (res === 'granted' || res === 'default') {
+      localStorage.setItem('nexora_notif_granted', 'true')
+      toast.success('Phone alerts enabled! You will be alerted 15m before tasks, habit windows, and reminder notes.')
+      await testPhoneNotificationAndSound()
     } else {
       toast.info('Notification preference saved.')
     }
@@ -62,7 +89,7 @@ export function ScheduleWatcherProvider() {
             <h4 className="text-xs font-bold text-stone-100 flex items-center gap-1.5">
               <span>Enable Phone Alerts</span>
               <span className="text-[10px] px-1.5 py-0.2 rounded bg-amber-400/20 text-amber-300 font-mono">
-                15m Reminders
+                Active Windows
               </span>
             </h4>
             <button
@@ -73,7 +100,7 @@ export function ScheduleWatcherProvider() {
             </button>
           </div>
           <p className="text-[11px] text-stone-400 leading-relaxed">
-            Allow phone notifications so your device rings and vibrates 15 minutes before scheduled tasks and habit windows open.
+            Allow phone notifications so your device rings and vibrates 15 minutes before scheduled tasks, habit horizons, and reminder notes.
           </p>
           <div className="pt-2 flex items-center gap-2">
             <button

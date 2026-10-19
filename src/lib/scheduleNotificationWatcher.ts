@@ -1,6 +1,7 @@
 import { useTaskStore } from '@/store/useTaskStore'
 import { useHabitStore } from '@/store/useHabitStore'
-import { sendNotification } from './notificationService'
+import { useNoteStore } from '@/store/useNoteStore'
+import { sendNexoraNotification } from '@/utils/notificationBridge'
 import { format } from 'date-fns'
 
 let isWatcherRunning = false
@@ -17,11 +18,30 @@ export function startScheduleNotificationWatcher() {
 
   const checkSchedule = async () => {
     try {
-      const todayStr = format(new Date(), 'yyyy-MM-dd')
       const now = new Date()
+      const todayStr = format(now, 'yyyy-MM-dd')
       const currentMinutes = now.getHours() * 60 + now.getMinutes()
+      const currentTimeMs = now.getTime()
 
-      // ─── 1. Check Tasks ───
+      // ─── 1. Check Tactical Reminder Notes ───
+      const notes = useNoteStore.getState().notes
+      for (const note of notes) {
+        if (!note.remindAt || note.reminderFired) continue
+
+        const reminderTimeMs = new Date(note.remindAt).getTime()
+        // If due within the last 2 minutes or reached right now
+        if (reminderTimeMs <= currentTimeMs && currentTimeMs - reminderTimeMs < 120000) {
+          useNoteStore.getState().markReminderFired(note.id)
+          await sendNexoraNotification(
+            `⏰ Reminder: ${note.title}`,
+            note.content || 'Tactical reminder note window is active!',
+            `note-reminder-${note.id}`,
+            true
+          )
+        }
+      }
+
+      // ─── 2. Check Tasks ───
       const tasks = useTaskStore.getState().tasks
       const todayTasks = tasks.filter((t) => {
         if (t.status === 'done') return false
@@ -44,13 +64,12 @@ export function startScheduleNotificationWatcher() {
         if (diffMinutes > 0 && diffMinutes <= 15) {
           if (!localStorage.getItem(key15m)) {
             localStorage.setItem(key15m, 'true')
-            await sendNotification(`⏳ Upcoming Task: ${task.title}`, {
-              body: `Scheduled to begin in ${diffMinutes} min (${task.startTime}). Prepare your focus chamber!`,
-              tag: `task-15m-${task.id}`,
-              type: 'task',
-              link: '/tasks',
-              playSound: true,
-            })
+            await sendNexoraNotification(
+              `⏳ Upcoming Task: ${task.title}`,
+              `Scheduled to begin in ${diffMinutes} min (${task.startTime}). Prepare your focus chamber!`,
+              `task-15m-${task.id}`,
+              true
+            )
           }
         }
 
@@ -59,55 +78,110 @@ export function startScheduleNotificationWatcher() {
         if (diffMinutes <= 0 && diffMinutes >= -5) {
           if (!localStorage.getItem(keyStart)) {
             localStorage.setItem(keyStart, 'true')
-            await sendNotification(`⚡ Task Window Active: ${task.title}`, {
-              body: `Your scheduled task window (${task.startTime}${task.endTime ? ' - ' + task.endTime : ''}) is now active!`,
-              tag: `task-start-${task.id}`,
-              type: 'task',
-              link: '/tasks',
-              playSound: true,
-            })
+            await sendNexoraNotification(
+              `⚡ Task Window Active: ${task.title}`,
+              `Your scheduled task window (${task.startTime}${task.endTime ? ' - ' + task.endTime : ''}) is now active!`,
+              `task-start-${task.id}`,
+              true
+            )
+          }
+        }
+
+        // Alert 3: Task Overdue check
+        if (task.endTime) {
+          const taskEndMinutes = timeToMinutes(task.endTime)
+          if (taskEndMinutes > 0 && currentMinutes > taskEndMinutes) {
+            const keyOverdue = `notif_task_overdue_${task.id}_${todayStr}`
+            if (!localStorage.getItem(keyOverdue)) {
+              localStorage.setItem(keyOverdue, 'true')
+              await sendNexoraNotification(
+                `⚠️ Task Overdue: ${task.title}`,
+                `Scheduled completion time (${task.endTime}) has passed. Realign your focus or reschedule.`,
+                `task-overdue-${task.id}`,
+                true
+              )
+            }
           }
         }
       }
 
-      // ─── 2. Check Habits ───
-      const habits = useHabitStore.getState().habits
-      const todayHabits = habits.filter((h) => h.hasTimeRange && h.startTime && (h.enableReminder !== false))
+      // ─── 3. Check Habits & Custom Time Windows ───
+      const habitState = useHabitStore.getState()
+      const habits = habitState.habits
+      const completions = habitState.completions
+      const todayHabits = habits.filter((h) => h.enableReminder !== false)
 
       for (const habit of todayHabits) {
-        if (!habit.startTime) continue
-        const habitStartMinutes = timeToMinutes(habit.startTime)
-        if (habitStartMinutes < 0) continue
+        // Resolve time window: custom start/end or default period windows
+        let startMin = habit.startTime ? timeToMinutes(habit.startTime) : -1
+        let endMin = habit.endTime ? timeToMinutes(habit.endTime) : -1
 
-        const diffMinutes = habitStartMinutes - currentMinutes
-
-        // Alert 1: 15 minutes before habit window
-        const key15m = `notif_habit_15m_${habit.id}_${todayStr}`
-        if (diffMinutes > 0 && diffMinutes <= 15) {
-          if (!localStorage.getItem(key15m)) {
-            localStorage.setItem(key15m, 'true')
-            await sendNotification(`⏳ Habit Horizon: ${habit.name}`, {
-              body: `Scheduled habit window opens in ${diffMinutes} min (${habit.startTime}). Stay consistent!`,
-              tag: `habit-15m-${habit.id}`,
-              type: 'habit',
-              link: '/habits',
-              playSound: true,
-            })
+        // Default periods if time range isn't manually set
+        if (startMin < 0 || endMin < 0) {
+          const legacyPeriod = (habit as unknown as { period?: string }).period
+          if (legacyPeriod === 'morning') {
+            startMin = 6 * 60 // 06:00
+            endMin = 11 * 60 // 11:00
+          } else if (legacyPeriod === 'afternoon') {
+            startMin = 12 * 60 // 12:00
+            endMin = 17 * 60 // 17:00
+          } else if (legacyPeriod === 'evening') {
+            startMin = 18 * 60 // 18:00
+            endMin = 22 * 60 + 30 // 22:30
           }
         }
 
-        // Alert 2: Habit window opens now
-        const keyStart = `notif_habit_start_${habit.id}_${todayStr}`
-        if (diffMinutes <= 0 && diffMinutes >= -5) {
-          if (!localStorage.getItem(keyStart)) {
-            localStorage.setItem(keyStart, 'true')
-            await sendNotification(`🔥 Habit Window Open: ${habit.name}`, {
-              body: `Your habit window (${habit.startTime}${habit.endTime ? ' - ' + habit.endTime : ''}) is active now. Complete your momentum!`,
-              tag: `habit-start-${habit.id}`,
-              type: 'habit',
-              link: '/habits',
-              playSound: true,
-            })
+        if (startMin >= 0) {
+          const diffStart = startMin - currentMinutes
+
+          // Alert: 15 minutes before habit window opens
+          const key15m = `notif_habit_15m_${habit.id}_${todayStr}`
+          if (diffStart > 0 && diffStart <= 15) {
+            if (!localStorage.getItem(key15m)) {
+              localStorage.setItem(key15m, 'true')
+              await sendNexoraNotification(
+                `⏳ Habit Horizon: ${habit.name}`,
+                `Scheduled habit window opens in ${diffStart} min (${habit.startTime || 'Scheduled'}). Stay consistent!`,
+                `habit-15m-${habit.id}`,
+                true
+              )
+            }
+          }
+
+          // Alert: Habit window opens now
+          const keyStart = `notif_habit_start_${habit.id}_${todayStr}`
+          if (diffStart <= 0 && diffStart >= -5) {
+            if (!localStorage.getItem(keyStart)) {
+              localStorage.setItem(keyStart, 'true')
+              await sendNexoraNotification(
+                `🔥 Habit Window Open: ${habit.name}`,
+                `Habit window is active now! Complete it to build your momentum streak.`,
+                `habit-start-${habit.id}`,
+                true
+              )
+            }
+          }
+        }
+
+        // Alert: Habit window closing in 30 minutes if not completed
+        if (endMin >= 0) {
+          const isDoneToday = completions.some(
+            (c) => c.habitId === habit.id && c.completedDate === todayStr
+          )
+          if (!isDoneToday) {
+            const diffEnd = endMin - currentMinutes
+            const keyClosing = `notif_habit_closing_${habit.id}_${todayStr}`
+            if (diffEnd > 0 && diffEnd <= 30) {
+              if (!localStorage.getItem(keyClosing)) {
+                localStorage.setItem(keyClosing, 'true')
+                await sendNexoraNotification(
+                  `⌛ Habit Closing Soon: ${habit.name}`,
+                  `Only ${diffEnd} minutes remaining in your habit window. Check it off before it closes!`,
+                  `habit-closing-${habit.id}`,
+                  true
+                )
+              }
+            }
           }
         }
       }
@@ -119,6 +193,6 @@ export function startScheduleNotificationWatcher() {
   // Initial check on load
   checkSchedule()
 
-  // Polling every 30 seconds
-  setInterval(checkSchedule, 30000)
+  // Polling every 20 seconds for precise time window notifications
+  setInterval(checkSchedule, 20000)
 }

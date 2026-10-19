@@ -1,6 +1,7 @@
 'use client'
 
 import React, { useState, useRef } from 'react'
+import { useRouter } from 'next/navigation'
 import { useAppStore } from '@/store/appStore'
 import { useTaskStore } from '@/store/useTaskStore'
 import { useHabitStore } from '@/store/useHabitStore'
@@ -26,11 +27,17 @@ import {
   Smartphone,
   Laptop,
   CheckCircle2,
+  Bell,
 } from 'lucide-react'
 import { toast } from 'sonner'
+import {
+  testPhoneNotificationAndSound,
+  requestPhoneNotificationPermission,
+} from '@/utils/notificationBridge'
 
 export default function SettingsPage() {
-  const { preferences, agentConfig, setDisplayName, setAgentName, setTheme } = useAppStore()
+  const router = useRouter()
+  const { preferences, agentConfig, setDisplayName, setAgentName, setTheme, recalibrate } = useAppStore()
   const { isInstallable, isInstalled, installApp, openInstallGuide, isIos } = usePwa()
 
   const [name, setName] = useState(preferences.displayName || '')
@@ -385,6 +392,22 @@ export default function SettingsPage() {
             </button>
 
             <button
+              onClick={() => {
+                recalibrate()
+                router.push('/login?tab=setup&recalibrate=true')
+              }}
+              className="p-4 rounded-xl bg-amber-400/10 border border-amber-400/30 hover:border-amber-400/60 text-left transition-all cursor-pointer flex items-center gap-3"
+            >
+              <div className="p-2.5 rounded-lg bg-amber-400/20 text-amber-300 shrink-0">
+                <Sparkles className="w-5 h-5" />
+              </div>
+              <div>
+                <h4 className="text-xs font-bold text-amber-300">Recalibrate Sanctuary Onboarding</h4>
+                <p className="text-[11px] text-stone-400">Step through the 5-step calibration flow to tune goals and companion.</p>
+              </div>
+            </button>
+
+            <button
               onClick={handleDeleteAccountAndData}
               className="p-4 rounded-xl bg-rose-950/20 border border-rose-900/50 hover:border-rose-500/60 text-left transition-all cursor-pointer flex items-center gap-3"
             >
@@ -397,6 +420,89 @@ export default function SettingsPage() {
               </div>
             </button>
           </div>
+        </div>
+
+        {/* ── PHONE NOTIFICATIONS & SOUND ENGINE CARD ── */}
+        <PhoneNotificationSettingsCard />
+      </div>
+    </div>
+  )
+}
+
+function PhoneNotificationSettingsCard() {
+  const [isTesting, setIsTesting] = useState(false)
+  const isNative = typeof window !== 'undefined' && Boolean((window as any).NexoraNativeBridge)
+
+  const handleTest = async () => {
+    setIsTesting(true)
+    try {
+      await testPhoneNotificationAndSound()
+    } finally {
+      setIsTesting(false)
+    }
+  }
+
+  const handlePrompt = async () => {
+    await requestPhoneNotificationPermission()
+    toast.success('Permission requested from device!')
+  }
+
+  return (
+    <div className="world-deck p-6 space-y-4 border border-amber-500/30">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pb-3 border-b border-stone-800">
+        <div className="flex items-center gap-2.5">
+          <div className="p-2 rounded-xl bg-amber-400/10 text-amber-400">
+            <Bell className="w-5 h-5" />
+          </div>
+          <div>
+            <h3 className="text-sm font-bold text-foreground">Phone Notifications &amp; Sound Engine</h3>
+            <p className="text-xs text-stone-400">
+              {isNative ? '⚡ Standalone Android APK Native Bridge Active' : 'Web & PWA Background Service Active'}
+            </p>
+          </div>
+        </div>
+
+        <div className="flex items-center gap-2">
+          <button
+            onClick={handlePrompt}
+            className="px-3 py-1.5 rounded-xl bg-stone-900 hover:bg-stone-800 border border-stone-800 text-stone-300 text-xs font-semibold cursor-pointer transition-colors"
+          >
+            Request Permission
+          </button>
+          <button
+            onClick={handleTest}
+            disabled={isTesting}
+            className="px-4 py-1.5 rounded-xl bg-gradient-to-r from-amber-400 to-amber-500 hover:from-amber-300 hover:to-amber-400 text-stone-950 font-bold text-xs flex items-center gap-1.5 cursor-pointer shadow-sm transition-all"
+          >
+            <Bell className="w-3.5 h-3.5" />
+            <span>{isTesting ? 'Transmitting...' : '🔔 Test Phone Notification & Sound'}</span>
+          </button>
+        </div>
+      </div>
+
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 text-xs">
+        <div className="p-3 rounded-xl bg-stone-900/60 border border-stone-800 space-y-1">
+          <span className="font-bold text-amber-300 flex items-center gap-1">
+            <span>Tasks</span>
+            <span className="text-[10px] text-stone-400 font-normal">• 15m Horizon</span>
+          </span>
+          <p className="text-[11px] text-stone-400">Rings &amp; vibrates 15m before task starts and when due.</p>
+        </div>
+
+        <div className="p-3 rounded-xl bg-stone-900/60 border border-stone-800 space-y-1">
+          <span className="font-bold text-amber-300 flex items-center gap-1">
+            <span>Habits</span>
+            <span className="text-[10px] text-stone-400 font-normal">• Window Alert</span>
+          </span>
+          <p className="text-[11px] text-stone-400">Warns 30m before morning, afternoon, or custom windows close.</p>
+        </div>
+
+        <div className="p-3 rounded-xl bg-stone-900/60 border border-stone-800 space-y-1">
+          <span className="font-bold text-amber-300 flex items-center gap-1">
+            <span>Tactical Notes</span>
+            <span className="text-[10px] text-stone-400 font-normal">• Exact Minute</span>
+          </span>
+          <p className="text-[11px] text-stone-400">Vocalizes Kyro speech and fires native alert on remindAt timestamp.</p>
         </div>
       </div>
     </div>
@@ -445,10 +551,25 @@ function KyroBrainSettingsCard() {
         }),
       })
       const data = await res.json()
-      setTestResult(`${data.provider}: "${data.speechBubble || data.reply}"`)
-      speak(data.speechBubble || 'Uplink test successful!', 4000)
-    } catch {
-      setTestResult('Ping failed. Operating in offline local engine.')
+      if (data.provider === 'gemini-2.5-flash') {
+        const text = `⚡ Connected to gemini-2.5-flash in ${data.latencyMs ?? 300}ms! Telemetry: "${data.speechBubble || data.reply}"`
+        setTestResult(text)
+        toast.success(`Connected to Gemini 2.5 Flash in ${data.latencyMs ?? 300}ms!`)
+        speak(data.speechBubble || 'Gemini 2.5 Flash neural uplink verified, Boss!', 5000)
+      } else if (data.errorReason) {
+        const text = `⚠️ Local Brain Fallback (${data.latencyMs ?? 1}ms). Notice: ${data.errorReason}`
+        setTestResult(text)
+        toast.warning(`Gemini notice: ${data.errorReason}`)
+        speak('Operating on 0ms Local Context Engine fallback.', 4000)
+      } else {
+        const text = `🛡️ 0ms Local Brain Active (${data.latencyMs ?? 1}ms): "${data.speechBubble || data.reply}"`
+        setTestResult(text)
+        toast.info('Local Context Engine telemetry verified.')
+        speak(data.speechBubble || 'Local systems nominal.', 4000)
+      }
+    } catch (e: any) {
+      setTestResult(`Ping failed: ${e?.message || 'Network unreachable'}. Operating in offline local engine.`)
+      toast.error('Ping failed to reach server.')
     } finally {
       setIsTesting(false)
     }

@@ -30,7 +30,7 @@ export default function HomePage() {
       if (onboardingComplete) {
         router.replace('/dashboard')
       } else {
-        router.replace('/setup')
+        router.replace('/login')
       }
     }
   }, [mounted, hasHydrated, onboardingComplete, router])
