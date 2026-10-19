@@ -6,9 +6,14 @@ import { NexoraLogo } from '@/components/brand/NexoraLogo'
 import { Download, X } from 'lucide-react'
 
 export function PwaInstallBanner() {
+  const [mounted, setMounted] = React.useState(false)
   const { isInstalled, showBanner, openDownloadModal, dismissInstallBanner, isIos } = usePwa()
 
-  if (isInstalled || !showBanner) return null
+  React.useEffect(() => {
+    setMounted(true)
+  }, [])
+
+  if (!mounted || isInstalled || !showBanner) return null
 
   return (
     <div className="fixed bottom-20 lg:bottom-6 right-4 sm:right-6 z-50 max-w-md w-[calc(100%-2rem)] sm:w-auto animate-in slide-in-from-bottom-5 duration-300">

@@ -31,6 +31,7 @@ import {
 import { format } from 'date-fns'
 
 export default function DedicatedAgentPage() {
+  const [mounted, setMounted] = useState(false)
   const {
     messages,
     isTyping,
@@ -43,6 +44,10 @@ export default function DedicatedAgentPage() {
     dismissAction,
     clearHistory,
   } = useKyroStore()
+
+  useEffect(() => {
+    setMounted(true)
+  }, [])
 
   const userName = useAppStore((s) => s.preferences.displayName) || 'Explorer'
   const agentName = useAppStore((s) => s.agentConfig.name) || 'Kyro'
@@ -102,6 +107,18 @@ export default function DedicatedAgentPage() {
   const handleQuickPrompt = (prompt: string) => {
     if (isTyping) return
     sendMessage(prompt, getContextInputs())
+  }
+
+  if (!mounted) {
+    return (
+      <div className="space-y-8 animate-in fade-in duration-300">
+        <div className="h-20 rounded-2xl bg-stone-900/40 border border-stone-800/60 animate-pulse" />
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
+          <div className="lg:col-span-4 h-96 rounded-2xl bg-stone-900/40 border border-stone-800/60 animate-pulse" />
+          <div className="lg:col-span-8 h-96 rounded-2xl bg-stone-900/40 border border-stone-800/60 animate-pulse" />
+        </div>
+      </div>
+    )
   }
 
   return (

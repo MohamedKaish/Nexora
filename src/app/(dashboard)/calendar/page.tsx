@@ -1,6 +1,6 @@
 'use client'
 
-import React, { useState } from 'react'
+import React, { useState, useEffect } from 'react'
 import { useTaskStore } from '@/store/useTaskStore'
 import { useHabitStore } from '@/store/useHabitStore'
 import { useGoalStore } from '@/store/useGoalStore'
@@ -27,6 +27,7 @@ import {
 } from 'date-fns'
 
 export default function CalendarPage() {
+  const [mounted, setMounted] = useState(false)
   const [currentMonth, setCurrentMonth] = useState(new Date())
   const [selectedDate, setSelectedDate] = useState(new Date())
 
@@ -34,6 +35,10 @@ export default function CalendarPage() {
   const completions = useHabitStore((s) => s.completions)
   const habits = useHabitStore((s) => s.habits)
   const goals = useGoalStore((s) => s.goals)
+
+  useEffect(() => {
+    setMounted(true)
+  }, [])
 
   const monthStart = startOfMonth(currentMonth)
   const monthEnd = endOfMonth(monthStart)
@@ -45,6 +50,15 @@ export default function CalendarPage() {
   const dayTasks = tasks.filter((t) => t.dueDate === selectedDateStr)
   const dayCompletions = completions.filter((c) => c.completedDate === selectedDateStr)
   const dayGoals = goals.filter((g) => g.periodEnd === selectedDateStr)
+
+  if (!mounted) {
+    return (
+      <div className="space-y-8 animate-in fade-in duration-300">
+        <div className="h-20 rounded-2xl bg-stone-900/40 border border-stone-800/60 animate-pulse" />
+        <div className="h-80 rounded-2xl bg-stone-900/40 border border-stone-800/60 animate-pulse" />
+      </div>
+    )
+  }
 
   return (
     <div className="space-y-8 animate-in fade-in duration-300">

@@ -167,6 +167,25 @@ export function AppShell({ children }: { children: React.ReactNode }) {
     }
   }, [])
 
+  // Hydration barrier: render clean skeleton during SSR and initial hydration
+  if (!mounted) {
+    return (
+      <div className="min-h-screen bg-stone-950 text-foreground flex flex-col items-center justify-center p-6">
+        <div className="flex flex-col items-center gap-4 text-center">
+          <div className="w-10 h-10 border-2 border-amber-400 border-t-transparent rounded-full animate-spin shadow-[0_0_20px_rgba(212,168,83,0.35)]" />
+          <div className="space-y-1">
+            <p className="text-xs font-mono font-bold tracking-widest uppercase text-amber-300">
+              Synchronizing Sanctuary Habitat...
+            </p>
+            <p className="text-[11px] text-stone-500 font-mono">
+              Offline-first local matrix verifying
+            </p>
+          </div>
+        </div>
+      </div>
+    )
+  }
+
   // In setup mode, render isolated setup layout without sidebar clutter
   if (pathname === '/setup') {
     return (

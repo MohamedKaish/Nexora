@@ -39,6 +39,7 @@ const WINDOW_PRESETS = [
 ]
 
 export default function HabitsPage() {
+  const [mounted, setMounted] = useState(false)
   const { habits, completions, addHabit, updateHabit, removeHabit, toggleCompletion } = useHabitStore()
   const celebrate = useCharacterStore((s) => s.celebrate)
 
@@ -61,6 +62,7 @@ export default function HabitsPage() {
   const [notifPermission, setNotifPermission] = useState<string>('default')
 
   React.useEffect(() => {
+    setMounted(true)
     setNotifPermission(getNotificationPermission())
   }, [])
 
@@ -170,6 +172,15 @@ export default function HabitsPage() {
   }, [habits, activeFilter])
 
   const habitColors = ['#34D399', '#60A5FA', '#A78BFA', '#FBBF24', '#FB7185', '#2DD4BF']
+
+  if (!mounted) {
+    return (
+      <div className="space-y-6 animate-in fade-in duration-300">
+        <div className="h-20 rounded-2xl bg-stone-900/40 border border-stone-800/60 animate-pulse" />
+        <div className="h-64 rounded-2xl bg-stone-900/40 border border-stone-800/60 animate-pulse" />
+      </div>
+    )
+  }
 
   return (
     <div className="space-y-6 animate-in fade-in duration-500">

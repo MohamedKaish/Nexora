@@ -38,6 +38,7 @@ const SOUNDSCAPES: Soundscape[] = [
 ]
 
 export default function FocusChamberPage() {
+  const [mounted, setMounted] = useState(false)
   const {
     mode,
     remainingSeconds,
@@ -48,6 +49,10 @@ export default function FocusChamberPage() {
     pauseTimer,
     resetTimer,
   } = useFocusStore()
+
+  useEffect(() => {
+    setMounted(true)
+  }, [])
 
   const tasks = useTaskStore((s) => s.tasks)
   const activeTasks = tasks.filter((t) => t.status !== 'done')
@@ -176,6 +181,15 @@ export default function FocusChamberPage() {
   )
 
   const selectedTask = tasks.find((t) => t.id === selectedTaskId)
+
+  if (!mounted) {
+    return (
+      <div className="space-y-8 animate-in fade-in duration-300">
+        <div className="h-20 rounded-2xl bg-stone-900/40 border border-stone-800/60 animate-pulse" />
+        <div className="h-96 rounded-2xl bg-stone-900/40 border border-stone-800/60 animate-pulse" />
+      </div>
+    )
+  }
 
   return (
     <div className="space-y-8 animate-in fade-in duration-300">

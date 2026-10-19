@@ -49,6 +49,8 @@ export default function AccountPage() {
   const goals = useGoalStore((s) => s.goals)
   const focusSessions = useFocusStore((s) => s.sessions)
 
+  const [mounted, setMounted] = useState(false)
+
   // Real-time calculated gamification statistics
   const levelInfo = useMemo(() => {
     return calculateProductivityLevel(tasks, habits, completions, focusSessions, goals)
@@ -66,6 +68,15 @@ export default function AccountPage() {
   const [title, setTitle] = useState(preferences.title || levelInfo.title)
   const [bio, setBio] = useState(preferences.bio || '')
   const [savedSuccess, setSavedSuccess] = useState(false)
+
+  React.useEffect(() => {
+    setMounted(true)
+    if (preferences.displayName) setDisplayName(preferences.displayName)
+    if (preferences.dateOfBirth) setDateOfBirth(preferences.dateOfBirth)
+    if (preferences.gender) setGender(preferences.gender)
+    if (preferences.title) setTitle(preferences.title)
+    if (preferences.bio) setBio(preferences.bio)
+  }, [preferences])
 
   const handleSave = (e: React.FormEvent) => {
     e.preventDefault()
@@ -85,6 +96,15 @@ export default function AccountPage() {
   const totalFocusMinutes = Math.round(
     focusSessions.reduce((acc, s) => acc + (s.durationSeconds || 0), 0) / 60
   )
+
+  if (!mounted) {
+    return (
+      <div className="space-y-8 animate-in fade-in duration-300 max-w-5xl mx-auto pb-12">
+        <div className="h-20 rounded-2xl bg-stone-900/40 border border-stone-800/60 animate-pulse" />
+        <div className="h-64 rounded-2xl bg-stone-900/40 border border-stone-800/60 animate-pulse" />
+      </div>
+    )
+  }
 
   return (
     <div className="space-y-8 animate-in fade-in duration-300 max-w-5xl mx-auto pb-12">

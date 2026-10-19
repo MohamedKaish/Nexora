@@ -11,9 +11,11 @@ import { Bell, X, ShieldCheck } from 'lucide-react'
 import { toast } from 'sonner'
 
 export function ScheduleWatcherProvider() {
+  const [mounted, setMounted] = useState(false)
   const [showPermissionPrompt, setShowPermissionPrompt] = useState(false)
 
   useEffect(() => {
+    setMounted(true)
     // 1. Start background schedule watcher for tasks, habits, and tactical notes
     startScheduleNotificationWatcher()
 
@@ -76,7 +78,7 @@ export function ScheduleWatcherProvider() {
     sessionStorage.setItem('nexora_notif_prompt_dismissed', 'true')
   }
 
-  if (!showPermissionPrompt) return null
+  if (!mounted || !showPermissionPrompt) return null
 
   return (
     <div className="fixed bottom-20 sm:bottom-6 right-4 sm:right-6 z-50 max-w-sm w-[calc(100vw-2rem)] p-4 rounded-2xl bg-stone-900/95 border border-amber-400/40 shadow-[0_10px_40px_rgba(0,0,0,0.8)] backdrop-blur-xl animate-in slide-in-from-bottom-5 duration-300">

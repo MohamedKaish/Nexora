@@ -20,6 +20,7 @@ import {
 } from 'lucide-react'
 
 export default function AnalyticsPage() {
+  const [mounted, setMounted] = React.useState(false)
   const userName = useAppStore((s) => s.preferences.displayName) || 'Explorer'
   const agentName = useAppStore((s) => s.agentConfig.name) || 'Kyro'
 
@@ -28,6 +29,10 @@ export default function AnalyticsPage() {
   const completions = useHabitStore((s) => s.completions)
   const focusSessions = useFocusStore((s) => s.sessions)
   const goals = useGoalStore((s) => s.goals)
+
+  React.useEffect(() => {
+    setMounted(true)
+  }, [])
 
   // Computed metrics
   const completedTasks = tasks.filter((t) => t.status === 'done').length
@@ -50,6 +55,20 @@ export default function AnalyticsPage() {
     activeGoals.length > 0
       ? Math.round(activeGoals.reduce((acc, curr) => acc + curr.progress, 0) / activeGoals.length)
       : 0
+
+  if (!mounted) {
+    return (
+      <div className="space-y-8 animate-in fade-in duration-300">
+        <div className="h-20 rounded-2xl bg-stone-900/40 border border-stone-800/60 animate-pulse" />
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+          <div className="h-28 rounded-2xl bg-stone-900/40 border border-stone-800/60 animate-pulse" />
+          <div className="h-28 rounded-2xl bg-stone-900/40 border border-stone-800/60 animate-pulse" />
+          <div className="h-28 rounded-2xl bg-stone-900/40 border border-stone-800/60 animate-pulse" />
+          <div className="h-28 rounded-2xl bg-stone-900/40 border border-stone-800/60 animate-pulse" />
+        </div>
+      </div>
+    )
+  }
 
   return (
     <div className="space-y-8 animate-in fade-in duration-300">

@@ -86,6 +86,14 @@ export function KyroCompanion3D() {
   const [isTestingKey, setIsTestingKey] = useState(false)
   const [testResult, setTestResult] = useState<string | null>(null)
 
+  const containerRef = useRef<HTMLDivElement | null>(null)
+  const isDraggingRef = useRef(false)
+  const [mounted, setMounted] = useState(false)
+
+  useEffect(() => {
+    setMounted(true)
+  }, [])
+
   // Responsive mobile scaling & Android APK detection
   const [isMobile, setIsMobile] = useState(false)
   const [scaleMode, setScaleMode] = useState<'compact' | 'standard'>('standard')
@@ -113,8 +121,6 @@ export function KyroCompanion3D() {
   const isCompact = scaleMode === 'compact' || isMobile
   const stageWidth = isCompact ? 125 : 190
   const stageHeight = isCompact ? 140 : 210
-
-  const dragOffset = useRef({ x: 0, y: 0 })
 
   // Keep refs updated for the Three.js 60FPS loop without causing re-renders
   const animStateRef = useRef(animationState)
@@ -167,53 +173,71 @@ export function KyroCompanion3D() {
     }
   }, [showHistory, messages])
 
-  // Unified Pointer & Touch Dragging (Clamped safely to viewport on PC & Android WebView)
+  // ── MOUSE GAZE TRACKING (ONLY FOR 3D HEAD/EYE ROTATION - NEVER MOVES CONTAINER) ──
   useEffect(() => {
-    const updatePosition = (clientX: number, clientY: number) => {
+    const handleGazeMove = (e: MouseEvent) => {
+      if (typeof window === 'undefined') return
       mouseRef.current = {
-        x: (clientX / window.innerWidth) * 2 - 1,
-        y: -(clientY / window.innerHeight) * 2 + 1,
-      }
-      if (isDragging) {
-        const maxX = Math.max(10, window.innerWidth - stageWidth - 16)
-        const maxY = Math.max(10, window.innerHeight - stageHeight - 24)
-        const newX = Math.max(10, Math.min(maxX, clientX - dragOffset.current.x))
-        const newY = Math.max(10, Math.min(maxY, clientY - dragOffset.current.y))
-        setCustomPosition({ x: newX, y: newY })
+        x: (e.clientX / window.innerWidth) * 2 - 1,
+        y: -(e.clientY / window.innerHeight) * 2 + 1,
       }
     }
 
-    const handlePointerMove = (e: PointerEvent) => {
-      updatePosition(e.clientX, e.clientY)
+    window.addEventListener('mousemove', handleGazeMove, { passive: true })
+    return () => {
+      window.removeEventListener('mousemove', handleGazeMove)
+    }
+  }, [])
+
+  // ── STRICT SCOPED DRAG HANDLER (ONLY ACTIVE WHEN USER INTENTIONALLY DRAGS HANDLE) ──
+  const startDrag = (startX: number, startY: number) => {
+    isDraggingRef.current = true
+    setIsDragging(true)
+
+    const rect = containerRef.current?.getBoundingClientRect()
+    const offsetX = rect ? startX - rect.left : stageWidth / 2
+    const offsetY = rect ? startY - rect.top : stageHeight / 2
+
+    const handlePointerMove = (e: PointerEvent | MouseEvent) => {
+      if (!isDraggingRef.current) return
+      const maxX = Math.max(10, window.innerWidth - stageWidth - 16)
+      const maxY = Math.max(10, window.innerHeight - stageHeight - 24)
+      const newX = Math.max(10, Math.min(maxX, e.clientX - offsetX))
+      const newY = Math.max(10, Math.min(maxY, e.clientY - offsetY))
+      setCustomPosition({ x: newX, y: newY })
     }
 
     const handleTouchMove = (e: TouchEvent) => {
-      if (e.touches[0]) {
-        if (isDragging) {
-          e.preventDefault()
-        }
-        updatePosition(e.touches[0].clientX, e.touches[0].clientY)
-      }
+      if (!isDraggingRef.current || !e.touches[0]) return
+      e.preventDefault()
+      const touch = e.touches[0]
+      const maxX = Math.max(10, window.innerWidth - stageWidth - 16)
+      const maxY = Math.max(10, window.innerHeight - stageHeight - 24)
+      const newX = Math.max(10, Math.min(maxX, touch.clientX - offsetX))
+      const newY = Math.max(10, Math.min(maxY, touch.clientY - offsetY))
+      setCustomPosition({ x: newX, y: newY })
     }
 
-    const handleEnd = () => setIsDragging(false)
+    const handleDragEnd = () => {
+      isDraggingRef.current = false
+      setIsDragging(false)
+      window.removeEventListener('pointermove', handlePointerMove)
+      window.removeEventListener('pointerup', handleDragEnd)
+      window.removeEventListener('pointercancel', handleDragEnd)
+      window.removeEventListener('mousemove', handlePointerMove)
+      window.removeEventListener('mouseup', handleDragEnd)
+      window.removeEventListener('touchmove', handleTouchMove)
+      window.removeEventListener('touchend', handleDragEnd)
+    }
 
     window.addEventListener('pointermove', handlePointerMove, { passive: true })
-    window.addEventListener('pointerup', handleEnd)
+    window.addEventListener('pointerup', handleDragEnd)
+    window.addEventListener('pointercancel', handleDragEnd)
+    window.addEventListener('mousemove', handlePointerMove)
+    window.addEventListener('mouseup', handleDragEnd)
     window.addEventListener('touchmove', handleTouchMove, { passive: false })
-    window.addEventListener('touchend', handleEnd)
-    window.addEventListener('mousemove', (e) => updatePosition(e.clientX, e.clientY))
-    window.addEventListener('mouseup', handleEnd)
-
-    return () => {
-      window.removeEventListener('pointermove', handlePointerMove)
-      window.removeEventListener('pointerup', handleEnd)
-      window.removeEventListener('touchmove', handleTouchMove)
-      window.removeEventListener('touchend', handleEnd)
-      window.removeEventListener('mousemove', (e) => updatePosition(e.clientX, e.clientY))
-      window.removeEventListener('mouseup', handleEnd)
-    }
-  }, [isDragging, stageWidth, stageHeight, setCustomPosition])
+    window.addEventListener('touchend', handleDragEnd)
+  }
 
   // ── THREE.JS 60FPS WEBGL SCENE WITH COSTUMES & COLOR THEMES ──
   useEffect(() => {
@@ -722,6 +746,11 @@ export function KyroCompanion3D() {
     }
   }
 
+  // Hydration barrier: do not render on server
+  if (!mounted) {
+    return null
+  }
+
   // Compute position
   const positionStyle: React.CSSProperties = customPosition
     ? { left: `${customPosition.x}px`, top: `${customPosition.y}px` }
@@ -734,7 +763,7 @@ export function KyroCompanion3D() {
   // Minimized Pill
   if (settings.isMinimized) {
     return (
-      <div style={positionStyle} className="fixed z-50 pointer-events-auto">
+      <div ref={containerRef} style={positionStyle} className="fixed z-50 pointer-events-auto">
         <button
           onClick={toggleMinimized}
           className="flex items-center gap-2.5 px-4 py-2.5 rounded-full bg-stone-950/90 border border-amber-500/40 text-stone-100 shadow-xl hover:border-amber-400 transition-all cursor-pointer"
@@ -749,6 +778,7 @@ export function KyroCompanion3D() {
 
   return (
     <div
+      ref={containerRef}
       style={positionStyle}
       className="fixed z-50 flex flex-col items-end pointer-events-none select-none transition-transform duration-75"
     >
@@ -908,31 +938,43 @@ export function KyroCompanion3D() {
 
         {/* ── FLOATING MINI CONTROL DECK ── */}
         <div className="flex items-center justify-center gap-1 px-3 py-1.5 rounded-full bg-stone-950/95 backdrop-blur-md border border-stone-800 shadow-xl">
-          {/* Drag Handle (Touch & Mouse unified) */}
+          {/* Drag Handle (Scoped Pointer & Touch Dragging) */}
           <button
             style={{ touchAction: 'none' }}
             onPointerDown={(e) => {
               e.preventDefault()
-              const rect = e.currentTarget.parentElement?.parentElement?.getBoundingClientRect()
-              if (rect) {
-                dragOffset.current = { x: e.clientX - rect.left, y: e.clientY - rect.top }
-                setIsDragging(true)
-              }
+              startDrag(e.clientX, e.clientY)
             }}
             onTouchStart={(e) => {
-              const touch = e.touches[0]
-              if (!touch) return
-              const rect = e.currentTarget.parentElement?.parentElement?.getBoundingClientRect()
-              if (rect) {
-                dragOffset.current = { x: touch.clientX - rect.left, y: touch.clientY - rect.top }
-                setIsDragging(true)
+              if (e.touches[0]) {
+                startDrag(e.touches[0].clientX, e.touches[0].clientY)
               }
             }}
-            className="p-1 text-stone-400 hover:text-amber-400 transition-colors cursor-grab active:cursor-grabbing"
-            title="Drag Kyro anywhere (Touch & Mouse enabled)"
+            onDoubleClick={() => {
+              setCustomPosition(null)
+              toast.info('Companion snapped back to anchor corner')
+            }}
+            className={`p-1 transition-colors cursor-grab active:cursor-grabbing ${
+              isDragging ? 'text-amber-400' : 'text-stone-400 hover:text-amber-400'
+            }`}
+            title="Drag Kyro anywhere (Double-click to reset to corner)"
           >
             <Move className="w-3.5 h-3.5" />
           </button>
+
+          {/* Reset position to anchor corner if customized */}
+          {customPosition && (
+            <button
+              onClick={() => {
+                setCustomPosition(null)
+                toast.info('Companion re-anchored to screen corner')
+              }}
+              className="p-1 text-amber-400 hover:text-amber-300 transition-colors cursor-pointer"
+              title="Snap back to default screen corner"
+            >
+              <RotateCcw className="w-3.5 h-3.5" />
+            </button>
+          )}
 
           {/* 3D Wardrobe & Colors Popover Trigger */}
           <button

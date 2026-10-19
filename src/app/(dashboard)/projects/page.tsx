@@ -6,8 +6,13 @@ import { useTaskStore } from '@/store/useTaskStore'
 import { FolderKanban, Plus, Trash2, CheckCircle2 } from 'lucide-react'
 
 export default function ProjectsPage() {
+  const [mounted, setMounted] = useState(false)
   const { projects, addProject, removeProject } = useProjectStore()
   const tasks = useTaskStore((s) => s.tasks)
+
+  React.useEffect(() => {
+    setMounted(true)
+  }, [])
 
   const [showAddModal, setShowAddModal] = useState(false)
   const [newName, setNewName] = useState('')
@@ -26,6 +31,19 @@ export default function ProjectsPage() {
     setNewName('')
     setNewDesc('')
     setShowAddModal(false)
+  }
+
+  if (!mounted) {
+    return (
+      <div className="space-y-6 animate-in fade-in duration-300">
+        <div className="h-16 rounded-2xl bg-stone-900/40 border border-stone-800/60 animate-pulse" />
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
+          <div className="h-44 rounded-2xl bg-stone-900/40 border border-stone-800/60 animate-pulse" />
+          <div className="h-44 rounded-2xl bg-stone-900/40 border border-stone-800/60 animate-pulse" />
+          <div className="h-44 rounded-2xl bg-stone-900/40 border border-stone-800/60 animate-pulse" />
+        </div>
+      </div>
+    )
   }
 
   return (

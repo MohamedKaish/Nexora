@@ -1,6 +1,6 @@
 'use client'
 
-import React, { useState } from 'react'
+import React, { useState, useEffect } from 'react'
 import { useTimelineStore } from '@/store/timelineStore'
 import {
   CalendarDays,
@@ -32,7 +32,12 @@ const CATEGORIES = [
 ]
 
 export default function TimetablePage() {
+  const [mounted, setMounted] = useState(false)
   const { slots, addSlot, removeSlot } = useTimelineStore()
+
+  useEffect(() => {
+    setMounted(true)
+  }, [])
 
   const [selectedDay, setSelectedDay] = useState<number>(1) // Monday
   const [isAddOpen, setIsAddOpen] = useState(false)
@@ -74,6 +79,15 @@ export default function TimetablePage() {
       slotA.id !== slotB.id &&
       slotA.startTime < slotB.endTime &&
       slotA.endTime > slotB.startTime
+    )
+  }
+
+  if (!mounted) {
+    return (
+      <div className="space-y-8 animate-in fade-in duration-300">
+        <div className="h-20 rounded-2xl bg-stone-900/40 border border-stone-800/60 animate-pulse" />
+        <div className="h-64 rounded-2xl bg-stone-900/40 border border-stone-800/60 animate-pulse" />
+      </div>
     )
   }
 

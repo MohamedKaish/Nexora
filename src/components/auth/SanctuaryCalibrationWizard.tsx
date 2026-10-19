@@ -186,7 +186,12 @@ export function SanctuaryCalibrationWizard({
   const { preferences, completeOnboarding, setDisplayName: setStoreName } = useAppStore()
   const { setModel, setCostume, setColorTheme, speak, setAnimationState } = useKyroStore()
 
+  const [mounted, setMounted] = useState(false)
   const [step, setStep] = useState(initialStep)
+
+  useEffect(() => {
+    setMounted(true)
+  }, [])
 
   // ── Step 1 State ──
   const [email, setEmail] = useState(preferences.email || 'architect@nexora.local')
@@ -394,6 +399,15 @@ export function SanctuaryCalibrationWizard({
       toast.error('An error occurred during calibration. Please try again.')
       setIsSubmitting(false)
     }
+  }
+
+  if (!mounted) {
+    return (
+      <div className="w-full max-w-3xl mx-auto space-y-6">
+        <div className="h-20 rounded-3xl bg-stone-900/40 border border-stone-800/60 animate-pulse" />
+        <div className="h-96 rounded-3xl bg-stone-900/40 border border-stone-800/60 animate-pulse" />
+      </div>
+    )
   }
 
   return (

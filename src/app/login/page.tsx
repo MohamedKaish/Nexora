@@ -48,12 +48,8 @@ function LoginContent() {
   const { preferences, login } = useAppStore()
   const { speak, setAnimationState } = useKyroStore()
 
-  const [activeTab, setActiveTab] = useState<'calibration' | 'returning'>(() => {
-    if (tabParam === 'returning' || (!recalibrateParam && isUserOnboarded())) {
-      return 'returning'
-    }
-    return 'calibration'
-  })
+  const [mounted, setMounted] = useState(false)
+  const [activeTab, setActiveTab] = useState<'calibration' | 'returning'>('calibration')
 
   // Returning User Form State
   const [returnEmail, setReturnEmail] = useState(preferences.email || 'architect@nexora.local')
@@ -61,10 +57,27 @@ function LoginContent() {
   const [isAuthenticating, setIsAuthenticating] = useState(false)
 
   useEffect(() => {
+    setMounted(true)
     if (recalibrateParam === 'true') {
       setActiveTab('calibration')
+    } else if (tabParam === 'returning' || isUserOnboarded()) {
+      setActiveTab('returning')
     }
-  }, [recalibrateParam])
+    if (preferences.email) {
+      setReturnEmail(preferences.email)
+    }
+  }, [recalibrateParam, tabParam, preferences.email])
+
+  if (!mounted) {
+    return (
+      <div className="min-h-screen bg-stone-950 text-foreground flex items-center justify-center p-6">
+        <div className="flex items-center gap-3 p-4 rounded-2xl bg-stone-900 border border-stone-800 text-amber-400 font-mono text-xs">
+          <Zap className="w-4 h-4 animate-spin text-amber-400" />
+          <span>Synchronizing Sanctuary Gateway...</span>
+        </div>
+      </div>
+    )
+  }
 
   const handleReturningLogin = (e: React.FormEvent) => {
     e.preventDefault()

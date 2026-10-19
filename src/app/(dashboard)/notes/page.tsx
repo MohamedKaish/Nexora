@@ -1,6 +1,6 @@
 'use client'
 
-import React, { useState, useMemo } from 'react'
+import React, { useState, useMemo, useEffect } from 'react'
 import {
   useNoteStore,
   TacticalNote,
@@ -90,6 +90,7 @@ const COLOR_MAP: Record<
 }
 
 export default function NotesPage() {
+  const [mounted, setMounted] = useState(false)
   const {
     notes,
     addNote,
@@ -102,6 +103,10 @@ export default function NotesPage() {
     snoozeReminder,
     convertToTask,
   } = useNoteStore()
+
+  useEffect(() => {
+    setMounted(true)
+  }, [])
 
   const [search, setSearch] = useState('')
   const [filter, setFilter] = useState<'all' | 'pinned' | 'reminders' | 'urgent' | 'checklists'>('all')
@@ -218,6 +223,20 @@ export default function NotesPage() {
       true
     )
     toast.success('Test alert transmitted to phone and audio engine!')
+  }
+
+  if (!mounted) {
+    return (
+      <div className="space-y-8 animate-in fade-in duration-300 pb-16">
+        <div className="h-20 rounded-2xl bg-stone-900/40 border border-stone-800/60 animate-pulse" />
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+          <div className="h-16 rounded-2xl bg-stone-900/40 border border-stone-800/60 animate-pulse" />
+          <div className="h-16 rounded-2xl bg-stone-900/40 border border-stone-800/60 animate-pulse" />
+          <div className="h-16 rounded-2xl bg-stone-900/40 border border-stone-800/60 animate-pulse" />
+          <div className="h-16 rounded-2xl bg-stone-900/40 border border-stone-800/60 animate-pulse" />
+        </div>
+      </div>
+    )
   }
 
   return (

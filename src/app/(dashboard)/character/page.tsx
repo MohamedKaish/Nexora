@@ -1,6 +1,6 @@
 'use client'
 
-import React, { useState } from 'react'
+import React, { useState, useEffect } from 'react'
 import { useCharacterStore, ARCHETYPES_META } from '@/store/characterStore'
 import { useAppStore } from '@/store/appStore'
 import { Companion } from '@/components/companion/Companion'
@@ -47,6 +47,7 @@ const MOOD_TESTS: Array<{ id: CompanionMood; label: string; icon: React.ElementT
 ]
 
 export default function CharacterAtelierPage() {
+  const [mounted, setMounted] = useState(false)
   const {
     config,
     setArchetype,
@@ -55,6 +56,10 @@ export default function CharacterAtelierPage() {
     randomize,
     resetConfig,
   } = useCharacterStore()
+
+  useEffect(() => {
+    setMounted(true)
+  }, [])
 
   const agentName = useAppStore((s) => s.agentConfig.name) || 'Kyro'
   const setAgentName = useAppStore((s) => s.setAgentName)
@@ -67,6 +72,15 @@ export default function CharacterAtelierPage() {
 
   const currentArchetype = normalizeArchetype(config.archetype)
   const activeCreature = ORIGINAL_CREATURES[currentArchetype] || ORIGINAL_CREATURES.nyxen
+
+  if (!mounted) {
+    return (
+      <div className="space-y-8 animate-in fade-in duration-300">
+        <div className="h-20 rounded-2xl bg-stone-900/40 border border-stone-800/60 animate-pulse" />
+        <div className="h-80 rounded-2xl bg-stone-900/40 border border-stone-800/60 animate-pulse" />
+      </div>
+    )
+  }
 
   return (
     <div className="space-y-8 animate-in fade-in duration-300">

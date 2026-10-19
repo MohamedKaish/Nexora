@@ -6,10 +6,15 @@ import { GoalType } from '@/types/local'
 import { Target, Plus, CheckCircle2, Trash2 } from 'lucide-react'
 
 export default function GoalsPage() {
+  const [mounted, setMounted] = useState(false)
   const { goals, addGoal, updateGoal, removeGoal } = useGoalStore()
   const [showAddModal, setShowAddModal] = useState(false)
   const [newTitle, setNewTitle] = useState('')
   const [newType, setNewType] = useState<GoalType>('weekly')
+
+  React.useEffect(() => {
+    setMounted(true)
+  }, [])
 
   const activeGoals = goals.filter((g) => g.status === 'active')
   const completedGoals = goals.filter((g) => g.status === 'completed')
@@ -24,6 +29,15 @@ export default function GoalsPage() {
   const handleProgressChange = (id: string, progress: number) => {
     const status = progress >= 100 ? 'completed' : 'active'
     updateGoal(id, { progress, status })
+  }
+
+  if (!mounted) {
+    return (
+      <div className="space-y-6 animate-in fade-in duration-300">
+        <div className="h-16 rounded-2xl bg-stone-900/40 border border-stone-800/60 animate-pulse" />
+        <div className="h-64 rounded-2xl bg-stone-900/40 border border-stone-800/60 animate-pulse" />
+      </div>
+    )
   }
 
   return (

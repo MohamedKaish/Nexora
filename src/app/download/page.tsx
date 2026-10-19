@@ -23,10 +23,15 @@ import {
 import { toast } from 'sonner'
 
 export default function DownloadPage() {
+  const [mounted, setMounted] = useState(false)
   const { isInstallable, isInstalled, installApp, markAsInstalled, isIos } = usePwa()
   const [copiedSha, setCopiedSha] = useState(false)
   const [activePlatform, setActivePlatform] = useState<'android' | 'desktop' | 'ios'>('android')
   const [showReinstall, setShowReinstall] = useState(false)
+
+  React.useEffect(() => {
+    setMounted(true)
+  }, [])
 
   const sha256Fingerprint = 'AA:41:09:2C:90:BC:E4:27:DB:15:E2:08:B1:C7:28:EF:83:2B:32:1B:C3:03:6D:CB:1B:4F:96:89:6A:AF:BA:60'
   const apkDownloadUrl = '/download/Nexora.apk'
@@ -52,6 +57,14 @@ export default function DownloadPage() {
     toast.info('Starting Nexora.apk download...', {
       description: 'Check Chrome downloads to install once complete.',
     })
+  }
+
+  if (!mounted) {
+    return (
+      <div className="min-h-screen bg-stone-950 text-foreground flex items-center justify-center p-6">
+        <div className="w-10 h-10 border-2 border-amber-400 border-t-transparent rounded-full animate-spin" />
+      </div>
+    )
   }
 
   return (

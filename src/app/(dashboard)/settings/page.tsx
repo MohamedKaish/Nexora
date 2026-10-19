@@ -40,9 +40,16 @@ export default function SettingsPage() {
   const { preferences, agentConfig, setDisplayName, setAgentName, setTheme, recalibrate } = useAppStore()
   const { isInstallable, isInstalled, installApp, openInstallGuide, isIos } = usePwa()
 
+  const [mounted, setMounted] = useState(false)
   const [name, setName] = useState(preferences.displayName || '')
   const [agent, setAgent] = useState(agentConfig.name || 'Kyro')
   const [isSaved, setIsSaved] = useState(false)
+
+  React.useEffect(() => {
+    setMounted(true)
+    if (preferences.displayName) setName(preferences.displayName)
+    if (agentConfig.name) setAgent(agentConfig.name)
+  }, [preferences.displayName, agentConfig.name])
 
   // Export full sanctuary data as JSON
   const handleExportData = () => {
@@ -128,6 +135,15 @@ export default function SettingsPage() {
         window.location.href = '/setup'
       }
     }
+  }
+
+  if (!mounted) {
+    return (
+      <div className="space-y-8 animate-in fade-in duration-300 max-w-4xl">
+        <div className="h-20 rounded-2xl bg-stone-900/40 border border-stone-800/60 animate-pulse" />
+        <div className="h-64 rounded-2xl bg-stone-900/40 border border-stone-800/60 animate-pulse" />
+      </div>
+    )
   }
 
   return (

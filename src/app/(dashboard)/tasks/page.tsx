@@ -1,6 +1,6 @@
 'use client'
 
-import React, { useState } from 'react'
+import React, { useState, useEffect } from 'react'
 import { useTaskStore } from '@/store/useTaskStore'
 import { useProjectStore } from '@/store/useProjectStore'
 import { useCharacterStore } from '@/store/characterStore'
@@ -21,9 +21,14 @@ import {
 } from 'lucide-react'
 
 export default function TasksPage() {
+  const [mounted, setMounted] = useState(false)
   const { tasks, subtasks, addTask, toggleStatus, removeTask, addSubtask, toggleSubtask } = useTaskStore()
   const projects = useProjectStore((s) => s.projects)
   const celebrate = useCharacterStore((s) => s.celebrate)
+
+  useEffect(() => {
+    setMounted(true)
+  }, [])
 
   const [search, setSearch] = useState('')
   const [filterStatus, setFilterStatus] = useState<'all' | 'active' | 'done'>('active')
@@ -89,6 +94,15 @@ export default function TasksPage() {
         (t.description && t.description.toLowerCase().includes(search.toLowerCase()))
       )
     })
+
+  if (!mounted) {
+    return (
+      <div className="space-y-6 animate-in fade-in duration-300">
+        <div className="h-16 rounded-2xl bg-stone-900/40 border border-stone-800/60 animate-pulse" />
+        <div className="h-64 rounded-2xl bg-stone-900/40 border border-stone-800/60 animate-pulse" />
+      </div>
+    )
+  }
 
   return (
     <div className="space-y-6 animate-in fade-in duration-500">

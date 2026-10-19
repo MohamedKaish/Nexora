@@ -114,6 +114,19 @@ export default function DashboardPage() {
     }
   }
 
+  if (!mounted) {
+    return (
+      <div className="space-y-8 animate-in fade-in duration-300">
+        <div className="h-64 rounded-3xl bg-stone-900/40 border border-stone-800/60 animate-pulse" />
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+          <div className="h-44 rounded-2xl bg-stone-900/40 border border-stone-800/60 animate-pulse" />
+          <div className="h-44 rounded-2xl bg-stone-900/40 border border-stone-800/60 animate-pulse" />
+          <div className="h-44 rounded-2xl bg-stone-900/40 border border-stone-800/60 animate-pulse" />
+        </div>
+      </div>
+    )
+  }
+
   return (
     <div className="space-y-8 animate-in fade-in duration-500">
       {/* ─── THE WORLD STAGE: COMPANION & COMMAND CENTER ─── */}

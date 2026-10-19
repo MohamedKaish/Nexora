@@ -24,6 +24,7 @@ import {
 import { toast } from 'sonner'
 
 export default function NotificationsPage() {
+  const [mounted, setMounted] = useState(false)
   const agentName = useAppStore((s) => s.agentConfig.name) || 'Kyro'
   const { notifications, markAllAsRead, clearAll, removeNotification, toggleRead } =
     useNotificationStore()
@@ -32,6 +33,7 @@ export default function NotificationsPage() {
   const [notifPermission, setNotifPermission] = useState<string>('default')
 
   React.useEffect(() => {
+    setMounted(true)
     setNotifPermission(getNotificationPermission())
   }, [])
 
@@ -57,6 +59,15 @@ export default function NotificationsPage() {
   })
 
   const unreadCount = notifications.filter((n) => !n.isRead).length
+
+  if (!mounted) {
+    return (
+      <div className="space-y-8 animate-in fade-in duration-300">
+        <div className="h-20 rounded-2xl bg-stone-900/40 border border-stone-800/60 animate-pulse" />
+        <div className="h-64 rounded-2xl bg-stone-900/40 border border-stone-800/60 animate-pulse" />
+      </div>
+    )
+  }
 
   return (
     <div className="space-y-8 animate-in fade-in duration-300">
