@@ -25,7 +25,8 @@ export class KyroAIService {
   static async checkServerStatus(): Promise<{
     ok: boolean
     configured: boolean
-    provider: 'gemini-2.5-flash' | 'unavailable'
+    provider: string
+    model?: string
     message: string
   }> {
     try {
@@ -34,11 +35,12 @@ export class KyroAIService {
       return {
         ok: Boolean(data.ok),
         configured: Boolean(data.configured),
-        provider: data.configured ? 'gemini-2.5-flash' : 'unavailable',
+        provider: data.configured ? (data.provider || 'gemini-2.0-flash') : 'unavailable',
+        model: data.model,
         message:
           data.message ||
           (data.configured
-            ? 'Server-side GEMINI_API_KEY is configured.'
+            ? `Server-side GEMINI_API_KEY is configured for ${data.model || 'Gemini'}.`
             : 'GEMINI_API_KEY is not configured on the server.'),
       }
     } catch (err) {
@@ -78,7 +80,9 @@ export class KyroAIService {
       const data = await response.json().catch(() => ({}))
 
       const provider =
-        data.provider === 'gemini-2.5-flash' ? 'gemini-2.5-flash' : 'unavailable'
+        typeof data.provider === 'string' && data.provider !== 'unavailable'
+          ? data.provider
+          : 'unavailable'
       useKyroStore
         .getState()
         .setProviderTelemetry(provider, data.latencyMs ?? null, data.errorReason ?? null)

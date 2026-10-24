@@ -911,6 +911,144 @@ test('PHASE 6: Kyro AI Companion — Secure Integration, Context Honesty & Real 
       }
     }
   })
+
+  await t.test('8. Gemini API HTTP 404 diagnosis, fallback to 1.5-flash, and accurate status reporting', async () => {
+    const prevEnvKey = process.env.GEMINI_API_KEY
+    const prevModel = process.env.GEMINI_MODEL
+    const prevFetch = globalThis.fetch
+    process.env.GEMINI_API_KEY = 'AIzaSyTestServerOnlyEnvironmentKey999999'
+
+    try {
+      // 1. Verify custom GEMINI_MODEL via GET endpoint
+      process.env.GEMINI_MODEL = 'gemini-2.0-flash'
+      const getRes = await kyroGet()
+      const getData = await getRes.json()
+      assert.equal(getData.ok, true)
+      assert.equal(getData.model, 'gemini-2.0-flash')
+      assert.equal(getData.provider, 'gemini-2.0-flash')
+
+      // 2. Test 404 Fallback: Primary model returns 404, fallback to gemini-1.5-flash succeeds
+      const requestedUrls: string[] = []
+      globalThis.fetch = async (input: string | URL | Request) => {
+        const url = typeof input === 'string' ? input : input instanceof URL ? input.toString() : input.url
+        requestedUrls.push(url)
+
+        if (url.includes('models/gemini-2.0-flash')) {
+          // Simulate Google 404 Not Found for model
+          return new Response(
+            JSON.stringify({
+              error: {
+                code: 404,
+                message: 'models/gemini-2.0-flash is not found for API version v1beta',
+                status: 'NOT_FOUND',
+              },
+            }),
+            { status: 404, headers: { 'Content-Type': 'application/json' } }
+          )
+        }
+
+        if (url.includes('models/gemini-1.5-flash')) {
+          // Fallback succeeds
+          return new Response(
+            JSON.stringify({
+              candidates: [
+                {
+                  content: {
+                    parts: [{ text: 'Greetings from gemini-1.5-flash fallback!' }],
+                  },
+                },
+              ],
+            }),
+            { status: 200, headers: { 'Content-Type': 'application/json' } }
+          )
+        }
+
+        throw new Error(`Unexpected fetch URL: ${url}`)
+      }
+
+      const postReq = new Request('http://localhost/api/kyro', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ message: 'Hello' }),
+      })
+      const postRes = await kyroPost(postReq)
+      const postData = await postRes.json()
+
+      assert.equal(postRes.status, 200)
+      assert.equal(postData.ok, true)
+      assert.equal(postData.provider, 'gemini-1.5-flash')
+      assert.equal(postData.reply, 'Greetings from gemini-1.5-flash fallback!')
+      assert.ok(requestedUrls.some((u) => u.includes('models/gemini-2.0-flash')))
+      assert.ok(requestedUrls.some((u) => u.includes('models/gemini-1.5-flash')))
+
+      // 3. Test HTTP 401: Reported as authentication failure, never 404
+      globalThis.fetch = async () =>
+        new Response(
+          JSON.stringify({
+            error: {
+              code: 401,
+              message: 'API_KEY_INVALID: API key not valid. Please pass a valid API key.',
+              status: 'UNAUTHENTICATED',
+            },
+          }),
+          { status: 401, headers: { 'Content-Type': 'application/json' } }
+        )
+
+      const authReq = new Request('http://localhost/api/kyro', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ message: 'Hello' }),
+      })
+      const authRes = await kyroPost(authReq)
+      const authData = await authRes.json()
+
+      assert.equal(authRes.status, 400)
+      assert.equal(authData.ok, false)
+      assert.match(authData.errorReason, /authentication failed \(HTTP 401\)/)
+      assert.match(authData.reply, /authenticate with Google Gemini \(HTTP 401\)/)
+      // Confirm API key is never leaked
+      assert.doesNotMatch(authData.reply, /AIzaSy/)
+      assert.doesNotMatch(authData.errorReason, /AIzaSy/)
+
+      // 4. Test HTTP 404 when fallback is not available (e.g. model explicitly set to gemini-1.5-flash and that fails)
+      process.env.GEMINI_MODEL = 'gemini-1.5-flash'
+      globalThis.fetch = async () =>
+        new Response(
+          JSON.stringify({
+            error: {
+              code: 404,
+              message: 'models/gemini-1.5-flash is not found',
+              status: 'NOT_FOUND',
+            },
+          }),
+          { status: 404, headers: { 'Content-Type': 'application/json' } }
+        )
+
+      const notFoundReq = new Request('http://localhost/api/kyro', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ message: 'Hello' }),
+      })
+      const notFoundRes = await kyroPost(notFoundReq)
+      const notFoundData = await notFoundRes.json()
+
+      assert.equal(notFoundRes.status, 400)
+      assert.equal(notFoundData.ok, false)
+      assert.match(notFoundData.errorReason, /model 'gemini-1.5-flash' was not found \(HTTP 404\)/)
+    } finally {
+      globalThis.fetch = prevFetch
+      if (prevEnvKey !== undefined) {
+        process.env.GEMINI_API_KEY = prevEnvKey
+      } else {
+        delete process.env.GEMINI_API_KEY
+      }
+      if (prevModel !== undefined) {
+        process.env.GEMINI_MODEL = prevModel
+      } else {
+        delete process.env.GEMINI_MODEL
+      }
+    }
+  })
 })
 
 

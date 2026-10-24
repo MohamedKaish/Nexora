@@ -218,22 +218,24 @@ export default function CharacterAtelierPage() {
 
       const data = await res.json()
       const provider =
-        data.provider === 'gemini-2.5-flash' ? 'gemini-2.5-flash' : 'unavailable'
+        typeof data.provider === 'string' && data.provider !== 'unavailable'
+          ? data.provider
+          : 'unavailable'
       setProviderTelemetry(provider, data.latencyMs ?? null, data.errorReason ?? null)
 
       const replyText =
         data.speechBubble || data.reply || data.errorReason || 'Diagnostic check complete.'
       speak(replyText, 6000)
 
-      if (res.ok && data.provider === 'gemini-2.5-flash') {
+      if (res.ok && provider.startsWith('gemini')) {
         playChime('celebrate')
         setTestResult({
           ok: true,
-          provider: 'gemini-2.5-flash',
+          provider,
           latency: data.latencyMs || 120,
           message: replyText,
         })
-        toast.success(`Gemini 2.5 Flash connected (${data.latencyMs}ms)!`)
+        toast.success(`${provider} connected (${data.latencyMs}ms)!`)
       } else {
         playChime('click')
         setTestResult({
@@ -245,7 +247,7 @@ export default function CharacterAtelierPage() {
             data.errorReason ||
             'Server GEMINI_API_KEY is not configured.',
         })
-        toast.error(data.errorReason || 'Gemini 2.5 Flash is currently unavailable on the server.')
+        toast.error(data.errorReason || 'Gemini is currently unavailable on the server.')
       }
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : 'Connection test failed'
@@ -626,10 +628,10 @@ export default function CharacterAtelierPage() {
               </div>
 
               <div className="flex items-center gap-2">
-                {lastProvider === 'gemini-2.5-flash' ? (
+                {lastProvider && lastProvider.startsWith('gemini') ? (
                   <span className="px-2.5 py-1 rounded-full bg-emerald-500/15 border border-emerald-500/30 text-emerald-300 font-mono text-[10px] font-bold flex items-center gap-1">
                     <Zap className="w-3 h-3 text-emerald-400" />
-                    <span>GEMINI 2.5 FLASH • {lastLatencyMs ?? 0}ms</span>
+                    <span>{(lastProvider || 'GEMINI').toUpperCase().replace('-', ' ')} • {lastLatencyMs ?? 0}ms</span>
                   </span>
                 ) : (
                   <span className="px-2.5 py-1 rounded-full bg-amber-500/15 border border-amber-500/30 text-amber-300 font-mono text-[10px] font-bold flex items-center gap-1">
@@ -642,7 +644,7 @@ export default function CharacterAtelierPage() {
 
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
               <p className="text-xs text-stone-300 leading-relaxed">
-                Kyro communicates with Gemini 2.5 Flash exclusively through a secure server-only environment variable (<code className="text-amber-300 font-mono">GEMINI_API_KEY</code>). API keys are never requested in the browser or stored in client localStorage.
+                Kyro communicates with Google Gemini exclusively through a secure server-only environment variable (<code className="text-amber-300 font-mono">GEMINI_API_KEY</code>). API keys are never requested in the browser or stored in client localStorage.
               </p>
 
               <button
@@ -670,7 +672,7 @@ export default function CharacterAtelierPage() {
               >
                 <div className="font-bold mb-1">
                   {testResult.ok
-                    ? `✓ LIVE GEMINI 2.5 FLASH CONNECTED (${testResult.latency}ms)`
+                    ? `✓ LIVE ${testResult.provider.toUpperCase()} CONNECTED (${testResult.latency}ms)`
                     : `✕ GEMINI SERVER UNAVAILABLE`}
                 </div>
                 <p className="text-stone-300 font-sans text-xs">{testResult.message}</p>

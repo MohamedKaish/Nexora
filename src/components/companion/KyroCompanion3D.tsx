@@ -874,9 +874,9 @@ export function KyroCompanion3D() {
               onPointerDown={(e) => e.stopPropagation()}
             >
               {/* Telemetry Badge */}
-              {lastProvider === 'gemini-2.5-flash' ? (
+              {lastProvider && lastProvider.startsWith('gemini') ? (
                 <span
-                  title={`Live Gemini 2.5 Flash (${lastLatencyMs ?? 0}ms)`}
+                  title={`Live ${lastProvider} (${lastLatencyMs ?? 0}ms)`}
                   className="px-2 py-1 rounded-full bg-emerald-500/15 border border-emerald-500/30 text-emerald-300 font-mono text-[9px] font-bold flex items-center gap-0.5"
                 >
                   <Zap className="w-2.5 h-2.5 text-emerald-400" />

@@ -22,8 +22,11 @@ import {
 
 export type KyroProviderType =
   | 'gemini-2.5-flash'
+  | 'gemini-2.0-flash'
+  | 'gemini-1.5-flash'
   | 'local-context-engine'
   | 'unavailable'
+  | string
   | null
 
 interface KyroChatState {

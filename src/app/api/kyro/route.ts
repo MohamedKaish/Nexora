@@ -17,6 +17,11 @@ function getServerGeminiKey(): string | null {
   return key.length > 15 ? key : null
 }
 
+export function getGeminiModel(): string {
+  const custom = (process.env.GEMINI_MODEL || '').trim()
+  return custom || 'gemini-2.0-flash'
+}
+
 /**
  * Normalizes incoming context into a safe StructuredNexoraContext snapshot.
  * Never fabricates default balances, fake tasks, or misleading "all clear" data
@@ -173,13 +178,14 @@ ${JSON.stringify(ctx, null, 2)}`
 
 export async function GET() {
   const apiKey = getServerGeminiKey()
+  const model = getGeminiModel()
   return NextResponse.json({
     ok: Boolean(apiKey),
     configured: Boolean(apiKey),
-    provider: apiKey ? 'gemini-2.5-flash' : 'unavailable',
-    model: 'gemini-2.5-flash',
+    provider: apiKey ? model : 'unavailable',
+    model,
     message: apiKey
-      ? 'Server-side GEMINI_API_KEY is configured.'
+      ? `Server-side GEMINI_API_KEY is configured for ${model}.`
       : 'GEMINI_API_KEY is not configured in the server environment.',
   })
 }
@@ -251,49 +257,104 @@ export async function POST(request: Request) {
       },
     ]
 
-    const geminiRes = await fetch(
-      `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${apiKey}`,
-      {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          system_instruction: {
-            parts: [{ text: systemInstruction }],
-          },
-          contents,
-          tools: [
-            {
-              functionDeclarations: KYRO_GEMINI_FUNCTION_DECLARATIONS,
-            },
-          ],
-          toolConfig: {
-            functionCallingConfig: {
-              mode: 'AUTO',
-            },
-          },
-          generationConfig: {
-            temperature: 0.3,
-            maxOutputTokens: 600,
-          },
-        }),
+    const targetModel = getGeminiModel()
+    const geminiPayload = {
+      system_instruction: {
+        parts: [{ text: systemInstruction }],
+      },
+      contents,
+      tools: [
+        {
+          functionDeclarations: KYRO_GEMINI_FUNCTION_DECLARATIONS,
+        },
+      ],
+      toolConfig: {
+        functionCallingConfig: {
+          mode: 'AUTO',
+        },
+      },
+      generationConfig: {
+        temperature: 0.3,
+        maxOutputTokens: 600,
+      },
+    }
+
+    const sendGenerateContent = (modelId: string) =>
+      fetch(
+        `https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(modelId)}:generateContent?key=${apiKey}`,
+        {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(geminiPayload),
+        }
+      )
+
+    let activeModel = targetModel
+    let geminiRes = await sendGenerateContent(activeModel)
+
+    // Graceful 404 fallback: if the configured model is not found on this API key and is not already 'gemini-1.5-flash',
+    // attempt a fallback to 'gemini-1.5-flash'
+    if (geminiRes.status === 404 && activeModel !== 'gemini-1.5-flash') {
+      const fallbackModel = 'gemini-1.5-flash'
+      const fallbackRes = await sendGenerateContent(fallbackModel)
+      if (fallbackRes.ok) {
+        geminiRes = fallbackRes
+        activeModel = fallbackModel
       }
-    )
+    }
 
     if (!geminiRes.ok) {
       const status = geminiRes.status
+      const errorJson = (await geminiRes.json().catch(() => null)) as {
+        error?: { message?: string; status?: string }
+      } | null
+      const rawApiError =
+        typeof errorJson?.error?.message === 'string'
+          ? errorJson.error.message.replace(/key=[^&\s]+/gi, 'key=REDACTED')
+          : ''
+
+      let errorReason = `Gemini API returned HTTP ${status}.`
+      let reply = `Kyro could not reach Gemini (${activeModel}) (HTTP ${status}). Please try again shortly.`
+      let speechBubble = `Gemini service error (HTTP ${status}).`
+
+      if (status === 401) {
+        errorReason = `Gemini API authentication failed (HTTP 401). Invalid GEMINI_API_KEY.`
+        reply = `Kyro could not authenticate with Google Gemini (HTTP 401). Please check that your server GEMINI_API_KEY is valid.`
+        speechBubble = `Gemini authentication error (HTTP 401).`
+      } else if (status === 403) {
+        errorReason = `Gemini API access forbidden (HTTP 403). ${rawApiError || ''}`.trim()
+        reply = `Kyro access was denied by Google Gemini (HTTP 403). Ensure the Generative Language API is enabled for your API key project.`
+        speechBubble = `Gemini access forbidden (HTTP 403).`
+      } else if (status === 404) {
+        errorReason = `Gemini model '${activeModel}' was not found (HTTP 404). ${rawApiError || 'Model not available on v1beta.'}`
+        reply = `Kyro could not reach model '${activeModel}' (HTTP 404: Not Found). ${rawApiError ? `Provider reported: "${rawApiError}". ` : ''}Please configure an active model such as gemini-2.0-flash or gemini-1.5-flash via GEMINI_MODEL.`
+        speechBubble = `Gemini model not found (HTTP 404).`
+      } else if (status === 429) {
+        errorReason = `Gemini API rate limit or quota exceeded (HTTP 429).`
+        reply = `Kyro reached the Google Gemini rate limit or quota allowance (HTTP 429). Please wait a moment and try again.`
+        speechBubble = `Gemini quota limit reached (HTTP 429).`
+      } else if (status >= 500) {
+        errorReason = `Google Gemini service temporarily unavailable (HTTP ${status}).`
+        reply = `Google Gemini servers are temporarily unavailable (HTTP ${status}). Please try again shortly.`
+        speechBubble = `Gemini server issue (HTTP ${status}).`
+      } else if (rawApiError) {
+        errorReason = `Gemini API error (HTTP ${status}): ${rawApiError}`
+        reply = `Kyro encountered a Gemini API error (HTTP ${status}): ${rawApiError}`
+      }
+
       return NextResponse.json(
         {
           ok: false,
           configured: true,
           provider: 'unavailable',
           latencyMs: Date.now() - startTime,
-          errorReason: `Gemini API returned HTTP ${status}.`,
-          reply: `Kyro could not reach Gemini 2.5 Flash (HTTP ${status}). Please try again shortly.`,
-          speechBubble: `Gemini service error (HTTP ${status}). Please retry.`,
+          errorReason,
+          reply,
+          speechBubble,
           mood: 'idle',
           animation: 'IDLE',
         },
-        { status: 502 }
+        { status: status >= 500 ? 502 : 400 }
       )
     }
 
@@ -378,7 +439,7 @@ export async function POST(request: Request) {
       validationError: validationError || null,
       mood: clientProposedAction ? 'focused' : 'speaking',
       animation: clientProposedAction ? 'TALKING' : 'TALKING',
-      provider: 'gemini-2.5-flash',
+      provider: activeModel,
       latencyMs: Date.now() - startTime,
       errorReason: null,
     })
