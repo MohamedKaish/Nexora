@@ -166,8 +166,10 @@ export async function sendNotification(
     icon: options.icon || '/icon-192.png',
     badge: options.badge || '/icon-192.png',
     tag: options.tag || 'nexora-habit-alert',
-    vibrate: [150, 80, 150],
-    data: options.data,
+    vibrate: [250, 100, 250, 100, 250],
+    requireInteraction: true,
+    renotify: true,
+    data: options.data || { url: '/habits' },
   }
 
   // 1. Android & PWA Service Worker Delivery (Highest reliability on mobile)

@@ -93,7 +93,6 @@ export default function DashboardPage() {
   const [expenseTitle, setExpenseTitle] = useState('')
   const [expenseAmount, setExpenseAmount] = useState('')
   const [expenseCategory, setExpenseCategory] = useState('Food & Dining')
-  const [isTestingNotif, setIsTestingNotif] = useState(false)
 
   useEffect(() => {
     setMounted(true)
@@ -165,21 +164,9 @@ export default function DashboardPage() {
     const perm = await requestNotificationPermission()
     setNotifPermission(perm)
     if (perm === 'granted') {
-      toast.success('System notifications enabled! You will receive lock-screen alerts like Amazon and Flipkart.')
+      toast.success('Phone notifications enabled! You will receive lock-screen reminder alerts for habits and hydration.')
     } else if (perm === 'denied') {
       toast.error('Permission blocked. Please allow notifications in site/browser settings.')
-    }
-  }
-
-  const handleTestNotification = async (anchor: 'morning' | 'midday' | 'evening' | 'custom') => {
-    setIsTestingNotif(true)
-    try {
-      await triggerCircadianTestAlert(anchor)
-      toast.success(`Out-of-app notification banner dispatched with chime and vibration!`)
-    } catch {
-      toast.error('Failed to dispatch notification.')
-    } finally {
-      setIsTestingNotif(false)
     }
   }
 
@@ -567,21 +554,21 @@ export default function DashboardPage() {
           </div>
         </div>
 
-        {/* TILE 3: SYSTEM NOTIFICATIONS OUTSIDE THE APP (AMAZON/FLIPKART STYLE) */}
+        {/* TILE 3: PHONE REMINDER & HABIT SCHEDULE ENGINE */}
         <div className="world-deck p-6 flex flex-col justify-between space-y-4 border-amber-500/25 bg-gradient-to-b from-stone-950 via-stone-900/40 to-stone-950 relative overflow-hidden">
           <div className="absolute top-0 right-0 w-44 h-44 rounded-full blur-[70px] bg-amber-500/10 pointer-events-none" />
 
           <div>
             <div className="flex items-center justify-between pb-3 border-b border-stone-800/80">
               <div className="flex items-center gap-2">
-                <div className="w-7 h-7 rounded-lg bg-amber-500/15 border border-amber-500/30 flex items-center justify-center text-amber-400">
+                <div className="w-7 h-7 rounded-lg bg-amber-400/15 border border-amber-400/30 flex items-center justify-center text-amber-400">
                   <Bell className="w-4 h-4" />
                 </div>
                 <div>
                   <h3 className="text-xs font-bold uppercase tracking-wider text-stone-200 font-mono">
-                    Out-of-App System Alerts
+                    Phone Reminders Active
                   </h3>
-                  <span className="text-[10px] text-stone-400">Amazon &amp; Flipkart Notification Style</span>
+                  <span className="text-[10px] text-stone-400">Lock-screen &amp; notification bar alerts</span>
                 </div>
               </div>
 
@@ -592,89 +579,93 @@ export default function DashboardPage() {
                     : 'bg-amber-500/15 border border-amber-500/30 text-amber-300'
                 }`}
               >
-                {notifPermission}
+                {notifPermission === 'granted' ? 'Enabled' : 'Action Required'}
               </span>
             </div>
 
             <p className="text-xs text-stone-300 mt-3 leading-relaxed">
-              Pushes live notifications directly to your device lock screen and system notification drawer (with acoustic chime and tactile vibration) even when the app is closed.
+              Sends reminder notifications directly to your phone lock-screen with audio chime and vibration at your scheduled habit times and every 2 hours for hydration.
             </p>
 
             {/* Permission Action if not granted */}
             {notifPermission !== 'granted' && (
               <div className="mt-3 p-3 rounded-xl bg-amber-500/10 border border-amber-500/30 flex items-center justify-between gap-3">
                 <div className="text-[11px] text-amber-200">
-                  Allow system permissions to receive out-of-app alerts on your phone lock screen.
+                  Allow phone permissions so reminders ring and vibrate on your phone outside the app.
                 </div>
                 <button
                   onClick={handleEnablePermissions}
                   className="px-3 py-1.5 rounded-lg bg-amber-400 hover:bg-amber-300 text-stone-950 font-bold text-xs whitespace-nowrap cursor-pointer transition-all shadow-[0_0_12px_rgba(212,168,83,0.3)]"
                 >
-                  Enable OS Alerts
+                  Allow Phone Alerts
                 </button>
               </div>
             )}
 
-            {/* Scheduled Circadian Anchors List */}
+            {/* Production Schedule Milestones */}
             <div className="mt-4 space-y-2 text-xs">
               <span className="text-[10px] font-mono uppercase tracking-wider text-stone-400 block">
-                Scheduled Circadian Push Milestones:
+                Active Phone Alert Schedules:
               </span>
 
+              {/* Habit Reminders item */}
               <div className="p-2.5 rounded-xl bg-stone-900/60 border border-stone-800/80 flex items-center justify-between">
                 <div className="flex items-center gap-2">
-                  <Sun className="w-3.5 h-3.5 text-amber-400" />
-                  <span className="font-semibold text-stone-200">08:00 AM Morning Briefing</span>
+                  <Flame className="w-3.5 h-3.5 text-amber-400 shrink-0" />
+                  <div>
+                    <span className="font-semibold text-stone-200 block">Scheduled Habit Reminders</span>
+                    <span className="text-[10px] text-stone-400">
+                      {habits.filter((h) => h.startTime).length > 0
+                        ? `${habits.filter((h) => h.startTime).length} habit(s) armed with exact time alerts`
+                        : 'Alerts ring at exact habit start time & 15m prior'}
+                    </span>
+                  </div>
                 </div>
-                <button
-                  onClick={() => handleTestNotification('morning')}
-                  disabled={isTestingNotif}
-                  className="text-[10px] font-mono text-amber-400 hover:text-amber-300 underline cursor-pointer"
+                <Link
+                  href="/habits"
+                  className="text-[10px] font-mono text-amber-400 hover:text-amber-300 underline shrink-0"
                 >
-                  Test Now
-                </button>
+                  View Habits
+                </Link>
               </div>
 
+              {/* 2-Hour Hydration item */}
               <div className="p-2.5 rounded-xl bg-stone-900/60 border border-stone-800/80 flex items-center justify-between">
                 <div className="flex items-center gap-2">
-                  <CloudSun className="w-3.5 h-3.5 text-sky-400" />
-                  <span className="font-semibold text-stone-200">14:00 PM Midday Hydration</span>
+                  <Droplets className="w-3.5 h-3.5 text-sky-400 shrink-0" />
+                  <div>
+                    <span className="font-semibold text-stone-200 block">Drink Water Reminders</span>
+                    <span className="text-[10px] text-stone-400">Every 2 hours throughout the day</span>
+                  </div>
                 </div>
-                <button
-                  onClick={() => handleTestNotification('midday')}
-                  disabled={isTestingNotif}
-                  className="text-[10px] font-mono text-sky-400 hover:text-sky-300 underline cursor-pointer"
-                >
-                  Test Now
-                </button>
+                <span className="text-[10px] font-mono text-emerald-300 px-1.5 py-0.5 rounded bg-emerald-500/10 border border-emerald-500/20">
+                  Every 2h
+                </span>
               </div>
 
+              {/* Circadian Anchors item */}
               <div className="p-2.5 rounded-xl bg-stone-900/60 border border-stone-800/80 flex items-center justify-between">
                 <div className="flex items-center gap-2">
-                  <Moon className="w-3.5 h-3.5 text-purple-400" />
-                  <span className="font-semibold text-stone-200">21:00 PM Evening Rebalance</span>
+                  <Sun className="w-3.5 h-3.5 text-amber-400 shrink-0" />
+                  <div>
+                    <span className="font-semibold text-stone-200 block">Daily Circadian Briefing</span>
+                    <span className="text-[10px] text-stone-400">08:00 AM Briefing • 21:00 PM Rebalance</span>
+                  </div>
                 </div>
-                <button
-                  onClick={() => handleTestNotification('evening')}
-                  disabled={isTestingNotif}
-                  className="text-[10px] font-mono text-purple-400 hover:text-purple-300 underline cursor-pointer"
-                >
-                  Test Now
-                </button>
+                <span className="text-[10px] font-mono text-stone-400">Daily</span>
               </div>
             </div>
           </div>
 
-          {/* Test Signal Button */}
+          {/* Action to configure habits & reminders */}
           <div className="pt-2">
-            <button
-              onClick={() => handleTestNotification('custom')}
-              disabled={isTestingNotif}
-              className="w-full py-2.5 rounded-xl bg-amber-400 hover:bg-amber-300 text-stone-950 font-bold text-xs flex items-center justify-center gap-2 transition-all cursor-pointer shadow-[0_0_15px_rgba(212,168,83,0.25)]"
+            <Link
+              href="/habits"
+              className="w-full py-2.5 rounded-xl bg-stone-900 hover:bg-stone-800 border border-amber-400/40 text-amber-300 font-bold text-xs flex items-center justify-center gap-2 transition-all cursor-pointer shadow-sm"
             >
-              <Bell className="w-3.5 h-3.5 fill-current" />
-              <span>{isTestingNotif ? 'Dispatching...' : 'Fire Instant Lock-Screen Alert'}</span>
-            </button>
+              <Flame className="w-3.5 h-3.5" />
+              <span>Configure Habits &amp; Alert Times →</span>
+            </Link>
           </div>
         </div>
       </div>

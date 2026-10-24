@@ -446,17 +446,7 @@ export default function SettingsPage() {
 }
 
 function PhoneNotificationSettingsCard() {
-  const [isTesting, setIsTesting] = useState(false)
   const isNative = typeof window !== 'undefined' && Boolean((window as any).NexoraNativeBridge)
-
-  const handleTest = async () => {
-    setIsTesting(true)
-    try {
-      await testPhoneNotificationAndSound()
-    } finally {
-      setIsTesting(false)
-    }
-  }
 
   const handlePrompt = async () => {
     await requestPhoneNotificationPermission()
@@ -471,9 +461,9 @@ function PhoneNotificationSettingsCard() {
             <Bell className="w-5 h-5" />
           </div>
           <div>
-            <h3 className="text-sm font-bold text-foreground">Phone Notifications &amp; Sound Engine</h3>
+            <h3 className="text-sm font-bold text-foreground">Phone Reminders &amp; Alert Engine</h3>
             <p className="text-xs text-stone-400">
-              {isNative ? '⚡ Standalone Android APK Native Bridge Active' : 'Web & PWA Background Service Active'}
+              {isNative ? '⚡ Standalone Android APK Native Bridge Active' : 'Web &amp; PWA Background Reminder Service Active'}
             </p>
           </div>
         </div>
@@ -481,17 +471,10 @@ function PhoneNotificationSettingsCard() {
         <div className="flex items-center gap-2">
           <button
             onClick={handlePrompt}
-            className="px-3 py-1.5 rounded-xl bg-stone-900 hover:bg-stone-800 border border-stone-800 text-stone-300 text-xs font-semibold cursor-pointer transition-colors"
-          >
-            Request Permission
-          </button>
-          <button
-            onClick={handleTest}
-            disabled={isTesting}
-            className="px-4 py-1.5 rounded-xl bg-gradient-to-r from-amber-400 to-amber-500 hover:from-amber-300 hover:to-amber-400 text-stone-950 font-bold text-xs flex items-center gap-1.5 cursor-pointer shadow-sm transition-all"
+            className="px-4 py-2 rounded-xl bg-gradient-to-r from-amber-400 to-amber-500 hover:from-amber-300 hover:to-amber-400 text-stone-950 font-bold text-xs flex items-center gap-1.5 cursor-pointer shadow-sm transition-all"
           >
             <Bell className="w-3.5 h-3.5" />
-            <span>{isTesting ? 'Transmitting...' : '🔔 Test Phone Notification & Sound'}</span>
+            <span>Enable Phone Alerts</span>
           </button>
         </div>
       </div>
@@ -647,20 +630,7 @@ function KyroBrainSettingsCard() {
             >
               Save Key
             </button>
-            <button
-              type="button"
-              onClick={handleTestPing}
-              disabled={isTesting}
-              className="px-4 py-2.5 rounded-xl bg-stone-900 hover:bg-stone-800 border border-stone-800 text-stone-200 text-xs font-semibold transition-colors cursor-pointer shrink-0"
-            >
-              {isTesting ? 'Pinging...' : 'Test Ping'}
-            </button>
           </div>
-          {testResult && (
-            <p className="mt-2 text-xs font-mono text-amber-300 bg-stone-900/80 p-2 rounded-lg border border-stone-800">
-              {testResult}
-            </p>
-          )}
           <p className="text-[11px] text-stone-500 mt-1">
             Keys are stored strictly in local device memory (`localStorage`) and never transmitted to third-party trackers.
           </p>

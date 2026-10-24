@@ -17,6 +17,9 @@ export interface HydrationState {
   caffeineCups: number
   consumedTodayMl: number
   logs: HydrationLog[]
+  reminderIntervalHours: number
+  enableReminders: boolean
+  lastReminderTimestamp: string | null
 
   // Actions
   logDrink: (amountMl: number, beverageType?: BeverageType) => void
@@ -26,6 +29,9 @@ export interface HydrationState {
   setActiveCaloriesBurned: (kcal: number) => void
   setAmbientTemperature: (tempC: number) => void
   setCaffeineCups: (cups: number) => void
+  setReminderIntervalHours: (hours: number) => void
+  setEnableReminders: (enabled: boolean) => void
+  recordHydrationReminderSent: () => void
 
   // Telemetry Calculations
   getCalculations: () => {
@@ -54,6 +60,9 @@ export const useHydrationStore = create<HydrationState>()(
       caffeineCups: 1,
       consumedTodayMl: 1100,
       logs: INITIAL_LOGS,
+      reminderIntervalHours: 2,
+      enableReminders: true,
+      lastReminderTimestamp: null,
 
       logDrink: (amountMl, beverageType = 'water') => {
         const addedAmount = Math.max(10, Math.round(amountMl))
@@ -94,6 +103,9 @@ export const useHydrationStore = create<HydrationState>()(
       setActiveCaloriesBurned: (kcal) => set({ activeCaloriesBurned: Math.max(0, kcal) }),
       setAmbientTemperature: (tempC) => set({ ambientTemperatureC: Math.max(-10, Math.min(55, tempC)) }),
       setCaffeineCups: (cups) => set({ caffeineCups: Math.max(0, cups) }),
+      setReminderIntervalHours: (hours) => set({ reminderIntervalHours: Math.max(1, Math.min(6, hours)) }),
+      setEnableReminders: (enabled) => set({ enableReminders: enabled }),
+      recordHydrationReminderSent: () => set({ lastReminderTimestamp: new Date().toISOString() }),
 
       getCalculations: () => {
         const { baselineWeightKg, activeCaloriesBurned, ambientTemperatureC, caffeineCups, consumedTodayMl } = get()

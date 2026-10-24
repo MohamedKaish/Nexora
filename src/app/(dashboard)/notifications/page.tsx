@@ -47,11 +47,6 @@ export default function NotificationsPage() {
     }
   }
 
-  const handleTestAlert = async () => {
-    await sendTestNotification()
-    toast.success('System transmission test dispatched with sound and haptics.')
-  }
-
   const filtered = notifications.filter((n) => {
     if (filter === 'unread') return !n.isRead
     if (filter === 'habit') return n.type === 'habit'
@@ -147,15 +142,6 @@ export default function NotificationsPage() {
               <span>Allow Phone Alerts</span>
             </button>
           )}
-
-          <button
-            onClick={handleTestAlert}
-            className="px-3.5 py-1.5 rounded-xl bg-stone-900 hover:bg-stone-800 border border-stone-700 hover:border-amber-400 text-amber-300 font-semibold text-xs flex items-center gap-1.5 transition-all cursor-pointer"
-            title="Dispatch a test alert with sound, vibration, and inbox transmission"
-          >
-            <Zap className="w-3.5 h-3.5" />
-            <span>Test Phone System</span>
-          </button>
         </div>
       </div>
 
@@ -179,16 +165,9 @@ export default function NotificationsPage() {
               <p className="text-xs font-semibold text-stone-200 mt-0.5">Executive Briefing</p>
               <p className="text-[10px] text-stone-400 mt-0.5">Safe-to-Spend cash pacing &amp; hydration baseline target.</p>
             </div>
-            <button
-              onClick={async () => {
-                const { triggerCircadianTestAlert } = await import('@/lib/scheduleNotificationWatcher')
-                await triggerCircadianTestAlert('morning')
-                toast.success('Morning Briefing push dispatched!')
-              }}
-              className="py-1.5 px-2.5 rounded-lg bg-stone-800 hover:bg-amber-400/20 text-amber-300 text-[10px] font-mono font-bold cursor-pointer transition-colors self-start"
-            >
-              Test Morning Alert
-            </button>
+            <span className="text-[10px] font-mono text-emerald-400 bg-emerald-500/10 px-2 py-0.5 rounded self-start border border-emerald-500/20">
+              Scheduled 08:00 AM
+            </span>
           </div>
 
           <div className="p-3 rounded-xl bg-stone-900/60 border border-stone-800/80 flex flex-col justify-between gap-2">
@@ -197,16 +176,9 @@ export default function NotificationsPage() {
               <p className="text-xs font-semibold text-stone-200 mt-0.5">Circadian Pacing Check</p>
               <p className="text-[10px] text-stone-400 mt-0.5">50% fluid intake milestone &amp; midday expense check.</p>
             </div>
-            <button
-              onClick={async () => {
-                const { triggerCircadianTestAlert } = await import('@/lib/scheduleNotificationWatcher')
-                await triggerCircadianTestAlert('midday')
-                toast.success('Midday Hydration push dispatched!')
-              }}
-              className="py-1.5 px-2.5 rounded-lg bg-stone-800 hover:bg-sky-400/20 text-sky-300 text-[10px] font-mono font-bold cursor-pointer transition-colors self-start"
-            >
-              Test Midday Alert
-            </button>
+            <span className="text-[10px] font-mono text-sky-400 bg-sky-500/10 px-2 py-0.5 rounded self-start border border-sky-500/20">
+              Scheduled 14:00 PM
+            </span>
           </div>
 
           <div className="p-3 rounded-xl bg-stone-900/60 border border-stone-800/80 flex flex-col justify-between gap-2">
@@ -215,16 +187,9 @@ export default function NotificationsPage() {
               <p className="text-xs font-semibold text-stone-200 mt-0.5">Reflection &amp; Rebalancing</p>
               <p className="text-[10px] text-stone-400 mt-0.5">Daily spending audit &amp; automatic surplus/deficit smoothing.</p>
             </div>
-            <button
-              onClick={async () => {
-                const { triggerCircadianTestAlert } = await import('@/lib/scheduleNotificationWatcher')
-                await triggerCircadianTestAlert('evening')
-                toast.success('Evening Rebalancing push dispatched!')
-              }}
-              className="py-1.5 px-2.5 rounded-lg bg-stone-800 hover:bg-purple-400/20 text-purple-300 text-[10px] font-mono font-bold cursor-pointer transition-colors self-start"
-            >
-              Test Evening Alert
-            </button>
+            <span className="text-[10px] font-mono text-purple-400 bg-purple-500/10 px-2 py-0.5 rounded self-start border border-purple-500/20">
+              Scheduled 21:00 PM
+            </span>
           </div>
         </div>
       </div>

@@ -51,7 +51,53 @@ function computeConsecutiveStreak(habitId: string, completions: LocalHabitComple
   return streak
 }
 
-const INITIAL_HABITS: LocalHabit[] = []
+const INITIAL_HABITS: LocalHabit[] = [
+  {
+    id: 'habit-wake-up',
+    name: 'Wake up & Hydrate',
+    description: 'Rise early at 06:00 AM and drink a fresh glass of water',
+    frequency: 'daily',
+    color: '#F59E0B',
+    streak: 3,
+    hasTimeRange: true,
+    startTime: '06:00',
+    endTime: '07:00',
+    enableReminder: true,
+    lastNotifiedDate: null,
+    createdAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString(),
+  },
+  {
+    id: 'habit-morning-focus',
+    name: 'Deep Focus Chamber',
+    description: 'High-leverage uninterrupted execution session',
+    frequency: 'weekdays',
+    color: '#34D399',
+    streak: 5,
+    hasTimeRange: true,
+    startTime: '09:00',
+    endTime: '10:30',
+    enableReminder: true,
+    lastNotifiedDate: null,
+    createdAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString(),
+  },
+  {
+    id: 'habit-evening-reflection',
+    name: 'Evening Wind-Down',
+    description: 'Rebalance daily priorities and disconnect for deep rest',
+    frequency: 'daily',
+    color: '#A78BFA',
+    streak: 4,
+    hasTimeRange: true,
+    startTime: '21:30',
+    endTime: '22:30',
+    enableReminder: true,
+    lastNotifiedDate: null,
+    createdAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString(),
+  },
+]
 
 export const useHabitStore = create<HabitState>()(
   persist(

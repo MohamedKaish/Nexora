@@ -76,9 +76,14 @@ export default function HabitsPage() {
     }
   }
 
-  const handleTestAlert = async () => {
-    await sendTestNotification()
-    toast.success('Phone system tested! Alert sound, vibration & transmission dispatched.')
+  const handleRequestPermission = async () => {
+    const perm = await requestNotificationPermission()
+    setNotifPermission(perm)
+    if (perm === 'granted') {
+      toast.success('Phone notifications enabled! You will be alerted when habit windows open.')
+    } else if (perm === 'denied') {
+      toast.error('Permission blocked. Please tap the padlock/tune icon in your browser URL bar to allow notifications.')
+    }
   }
 
   const todayStr = format(new Date(), 'yyyy-MM-dd')
@@ -97,9 +102,9 @@ export default function HabitsPage() {
     setNewHabitName('')
     setNewFrequency('daily')
     setSelectedColor('#34D399')
-    setHasTimeRange(false)
-    setStartTime('08:00')
-    setEndTime('09:30')
+    setHasTimeRange(true)
+    setStartTime('06:00')
+    setEndTime('07:30')
     setEnableReminder(true)
     setShowAddModal(true)
   }
@@ -109,15 +114,22 @@ export default function HabitsPage() {
     setNewHabitName(habit.name)
     setNewFrequency(habit.frequency)
     setSelectedColor(habit.color || '#34D399')
-    setHasTimeRange(habit.hasTimeRange || false)
-    setStartTime(habit.startTime || '08:00')
-    setEndTime(habit.endTime || '09:30')
+    setHasTimeRange(habit.hasTimeRange ?? Boolean(habit.startTime))
+    setStartTime(habit.startTime || '06:00')
+    setEndTime(habit.endTime || '07:30')
     setEnableReminder(habit.enableReminder ?? true)
     setShowAddModal(true)
   }
 
-  const handleSaveHabit = () => {
+  const handleSaveHabit = async () => {
     if (!newHabitName.trim()) return
+
+    // Auto-request notification permission if user wants phone reminders
+    if (enableReminder && typeof window !== 'undefined' && 'Notification' in window && Notification.permission === 'default') {
+      try {
+        await requestNotificationPermission()
+      } catch {}
+    }
 
     if (editingHabitId) {
       updateHabit(editingHabitId, {
@@ -129,7 +141,7 @@ export default function HabitsPage() {
         endTime: hasTimeRange ? endTime : null,
         enableReminder: hasTimeRange ? enableReminder : false,
       })
-      toast.success('Habit updated successfully.')
+      toast.success(`Habit "${newHabitName.trim()}" updated with ${startTime} reminder.`)
     } else {
       addHabit({
         name: newHabitName.trim(),
@@ -140,8 +152,11 @@ export default function HabitsPage() {
         endTime: hasTimeRange ? endTime : null,
         enableReminder: hasTimeRange ? enableReminder : false,
       })
-      toast.success('Habit added to your daily sanctuary momentum.')
+      toast.success(`Habit "${newHabitName.trim()}" created! Phone reminder set for ${startTime}.`)
     }
+
+    setShowAddModal(false)
+  }
 
     setShowAddModal(false)
   }
@@ -243,15 +258,6 @@ export default function HabitsPage() {
               <span>Enable Phone Alerts</span>
             </button>
           )}
-
-          <button
-            onClick={handleTestAlert}
-            className="px-3.5 py-1.5 rounded-xl bg-stone-900 hover:bg-stone-800 border border-stone-700 hover:border-amber-400 text-amber-300 font-semibold text-xs flex items-center gap-1.5 transition-all cursor-pointer"
-            title="Dispatch a test alert with sound, vibration, and inbox transmission"
-          >
-            <Zap className="w-3.5 h-3.5" />
-            <span>Test Phone System</span>
-          </button>
         </div>
       </div>
 
@@ -502,16 +508,16 @@ export default function HabitsPage() {
                 </select>
               </div>
 
-              {/* ─── OPTIONAL TIMING RANGE & NOTIFICATION REMINDER ─── */}
+              {/* ─── PHONE REMINDER TIMING (E.G. WAKE UP 6:00 AM) ─── */}
               <div className="p-4 rounded-xl bg-stone-900/60 border border-stone-800 space-y-3">
                 <div className="flex items-center justify-between">
                   <div>
                     <label className="text-xs font-bold text-foreground flex items-center gap-1.5">
-                      <Clock className="w-3.5 h-3.5 text-amber-400" />
-                      <span>Timing Range & Reminders (Optional)</span>
+                      <Bell className="w-3.5 h-3.5 text-amber-400" />
+                      <span>Phone Reminder Timing (e.g. 06:00 AM)</span>
                     </label>
                     <p className="text-[11px] text-stone-400">
-                      Enable for habits tied to specific times of day
+                      Rings, vibrates &amp; shows lock-screen notification on your phone
                     </p>
                   </div>
                   <button
@@ -530,10 +536,15 @@ export default function HabitsPage() {
                     {/* Quick Window Presets */}
                     <div>
                       <span className="text-[10px] text-stone-400 uppercase tracking-wider font-semibold block mb-1.5">
-                        Quick Window Presets:
+                        Quick Reminder Presets:
                       </span>
                       <div className="grid grid-cols-2 sm:grid-cols-4 gap-1.5">
-                        {WINDOW_PRESETS.map((p) => (
+                        {[
+                          { label: '06:00 Wake Up', icon: '🌅', start: '06:00', end: '07:00' },
+                          { label: '08:00 Routine', icon: '☀️', start: '08:00', end: '09:00' },
+                          { label: '13:00 Midday', icon: '🥗', start: '13:00', end: '14:00' },
+                          { label: '22:00 Sleep', icon: '🌙', start: '22:00', end: '23:00' },
+                        ].map((p) => (
                           <button
                             type="button"
                             key={p.label}
@@ -557,39 +568,39 @@ export default function HabitsPage() {
                     {/* Custom Time Inputs */}
                     <div className="grid grid-cols-2 gap-3">
                       <div>
-                        <label className="block text-[11px] font-medium text-stone-400 mb-1">
-                          Window Starts At
+                        <label className="block text-[11px] font-medium text-stone-300 mb-1">
+                          Remind Me At
                         </label>
                         <input
                           type="time"
                           value={startTime}
                           onChange={(e) => setStartTime(e.target.value)}
-                          className="w-full bg-stone-900 border border-stone-800 rounded-xl px-3 py-1.5 text-xs text-foreground focus:outline-none focus:border-amber-400 font-mono"
+                          className="w-full bg-stone-900 border border-stone-800 rounded-xl px-3 py-1.5 text-xs text-foreground focus:outline-none focus:border-amber-400 font-mono font-bold"
                         />
                       </div>
                       <div>
-                        <label className="block text-[11px] font-medium text-stone-400 mb-1">
+                        <label className="block text-[11px] font-medium text-stone-300 mb-1">
                           Window Closes At
                         </label>
                         <input
                           type="time"
                           value={endTime}
                           onChange={(e) => setEndTime(e.target.value)}
-                          className="w-full bg-stone-900 border border-stone-800 rounded-xl px-3 py-1.5 text-xs text-foreground focus:outline-none focus:border-amber-400 font-mono"
+                          className="w-full bg-stone-900 border border-stone-800 rounded-xl px-3 py-1.5 text-xs text-foreground focus:outline-none focus:border-amber-400 font-mono font-bold"
                         />
                       </div>
                     </div>
 
-                    {/* Browser & Push Reminder Notification Toggle */}
+                    {/* Phone Notification Toggle */}
                     <div className="flex items-center justify-between p-2.5 rounded-lg bg-stone-950 border border-stone-800/80">
                       <div className="flex items-center gap-2">
                         <Bell className="w-3.5 h-3.5 text-amber-400" />
                         <div>
                           <span className="text-xs text-stone-200 font-semibold block">
-                            Send Alert Notification
+                            Send Phone Notification
                           </span>
                           <span className="text-[10px] text-stone-400">
-                            Notify when your window opens
+                            Pushes alert to your phone screen at {startTime}
                           </span>
                         </div>
                       </div>

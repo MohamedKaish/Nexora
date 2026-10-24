@@ -106,23 +106,23 @@ export function AppShell({ children }: { children: React.ReactNode }) {
 
         const endTime = habit.endTime || '23:59'
 
-        // Check if current time falls within habit's scheduled window
+        // Check if current time matches habit's scheduled time
         if (currentTimeStr >= habit.startTime && currentTimeStr <= endTime) {
           markHabitNotified(habit.id, todayStr)
 
           // 1. In-App Interactive Toast
-          toast(`⚡ Habit Window Active: ${habit.name}`, {
-            description: `Scheduled window (${habit.startTime} – ${habit.endTime || 'end of day'}) is open! Keep your ${habit.streak}d streak going.`,
+          toast(`⏰ Habit Reminder: ${habit.name}`, {
+            description: `Scheduled at ${habit.startTime}! Tap to check it off and keep your streak going.`,
             action: {
-              label: 'Complete',
+              label: 'Done',
               onClick: () => toggleCompletion(habit.id),
             },
             duration: 8000,
           })
 
-          // 2. Native System/Browser Push Notification via ServiceWorker
-          sendNotification(`⚡ Nexora: Time for ${habit.name}`, {
-            body: `Habit window is active (${habit.startTime} – ${habit.endTime || 'rest of day'}). Streak: ${habit.streak} days.`,
+          // 2. Real Phone OS / ServiceWorker Push Notification (Locks Screen & Notification Tray)
+          sendNotification(`⏰ Habit Reminder: ${habit.name}`, {
+            body: `It's ${habit.startTime}! Time for your scheduled habit: ${habit.name}.`,
             tag: `habit-${habit.id}-${todayStr}`,
           })
         }

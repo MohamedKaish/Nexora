@@ -66,8 +66,7 @@ export function ScheduleWatcherProvider() {
     const res = await requestPhoneNotificationPermission()
     if (res === 'granted' || res === 'default') {
       localStorage.setItem('nexora_notif_granted', 'true')
-      toast.success('Phone alerts enabled! You will be alerted 15m before tasks, habit windows, and reminder notes.')
-      await testPhoneNotificationAndSound()
+      toast.success('Phone reminders enabled! You will receive lock-screen alerts for scheduled habits and hydration.')
     } else {
       toast.info('Notification preference saved.')
     }

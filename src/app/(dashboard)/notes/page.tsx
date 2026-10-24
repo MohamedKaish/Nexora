@@ -215,16 +215,6 @@ export default function NotesPage() {
   const remindersCount = notes.filter((n) => n.remindAt && !n.reminderFired).length
   const urgentCount = notes.filter((n) => n.priority === 'urgent').length
 
-  const handleTestNoteAlert = async (note: TacticalNote) => {
-    await sendNexoraNotification(
-      `⏰ Reminder: ${note.title}`,
-      note.content || 'Tactical reminder note window is active!',
-      `note-${note.id}`,
-      true
-    )
-    toast.success('Test alert transmitted to phone and audio engine!')
-  }
-
   if (!mounted) {
     return (
       <div className="space-y-8 animate-in fade-in duration-300 pb-16">
@@ -586,14 +576,6 @@ export default function NotesPage() {
                 {/* Note Actions Footer */}
                 <div className="pt-4 mt-4 border-t border-stone-800/80 flex items-center justify-between gap-2">
                   <div className="flex items-center gap-1">
-                    <button
-                      onClick={() => handleTestNoteAlert(note)}
-                      className="p-1.5 rounded-lg bg-stone-900 hover:bg-stone-800 text-stone-400 hover:text-amber-400 transition-colors cursor-pointer"
-                      title="Test Live Phone Notification & Kyro Voice"
-                    >
-                      <Bell className="w-3.5 h-3.5" />
-                    </button>
-
                     <button
                       onClick={() => convertToTask(note.id)}
                       className="px-2 py-1 rounded-lg bg-amber-400/10 hover:bg-amber-400/20 text-amber-300 border border-amber-400/20 text-[11px] font-semibold flex items-center gap-1 cursor-pointer transition-colors"

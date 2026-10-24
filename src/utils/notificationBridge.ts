@@ -109,7 +109,14 @@ export async function sendNexoraNotification(
     } catch {}
   }
 
-  // 5. Native Android APK Bridge Delivery (PRIORITY #1)
+  // 5. Ensure notification permission is requested if still default
+  if (typeof window !== 'undefined' && 'Notification' in window && Notification.permission === 'default') {
+    try {
+      await Notification.requestPermission()
+    } catch {}
+  }
+
+  // 6. Native Android APK Bridge Delivery (PRIORITY #1 - Android System Bar)
   if (typeof window !== 'undefined') {
     const bridge = (window as unknown as {
       NexoraNativeBridge?: {
@@ -127,18 +134,34 @@ export async function sendNexoraNotification(
     }
   }
 
-  // 6. Service Worker Delivery (PWA / Mobile Chrome)
+  // 7. Service Worker Delivery (Android Status Bar, Lock Screen & Chrome PWA)
   if (typeof window !== 'undefined' && 'serviceWorker' in navigator) {
     try {
+      const notifData = {
+        body: messageBody,
+        icon: '/icon-192.png',
+        badge: '/icon-192.png',
+        tag,
+        vibrate: [250, 100, 250, 100, 250],
+        requireInteraction: true,
+        renotify: true,
+        silent: false,
+        data: { url: tag.includes('habit') ? '/habits' : tag.includes('note') ? '/notes' : '/dashboard' },
+      }
+
+      // Relay to active Service Worker controller
+      if (navigator.serviceWorker.controller) {
+        navigator.serviceWorker.controller.postMessage({
+          type: 'SHOW_NOTIFICATION',
+          title: messageTitle,
+          options: notifData,
+        })
+      }
+
+      // Also invoke directly on registration
       const reg = await navigator.serviceWorker.ready
       if (reg && 'showNotification' in reg) {
-        await reg.showNotification(messageTitle, {
-          body: messageBody,
-          icon: '/icon-192.png',
-          badge: '/icon-192.png',
-          tag,
-          vibrate: [150, 80, 150],
-        } as NotificationOptions)
+        await reg.showNotification(messageTitle, notifData as NotificationOptions)
         return true
       }
     } catch (e) {
@@ -146,7 +169,7 @@ export async function sendNexoraNotification(
     }
   }
 
-  // 7. Desktop Browser Fallback
+  // 8. Desktop / Web Notification API Fallback
   if (typeof window !== 'undefined' && 'Notification' in window && Notification.permission === 'granted') {
     try {
       new Notification(messageTitle, {
