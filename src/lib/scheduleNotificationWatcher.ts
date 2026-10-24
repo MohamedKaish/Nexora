@@ -1,6 +1,8 @@
 import { useTaskStore } from '@/store/useTaskStore'
 import { useHabitStore } from '@/store/useHabitStore'
 import { useNoteStore } from '@/store/useNoteStore'
+import { useFinanceStore } from '@/store/useFinanceStore'
+import { useHydrationStore } from '@/store/useHydrationStore'
 import { sendNexoraNotification } from '@/utils/notificationBridge'
 import { format } from 'date-fns'
 
@@ -12,6 +14,48 @@ function timeToMinutes(timeStr: string): number {
   return h * 60 + m
 }
 
+export async function triggerCircadianTestAlert(
+  anchor: 'morning' | 'midday' | 'evening' | 'custom'
+): Promise<boolean> {
+  const financeCalc = useFinanceStore.getState().getCalculations()
+  const hydrationCalc = useHydrationStore.getState().getCalculations()
+
+  if (anchor === 'morning') {
+    return sendNexoraNotification(
+      '☀️ Morning Executive Briefing',
+      `Safe-to-Spend: $${financeCalc.safeToSpendDaily.toFixed(2)}/day. Target Hydration: ${hydrationCalc.targetHydrationMl}ml (climate offset +${hydrationCalc.weatherOffsetMl}ml). Systems nominal!`,
+      'circadian-briefing-morning',
+      true
+    )
+  }
+
+  if (anchor === 'midday') {
+    return sendNexoraNotification(
+      '💧 Midday Circadian Pacing Check',
+      `${hydrationCalc.completionPercentage}% of hydration achieved (${hydrationCalc.remainingMl}ml remaining). Discretionary spending pacing is steady on trajectory.`,
+      'circadian-check-midday',
+      true
+    )
+  }
+
+  if (anchor === 'evening') {
+    const remainingDays = useFinanceStore.getState().payPeriodDaysRemaining
+    return sendNexoraNotification(
+      '🌙 Evening Reflection & Rebalancing',
+      `Spent today: $${financeCalc.totalSpentToday.toFixed(2)}. Trajectory smoothed across ${remainingDays} remaining days. Replenish and rest.`,
+      'circadian-reflection-evening',
+      true
+    )
+  }
+
+  return sendNexoraNotification(
+    '⚡ Aura Life OS · Out-of-App Signal',
+    `Notification tray transmission verified! Safe-to-Spend: $${financeCalc.safeToSpendDaily.toFixed(2)} | Hydration: ${hydrationCalc.completionPercentage}%.`,
+    'aura-test-signal',
+    true
+  )
+}
+
 export function startScheduleNotificationWatcher() {
   if (typeof window === 'undefined' || isWatcherRunning) return
   isWatcherRunning = true
@@ -20,16 +64,44 @@ export function startScheduleNotificationWatcher() {
     try {
       const now = new Date()
       const todayStr = format(now, 'yyyy-MM-dd')
+      const currentHours = now.getHours()
       const currentMinutes = now.getHours() * 60 + now.getMinutes()
       const currentTimeMs = now.getTime()
 
-      // ─── 1. Check Tactical Reminder Notes ───
+      // ─── 1. Check Circadian Anchors (08:00, 14:00, 21:00) ───
+      // 08:00 Morning Executive Briefing
+      if (currentHours === 8 && now.getMinutes() <= 5) {
+        const morningKey = `notif_circadian_morning_${todayStr}`
+        if (!localStorage.getItem(morningKey)) {
+          localStorage.setItem(morningKey, 'true')
+          await triggerCircadianTestAlert('morning')
+        }
+      }
+
+      // 14:00 Midday Hydration Check-in
+      if (currentHours === 14 && now.getMinutes() <= 5) {
+        const middayKey = `notif_circadian_midday_${todayStr}`
+        if (!localStorage.getItem(middayKey)) {
+          localStorage.setItem(middayKey, 'true')
+          await triggerCircadianTestAlert('midday')
+        }
+      }
+
+      // 21:00 Evening Reflection & Rebalancing
+      if (currentHours === 21 && now.getMinutes() <= 5) {
+        const eveningKey = `notif_circadian_evening_${todayStr}`
+        if (!localStorage.getItem(eveningKey)) {
+          localStorage.setItem(eveningKey, 'true')
+          await triggerCircadianTestAlert('evening')
+        }
+      }
+
+      // ─── 2. Check Tactical Reminder Notes ───
       const notes = useNoteStore.getState().notes
       for (const note of notes) {
         if (!note.remindAt || note.reminderFired) continue
 
         const reminderTimeMs = new Date(note.remindAt).getTime()
-        // If due within the last 2 minutes or reached right now
         if (reminderTimeMs <= currentTimeMs && currentTimeMs - reminderTimeMs < 120000) {
           useNoteStore.getState().markReminderFired(note.id)
           await sendNexoraNotification(
@@ -41,7 +113,7 @@ export function startScheduleNotificationWatcher() {
         }
       }
 
-      // ─── 2. Check Tasks ───
+      // ─── 3. Check Tasks ───
       const tasks = useTaskStore.getState().tasks
       const todayTasks = tasks.filter((t) => {
         if (t.status === 'done') return false
@@ -105,36 +177,32 @@ export function startScheduleNotificationWatcher() {
         }
       }
 
-      // ─── 3. Check Habits & Custom Time Windows ───
+      // ─── 4. Check Habits & Custom Time Windows ───
       const habitState = useHabitStore.getState()
       const habits = habitState.habits
       const completions = habitState.completions
       const todayHabits = habits.filter((h) => h.enableReminder !== false)
 
       for (const habit of todayHabits) {
-        // Resolve time window: custom start/end or default period windows
         let startMin = habit.startTime ? timeToMinutes(habit.startTime) : -1
         let endMin = habit.endTime ? timeToMinutes(habit.endTime) : -1
 
-        // Default periods if time range isn't manually set
         if (startMin < 0 || endMin < 0) {
           const legacyPeriod = (habit as unknown as { period?: string }).period
           if (legacyPeriod === 'morning') {
-            startMin = 6 * 60 // 06:00
-            endMin = 11 * 60 // 11:00
+            startMin = 6 * 60
+            endMin = 11 * 60
           } else if (legacyPeriod === 'afternoon') {
-            startMin = 12 * 60 // 12:00
-            endMin = 17 * 60 // 17:00
+            startMin = 12 * 60
+            endMin = 17 * 60
           } else if (legacyPeriod === 'evening') {
-            startMin = 18 * 60 // 18:00
-            endMin = 22 * 60 + 30 // 22:30
+            startMin = 18 * 60
+            endMin = 22 * 60 + 30
           }
         }
 
         if (startMin >= 0) {
           const diffStart = startMin - currentMinutes
-
-          // Alert: 15 minutes before habit window opens
           const key15m = `notif_habit_15m_${habit.id}_${todayStr}`
           if (diffStart > 0 && diffStart <= 15) {
             if (!localStorage.getItem(key15m)) {
@@ -148,7 +216,6 @@ export function startScheduleNotificationWatcher() {
             }
           }
 
-          // Alert: Habit window opens now
           const keyStart = `notif_habit_start_${habit.id}_${todayStr}`
           if (diffStart <= 0 && diffStart >= -5) {
             if (!localStorage.getItem(keyStart)) {
@@ -163,7 +230,6 @@ export function startScheduleNotificationWatcher() {
           }
         }
 
-        // Alert: Habit window closing in 30 minutes if not completed
         if (endMin >= 0) {
           const isDoneToday = completions.some(
             (c) => c.habitId === habit.id && c.completedDate === todayStr

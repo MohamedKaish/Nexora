@@ -159,6 +159,76 @@ export default function NotificationsPage() {
         </div>
       </div>
 
+      {/* ─── Circadian Push Scheduled Anchor Deck ─── */}
+      <div className="p-4 rounded-2xl bg-stone-950/80 border border-amber-500/25 space-y-3">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pb-2 border-b border-stone-800/80">
+          <div>
+            <h3 className="text-xs font-bold text-amber-300 font-mono uppercase tracking-wider">
+              Circadian Out-of-App Push Anchors
+            </h3>
+            <p className="text-[11px] text-stone-400">
+              Dispatches lock-screen push banners with sound and vibration outside the app at 3 biological checkpoints.
+            </p>
+          </div>
+        </div>
+
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
+          <div className="p-3 rounded-xl bg-stone-900/60 border border-stone-800/80 flex flex-col justify-between gap-2">
+            <div>
+              <span className="text-[10px] font-mono text-amber-400 uppercase font-bold">08:00 AM • Morning</span>
+              <p className="text-xs font-semibold text-stone-200 mt-0.5">Executive Briefing</p>
+              <p className="text-[10px] text-stone-400 mt-0.5">Safe-to-Spend cash pacing &amp; hydration baseline target.</p>
+            </div>
+            <button
+              onClick={async () => {
+                const { triggerCircadianTestAlert } = await import('@/lib/scheduleNotificationWatcher')
+                await triggerCircadianTestAlert('morning')
+                toast.success('Morning Briefing push dispatched!')
+              }}
+              className="py-1.5 px-2.5 rounded-lg bg-stone-800 hover:bg-amber-400/20 text-amber-300 text-[10px] font-mono font-bold cursor-pointer transition-colors self-start"
+            >
+              Test Morning Alert
+            </button>
+          </div>
+
+          <div className="p-3 rounded-xl bg-stone-900/60 border border-stone-800/80 flex flex-col justify-between gap-2">
+            <div>
+              <span className="text-[10px] font-mono text-sky-400 uppercase font-bold">14:00 PM • Midday</span>
+              <p className="text-xs font-semibold text-stone-200 mt-0.5">Circadian Pacing Check</p>
+              <p className="text-[10px] text-stone-400 mt-0.5">50% fluid intake milestone &amp; midday expense check.</p>
+            </div>
+            <button
+              onClick={async () => {
+                const { triggerCircadianTestAlert } = await import('@/lib/scheduleNotificationWatcher')
+                await triggerCircadianTestAlert('midday')
+                toast.success('Midday Hydration push dispatched!')
+              }}
+              className="py-1.5 px-2.5 rounded-lg bg-stone-800 hover:bg-sky-400/20 text-sky-300 text-[10px] font-mono font-bold cursor-pointer transition-colors self-start"
+            >
+              Test Midday Alert
+            </button>
+          </div>
+
+          <div className="p-3 rounded-xl bg-stone-900/60 border border-stone-800/80 flex flex-col justify-between gap-2">
+            <div>
+              <span className="text-[10px] font-mono text-purple-400 uppercase font-bold">21:00 PM • Evening</span>
+              <p className="text-xs font-semibold text-stone-200 mt-0.5">Reflection &amp; Rebalancing</p>
+              <p className="text-[10px] text-stone-400 mt-0.5">Daily spending audit &amp; automatic surplus/deficit smoothing.</p>
+            </div>
+            <button
+              onClick={async () => {
+                const { triggerCircadianTestAlert } = await import('@/lib/scheduleNotificationWatcher')
+                await triggerCircadianTestAlert('evening')
+                toast.success('Evening Rebalancing push dispatched!')
+              }}
+              className="py-1.5 px-2.5 rounded-lg bg-stone-800 hover:bg-purple-400/20 text-purple-300 text-[10px] font-mono font-bold cursor-pointer transition-colors self-start"
+            >
+              Test Evening Alert
+            </button>
+          </div>
+        </div>
+      </div>
+
       {/* Filter Tabs */}
       <div className="flex items-center gap-1.5 border-b border-stone-800/80 pb-2">
         <button

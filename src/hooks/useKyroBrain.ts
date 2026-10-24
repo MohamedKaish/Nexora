@@ -265,6 +265,11 @@ export function useKyroBrain() {
         } else if (chip.payload?.actionType === 'view_reminders') {
           router.push('/notes')
           speak('Displaying all upcoming scheduled reminder timestamps.', 3500)
+        } else if (chip.payload?.actionType === 'voice_gate_confirm') {
+          speak('Voice Action Gate authorization verified. Mutation confirmed and recorded in local zero-knowledge vault.', 4500)
+          setAnimationState('CELEBRATING', 3000)
+        } else if (chip.payload?.actionType === 'voice_gate_cancel') {
+          speak('Mutation cancelled. Safe-to-Spend parameters and financial records intact.', 3500)
         } else if (chip.payload?.taskId) {
           router.push('/tasks')
           speak('Locking on target task. Let us conquer it.', 3500)
