@@ -1,7 +1,11 @@
-import { createClient, SupabaseClient, User, Session } from '@supabase/supabase-js'
+import { createClient, SupabaseClient, User, Session, AuthChangeEvent } from '@supabase/supabase-js'
 
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || ''
-const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || ''
+export const DEFAULT_SUPABASE_URL = 'https://rruavarqxdotdsbbjvck.supabase.co'
+export const DEFAULT_SUPABASE_ANON_KEY =
+  'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InJydWF2YXJxeGRvdGRzYmJqdmNrIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODU1NzM5MjQsImV4cCI6MjEwMTE0OTkyNH0.3SLbaEOaOWxnSqgiSXvLNwiSt6OJPdAzVQMyk2wmpKA'
+
+const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || DEFAULT_SUPABASE_URL
+const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || DEFAULT_SUPABASE_ANON_KEY
 
 let cachedClient: SupabaseClient | null = null
 
@@ -14,17 +18,23 @@ export function isSupabaseConfigured(): boolean {
   )
 }
 
-export function getSupabaseClient(): SupabaseClient | null {
-  if (!isSupabaseConfigured()) {
-    return null
+export function getSupabaseProjectRef(): string {
+  try {
+    const url = new URL(supabaseUrl)
+    return url.hostname.split('.')[0] || 'rruavarqxdotdsbbjvck'
+  } catch {
+    return 'rruavarqxdotdsbbjvck'
   }
+}
 
+export function getSupabaseClient(): SupabaseClient {
   if (!cachedClient) {
     cachedClient = createClient(supabaseUrl, supabaseAnonKey, {
       auth: {
         persistSession: true,
         autoRefreshToken: true,
         detectSessionInUrl: true,
+        storageKey: 'nexora_supabase_auth_token',
       },
     })
   }
@@ -45,16 +55,12 @@ export async function signInWithGoogle(): Promise<{
   }
 
   const client = getSupabaseClient()
-  if (!client) {
-    return {
-      success: false,
-      error: 'Supabase credentials not configured. Please set NEXT_PUBLIC_SUPABASE_URL and NEXT_PUBLIC_SUPABASE_ANON_KEY in your AI Studio Secrets panel.',
-    }
-  }
 
   try {
     const origin = window.location.origin
-    const redirectTo = `${origin}/auth/callback`
+    // Determine redirect URL: if running inside Android APK webview or web app
+    const isNativeApk = typeof window !== 'undefined' && Boolean((window as unknown as { NexoraNativeBridge?: unknown }).NexoraNativeBridge)
+    const redirectTo = isNativeApk ? `${origin}/auth/callback` : `${origin}/auth/callback`
 
     const { data, error } = await client.auth.signInWithOAuth({
       provider: 'google',
@@ -88,7 +94,6 @@ export async function signInWithGoogle(): Promise<{
  */
 export async function signOutFromSupabase(): Promise<{ success: boolean; error?: string }> {
   const client = getSupabaseClient()
-  if (!client) return { success: true }
 
   try {
     const { error } = await client.auth.signOut()
@@ -105,7 +110,6 @@ export async function signOutFromSupabase(): Promise<{ success: boolean; error?:
  */
 export async function getSupabaseSession(): Promise<{ user: User | null; session: Session | null }> {
   const client = getSupabaseClient()
-  if (!client) return { user: null, session: null }
 
   try {
     const { data, error } = await client.auth.getSession()
@@ -114,4 +118,15 @@ export async function getSupabaseSession(): Promise<{ user: User | null; session
   } catch {
     return { user: null, session: null }
   }
+}
+
+/**
+ * Subscribes to real-time auth changes
+ */
+export function onSupabaseAuthStateChange(
+  callback: (event: AuthChangeEvent, session: Session | null) => void
+) {
+  const client = getSupabaseClient()
+  const { data: { subscription } } = client.auth.onAuthStateChange(callback)
+  return subscription
 }

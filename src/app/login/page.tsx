@@ -12,6 +12,7 @@ import {
   signInWithGoogle,
   isSupabaseConfigured,
   getSupabaseSession,
+  getSupabaseProjectRef,
 } from '@/lib/supabase'
 import {
   Sparkles,
@@ -262,15 +263,16 @@ function LoginContent() {
                 <div className="flex items-center justify-between px-3 py-1.5 rounded-xl bg-stone-900/50 border border-stone-800/80 text-[10px] font-mono">
                   <span className="flex items-center gap-1.5 text-stone-400">
                     <Cloud className="w-3 h-3 text-amber-400" />
-                    <span>Supabase Backend:</span>
+                    <span>Supabase Cloud:</span>
+                    <span className="text-stone-300 font-semibold">{getSupabaseProjectRef()}</span>
                   </span>
                   {supabaseReady ? (
                     <span className="text-emerald-400 font-bold flex items-center gap-1">
-                      <CheckCircle2 className="w-3 h-3" /> Ready
+                      <CheckCircle2 className="w-3 h-3" /> Connected
                     </span>
                   ) : (
-                    <span className="text-amber-400 font-bold flex items-center gap-1" title="Set NEXT_PUBLIC_SUPABASE_URL and NEXT_PUBLIC_SUPABASE_ANON_KEY in Secrets">
-                      <Key className="w-3 h-3" /> Local Vault Active
+                    <span className="text-amber-400 font-bold flex items-center gap-1" title="Connected via local vault">
+                      <Key className="w-3 h-3" /> Vault Mode
                     </span>
                   )}
                 </div>

@@ -16,6 +16,7 @@ import { useAppStore, isUserOnboarded } from '@/store/appStore'
 import { format } from 'date-fns'
 import { toast } from 'sonner'
 import { sendNotification } from '@/lib/notificationService'
+import { initSupabaseSync } from '@/lib/supabaseSync'
 
 export function AppShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname()
@@ -35,6 +36,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
 
   useEffect(() => {
     setMounted(true)
+    initSupabaseSync()
   }, [])
 
   // Enforce First-Time 5-Step Calibration with hydration barrier
