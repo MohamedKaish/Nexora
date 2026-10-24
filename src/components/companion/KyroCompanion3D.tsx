@@ -19,12 +19,12 @@ import {
   Zap,
   ShieldCheck,
   RotateCcw,
+  Check,
+  Sparkles,
 } from 'lucide-react'
 import { useKyroStore } from '@/store/kyroStore'
 import { useKyroBrain } from '@/hooks/useKyroBrain'
-import { useTaskStore } from '@/store/useTaskStore'
-import { useHabitStore } from '@/store/useHabitStore'
-import { useAppStore } from '@/store/appStore'
+import { KyroContextBuilder } from '@/features/kyro/KyroContextBuilder'
 import { KYRO_COLOR_THEMES } from '@/types/kyro'
 import { toast } from 'sonner'
 
@@ -36,6 +36,7 @@ export function KyroCompanion3D() {
   const isDraggingRef = useRef(false)
 
   const {
+    isOpen,
     animationState,
     activeSpeech,
     speechBubbleVisible,
@@ -52,7 +53,9 @@ export function KyroCompanion3D() {
     togglePinned,
     toggleVoice,
     toggleOpen,
-    setProviderTelemetry,
+    sendMessage,
+    executeProposedAction,
+    dismissAction,
   } = useKyroStore()
 
   const { handleActionChip } = useKyroBrain()
@@ -62,19 +65,25 @@ export function KyroCompanion3D() {
   const [isSendingQuick, setIsSendingQuick] = useState(false)
   const [displayedText, setDisplayedText] = useState('')
   const [isDragging, setIsDragging] = useState(false)
+  const [dragPosition, setDragPosition] = useState<{ x: number; y: number } | null>(null)
+  const dragPositionRef = useRef<{ x: number; y: number } | null>(null)
   const [showHistory, setShowHistory] = useState(false)
 
-  // Responsive mobile scaling & Android APK detection
+  // Responsive mobile scaling, viewport dimensions & Android APK detection
   const [isMobile, setIsMobile] = useState(false)
+  const [viewportSize, setViewportSize] = useState({ width: 390, height: 844 })
 
   useEffect(() => {
     setMounted(true)
   }, [])
 
   useEffect(() => {
-    const checkMobile = () => {
+    const checkViewport = () => {
       if (typeof window === 'undefined') return
-      const isSmall = window.innerWidth < 640
+      const vw = window.innerWidth
+      const vh = window.innerHeight
+      setViewportSize({ width: vw, height: vh })
+      const isSmall = vw < 640
       const isNative = Boolean(
         (window as unknown as { NexoraNativeBridge?: { isNative?: () => boolean } }).NexoraNativeBridge?.isNative?.() ||
           (window as unknown as { NexoraNativeBridge?: unknown }).NexoraNativeBridge ||
@@ -82,14 +91,29 @@ export function KyroCompanion3D() {
       )
       setIsMobile(isSmall || isNative)
     }
-    checkMobile()
-    window.addEventListener('resize', checkMobile)
-    return () => window.removeEventListener('resize', checkMobile)
+    checkViewport()
+    window.addEventListener('resize', checkViewport)
+    return () => window.removeEventListener('resize', checkViewport)
   }, [])
 
-  // Ultra-compact 95x110 on mobile/APK to never obstruct UI; 160x180 on desktop
-  const stageWidth = isMobile ? 95 : 160
-  const stageHeight = isMobile ? 110 : 180
+  // Ultra-compact 96x110 on mobile/APK to never obstruct UI; 150x170 on desktop
+  const stageWidth = isMobile ? 96 : 150
+  const stageHeight = isMobile ? 110 : 170
+  const podWidth = settings.isMinimized ? 156 : isMobile ? 196 : 212
+  const podHeight = settings.isMinimized ? 44 : stageHeight + 44
+
+  const clampPodCoords = (rawX: number, rawY: number) => {
+    const vw = typeof window !== 'undefined' ? window.innerWidth : viewportSize.width
+    const vh = typeof window !== 'undefined' ? window.innerHeight : viewportSize.height
+    const minX = 8
+    const maxX = Math.max(8, vw - podWidth - 8)
+    const minY = isMobile ? 68 : 16
+    const maxY = Math.max(minY, vh - podHeight - (isMobile ? 74 : 16))
+    return {
+      x: Math.round(Math.max(minX, Math.min(maxX, rawX))),
+      y: Math.round(Math.max(minY, Math.min(maxY, rawY))),
+    }
+  }
 
   // Keep refs updated for the Three.js 60FPS loop without causing re-renders
   const animStateRef = useRef(animationState)
@@ -110,7 +134,7 @@ export function KyroCompanion3D() {
     customGlbRef.current = settings.customGlbUrl
   }, [settings.model, settings.costume, settings.colorTheme, settings.customGlbUrl])
 
-  // Typewriter effect for speech bubble
+  // Throttled typewriter effect for speech bubble (steps 3 chars every 36ms to prevent mobile 60Hz re-render lag)
   useEffect(() => {
     if (!activeSpeech || !speechBubbleVisible) {
       setDisplayedText('')
@@ -118,15 +142,16 @@ export function KyroCompanion3D() {
     }
     setDisplayedText('')
     let idx = 0
+    const step = isMobile ? 4 : 3
     const interval = setInterval(() => {
-      idx++
+      idx = Math.min(activeSpeech.length, idx + step)
       setDisplayedText(activeSpeech.slice(0, idx))
       if (idx >= activeSpeech.length) {
         clearInterval(interval)
       }
-    }, 16)
+    }, 36)
     return () => clearInterval(interval)
-  }, [activeSpeech, speechBubbleVisible])
+  }, [activeSpeech, speechBubbleVisible, isMobile])
 
   // Auto-scroll chat history inside bubble
   useEffect(() => {
@@ -151,59 +176,68 @@ export function KyroCompanion3D() {
     }
   }, [])
 
-  // ── STRICT SCOPED DRAG HANDLER (ONLY ACTIVE WHEN USER INTENTIONALLY DRAGS HANDLE) ──
-  const startDrag = (startX: number, startY: number) => {
-    isDraggingRef.current = true
-    setIsDragging(true)
+  // ── UNIFIED POINTER DRAG & TAP HANDLER (WORKS ON STAGE, MOVE BUTTON, BUBBLE HEADER & MINIMIZED PILL) ──
+  // Uses local state during movement to avoid synchronous localStorage writes on every frame,
+  // and commits the final position to Zustand store only on pointer release.
+  const handleInteractivePointerDown = (
+    e: React.PointerEvent,
+    onTap?: () => void,
+    forceImmediateDrag = false
+  ) => {
+    if (e.button !== 0 && e.pointerType === 'mouse') return
+    e.stopPropagation()
 
+    const startX = e.clientX
+    const startY = e.clientY
     const rect = containerRef.current?.getBoundingClientRect()
-    const offsetX = rect ? startX - rect.left : stageWidth / 2
-    const offsetY = rect ? startY - rect.top : stageHeight / 2
+    const offsetX = rect ? startX - rect.left : podWidth / 2
+    const offsetY = rect ? startY - rect.top : podHeight / 2
 
-    const handlePointerMove = (e: PointerEvent | MouseEvent) => {
-      if (!isDraggingRef.current) return
-      const maxX = Math.max(8, window.innerWidth - stageWidth - 12)
-      const maxY = Math.max(8, window.innerHeight - stageHeight - 16)
-      const newX = Math.max(8, Math.min(maxX, e.clientX - offsetX))
-      const newY = Math.max(8, Math.min(maxY, e.clientY - offsetY))
-      setCustomPosition({ x: newX, y: newY })
+    let hasExceededThreshold = forceImmediateDrag
+    if (forceImmediateDrag) {
+      isDraggingRef.current = true
+      setIsDragging(true)
     }
 
-    const handleTouchMove = (e: TouchEvent) => {
-      if (!isDraggingRef.current || !e.touches[0]) return
-      e.preventDefault()
-      const touch = e.touches[0]
-      const maxX = Math.max(8, window.innerWidth - stageWidth - 12)
-      const maxY = Math.max(8, window.innerHeight - stageHeight - 16)
-      const newX = Math.max(8, Math.min(maxX, touch.clientX - offsetX))
-      const newY = Math.max(8, Math.min(maxY, touch.clientY - offsetY))
-      setCustomPosition({ x: newX, y: newY })
+    const handlePointerMove = (moveEvent: PointerEvent) => {
+      const dist = Math.hypot(moveEvent.clientX - startX, moveEvent.clientY - startY)
+      if (!hasExceededThreshold && dist > 6) {
+        hasExceededThreshold = true
+        isDraggingRef.current = true
+        setIsDragging(true)
+      }
+      if (!hasExceededThreshold) return
+
+      const clamped = clampPodCoords(moveEvent.clientX - offsetX, moveEvent.clientY - offsetY)
+      dragPositionRef.current = clamped
+      setDragPosition(clamped)
     }
 
-    const handleDragEnd = () => {
-      isDraggingRef.current = false
-      setIsDragging(false)
+    const handlePointerUp = () => {
       window.removeEventListener('pointermove', handlePointerMove)
-      window.removeEventListener('pointerup', handleDragEnd)
-      window.removeEventListener('pointercancel', handleDragEnd)
-      window.removeEventListener('mousemove', handlePointerMove)
-      window.removeEventListener('mouseup', handleDragEnd)
-      window.removeEventListener('touchmove', handleTouchMove)
-      window.removeEventListener('touchend', handleDragEnd)
+      window.removeEventListener('pointerup', handlePointerUp)
+      window.removeEventListener('pointercancel', handlePointerUp)
+
+      if (isDraggingRef.current && dragPositionRef.current) {
+        setCustomPosition(dragPositionRef.current)
+      } else if (!hasExceededThreshold && onTap) {
+        onTap()
+      }
+
+      isDraggingRef.current = false
+      dragPositionRef.current = null
+      setIsDragging(false)
+      setDragPosition(null)
     }
 
     window.addEventListener('pointermove', handlePointerMove, { passive: true })
-    window.addEventListener('pointerup', handleDragEnd)
-    window.addEventListener('pointercancel', handleDragEnd)
-    window.addEventListener('mousemove', handlePointerMove)
-    window.addEventListener('mouseup', handleDragEnd)
-    window.addEventListener('touchmove', handleTouchMove, { passive: false })
-    window.addEventListener('touchend', handleDragEnd)
+    window.addEventListener('pointerup', handlePointerUp)
+    window.addEventListener('pointercancel', handlePointerUp)
   }
 
   // ── THREE.JS 60FPS WEBGL SCENE WITH COSTUMES & COLOR THEMES ──
   useEffect(() => {
-    if (!mounted) return
+    if (!mounted || isOpen) return
     const container = mountRef.current
     if (!container || settings.isMinimized) return
 
@@ -216,11 +250,11 @@ export function KyroCompanion3D() {
 
     const renderer = new THREE.WebGLRenderer({
       alpha: true,
-      antialias: true,
+      antialias: !isMobile,
       powerPreference: 'high-performance',
     })
     renderer.setSize(width, height)
-    renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 1.75))
+    renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, isMobile ? 1.25 : 1.75))
     container.innerHTML = ''
     container.appendChild(renderer.domElement)
 
@@ -667,7 +701,9 @@ export function KyroCompanion3D() {
         rightHand.position.y = -0.25 - handWave
       }
 
-      renderer.render(scene, camera)
+      if (typeof document === 'undefined' || !document.hidden) {
+        renderer.render(scene, camera)
+      }
     }
 
     animate()
@@ -678,6 +714,8 @@ export function KyroCompanion3D() {
     }
   }, [
     mounted,
+    isOpen,
+     isMobile,
     settings.model,
     settings.costume,
     settings.colorTheme,
@@ -687,7 +725,7 @@ export function KyroCompanion3D() {
     stageHeight,
   ])
 
-  // Unified Quick Chat Query
+  // Unified Quick Chat Query using canonical context & action flow
   const handleQuickChatSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     if (!quickInput.trim() || isSendingQuick) return
@@ -697,94 +735,101 @@ export function KyroCompanion3D() {
     setIsSendingQuick(true)
 
     try {
-      const tasks = useTaskStore.getState().tasks
-      const activeTasks = tasks.filter((t) => t.status !== 'done')
-      const urgentTasks = activeTasks.filter((t) => t.priority === 'urgent' || t.priority === 'high')
-      const habits = useHabitStore.getState().habits
-      const userName = useAppStore.getState().preferences?.displayName || 'Explorer'
-      const localKey =
-        typeof window !== 'undefined' ? localStorage.getItem('nexora_gemini_api_key') || undefined : undefined
-
-      const history = messages.slice(-4).map((m) => ({ sender: m.sender, text: m.text }))
-
-      const res = await fetch('/api/kyro', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          message: msg,
-          userApiKey: localKey,
-          history,
-          context: {
-            userName,
-            activeTasksCount: activeTasks.length,
-            urgentTasks,
-            habitsSummary: `${habits.length} active habits`,
-            focusMinutesToday: 25,
-          },
-        }),
-      })
-
-      const data = await res.json()
-
-      setProviderTelemetry(data.provider, data.latencyMs, data.errorReason)
-
-      const speech = data.speechBubble || data.reply || 'Standing by, Boss!'
-      speak(speech, settings.isPinned ? 0 : 10000)
-
-      // Add to full unified chat history
-      useKyroStore.setState((s) => ({
-        messages: [
-          ...s.messages,
-          {
-            id: 'user_' + Date.now(),
-            sender: 'user',
-            text: msg,
-            timestamp: new Date().toISOString(),
-          },
-          {
-            id: 'kyro_' + (Date.now() + 1),
-            sender: 'kyro',
-            text: data.reply || speech,
-            timestamp: new Date().toISOString(),
-          },
-        ],
-      }))
-    } catch {
-      setProviderTelemetry('local-context-engine', 1, 'Network exception')
-      speak('Standing by at your command, Boss! Check your Task Matrix for the next priority.', 5000)
+      await sendMessage(msg, KyroContextBuilder.collectLiveStoreInputs())
     } finally {
       setIsSendingQuick(false)
     }
   }
 
-  // Hydration barrier: do not render on server
-  if (!mounted) {
+  const latestProposedAction = [...messages]
+    .reverse()
+    .find((m) => m.sender === 'kyro' && m.proposedAction)?.proposedAction
+
+  // Hydration barrier or full chat modal open: do not render floating 3D overlay
+  if (!mounted || isOpen) {
     return null
   }
 
-  // Compute position: tucked neatly above bottom nav on mobile/APK, anchored to corner on desktop
-  const defaultBottom = isMobile ? '74px' : '24px'
-  const defaultSide = isMobile ? '10px' : '20px'
+  // Compute safe clamped position: tucked neatly above bottom nav on mobile/APK, anchored to corner on desktop
+  const sideMargin = isMobile ? 10 : 20
+  const bottomMargin = isMobile ? 74 : 24
+  const topMargin = isMobile ? 68 : 80
 
-  const positionStyle: React.CSSProperties = customPosition
-    ? { left: `${customPosition.x}px`, top: `${customPosition.y}px` }
+  const effectiveCustomPos =
+    dragPosition ?? (customPosition ? clampPodCoords(customPosition.x, customPosition.y) : null)
+
+  const podScreenLeft = effectiveCustomPos
+    ? effectiveCustomPos.x
     : settings.anchor === 'bottom-left'
-    ? { left: defaultSide, bottom: defaultBottom }
-    : settings.anchor === 'top-right'
-    ? { right: defaultSide, top: isMobile ? '68px' : '80px' }
-    : { right: defaultSide, bottom: defaultBottom }
+    ? sideMargin
+    : Math.max(8, viewportSize.width - sideMargin - podWidth)
 
-  // Minimized Pill
+  const podScreenTop = effectiveCustomPos
+    ? effectiveCustomPos.y
+    : settings.anchor === 'top-right'
+    ? topMargin
+    : Math.max(topMargin, viewportSize.height - bottomMargin - podHeight)
+
+  const positionStyle: React.CSSProperties = effectiveCustomPos
+    ? { left: `${effectiveCustomPos.x}px`, top: `${effectiveCustomPos.y}px` }
+    : settings.anchor === 'bottom-left'
+    ? { left: `${sideMargin}px`, bottom: `${bottomMargin}px` }
+    : settings.anchor === 'top-right'
+    ? { right: `${sideMargin}px`, top: `${topMargin}px` }
+    : { right: `${sideMargin}px`, bottom: `${bottomMargin}px` }
+
+  const bubbleWidth = Math.min(
+    isMobile ? 272 : 316,
+    Math.max(220, viewportSize.width - 16)
+  )
+  const isPodOnRightHalf = podScreenLeft + podWidth / 2 >= viewportSize.width / 2
+  const desiredBubbleLeft = isPodOnRightHalf
+    ? podScreenLeft + podWidth - bubbleWidth
+    : podScreenLeft
+  const clampedBubbleScreenLeft = Math.max(
+    8,
+    Math.min(viewportSize.width - bubbleWidth - 8, desiredBubbleLeft)
+  )
+  const bubbleRelativeLeft = clampedBubbleScreenLeft - podScreenLeft
+  const openBubbleBelow = podScreenTop < 270
+
+  // Minimized Pill (Draggable & Tappable, plus quick chat access)
   if (settings.isMinimized) {
     return (
-      <div ref={containerRef} style={positionStyle} className="fixed z-40 pointer-events-auto">
+      <div
+        ref={containerRef}
+        data-kyro-companion="true"
+        style={{ ...positionStyle, touchAction: 'none' }}
+        onPointerDown={(e) => handleInteractivePointerDown(e, toggleMinimized, false)}
+        className="fixed z-[45] pointer-events-auto flex items-center gap-1 p-1 rounded-full bg-stone-950/95 border border-amber-500/45 text-stone-100 shadow-2xl select-none"
+      >
         <button
-          onClick={toggleMinimized}
-          className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-stone-950/90 border border-amber-500/40 text-stone-100 shadow-xl hover:border-amber-400 transition-all cursor-pointer"
+          type="button"
+          onClick={(e) => {
+            e.stopPropagation()
+            if (!isDraggingRef.current) toggleMinimized()
+          }}
+          className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-full hover:bg-stone-900 transition-colors cursor-pointer touch-manipulation min-h-[34px]"
+          title="Restore Kyro 3D Companion (or drag to move)"
         >
           <span className="w-2 h-2 rounded-full bg-amber-400 animate-pulse" />
-          <span className="text-[11px] font-semibold tracking-wider uppercase text-amber-300">Kyro 3D</span>
-          <Maximize2 className="w-3 h-3 text-stone-400" />
+          <span className="text-[11px] font-bold tracking-wider uppercase text-amber-300">
+            Kyro 3D
+          </span>
+          <Maximize2 className="w-3.5 h-3.5 text-stone-300" />
+        </button>
+        <button
+          type="button"
+          onPointerDown={(e) => e.stopPropagation()}
+          onClick={(e) => {
+            e.stopPropagation()
+            toggleOpen()
+          }}
+          className="w-8 h-8 rounded-full bg-amber-400/15 hover:bg-amber-400/25 border border-amber-400/30 flex items-center justify-center text-amber-300 transition-colors cursor-pointer touch-manipulation"
+          title="Open Full Kyro Chat"
+          aria-label="Open Full Kyro Chat"
+        >
+          <MessageSquare className="w-3.5 h-3.5" />
         </button>
       </div>
     )
@@ -793,65 +838,86 @@ export function KyroCompanion3D() {
   return (
     <div
       ref={containerRef}
-      style={positionStyle}
-      className="fixed z-40 flex flex-col items-end pointer-events-none select-none"
+      data-kyro-companion="true"
+      style={{ ...positionStyle, width: `${podWidth}px` }}
+      className="fixed z-[45] flex flex-col items-center pointer-events-none select-none"
     >
-      {/* ── STREAMLINED LIQUID GLASS SPEECH BUBBLE ── */}
+      {/* ── VIEWPORT-CLAMPED SPEECH BUBBLE (DECOUPLED FROM POD SIZE) ── */}
       {speechBubbleVisible && (
         <div
-          className={`pointer-events-auto mb-1.5 ${
-            isMobile ? 'w-60 max-w-[78vw] p-2.5 text-[11px]' : 'w-72 sm:w-80 p-3 text-xs'
-          } rounded-2xl bg-stone-950/95 backdrop-blur-2xl border border-amber-500/35 shadow-2xl transition-all`}
+          style={{
+            width: `${bubbleWidth}px`,
+            left: `${bubbleRelativeLeft}px`,
+            ...(openBubbleBelow
+              ? { top: 'calc(100% + 8px)' }
+              : { bottom: 'calc(100% + 8px)' }),
+          }}
+          onPointerDown={(e) => e.stopPropagation()}
+          className="absolute z-30 pointer-events-auto max-h-[min(370px,54dvh)] overflow-y-auto p-3 text-xs rounded-2xl bg-stone-950/98 backdrop-blur-md border border-amber-500/40 shadow-[0_12px_36px_rgba(0,0,0,0.75)]"
         >
-          {/* Compact Header */}
-          <div className="flex items-center justify-between mb-1.5 pb-1 border-b border-stone-800/80">
-            <div className="flex items-center gap-1.5">
-              <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
-              <span className="text-[10px] font-bold uppercase tracking-wider text-amber-300 font-mono truncate max-w-[110px]">
+          {/* Draggable Compact Header */}
+          <div
+            style={{ touchAction: 'none' }}
+            onPointerDown={(e) => handleInteractivePointerDown(e, undefined, false)}
+            className="flex items-center justify-between gap-1.5 mb-2 pb-1.5 border-b border-stone-800/90 cursor-grab active:cursor-grabbing"
+            title="Drag header to reposition Kyro"
+          >
+            <div className="flex items-center gap-1.5 min-w-0">
+              <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse shrink-0" />
+              <span className="text-[10px] font-bold uppercase tracking-wider text-amber-300 font-mono truncate">
                 Kyro · {settings.model.replace('_', ' ')}
               </span>
             </div>
 
-            <div className="flex items-center gap-1">
+            <div
+              className="flex items-center gap-1 shrink-0"
+              onPointerDown={(e) => e.stopPropagation()}
+            >
               {/* Telemetry Badge */}
               {lastProvider === 'gemini-2.5-flash' ? (
                 <span
-                  title={`Live Gemini 2.5 Flash (${lastLatencyMs}ms)`}
-                  className="px-1.5 py-0.5 rounded-full bg-emerald-500/15 border border-emerald-500/30 text-emerald-300 font-mono text-[8px] font-bold flex items-center gap-0.5"
+                  title={`Live Gemini 2.5 Flash (${lastLatencyMs ?? 0}ms)`}
+                  className="px-2 py-1 rounded-full bg-emerald-500/15 border border-emerald-500/30 text-emerald-300 font-mono text-[9px] font-bold flex items-center gap-0.5"
                 >
-                  <Zap className="w-2 h-2 text-emerald-400" />
-                  <span>{lastLatencyMs}ms</span>
+                  <Zap className="w-2.5 h-2.5 text-emerald-400" />
+                  <span>{lastLatencyMs ?? 0}ms</span>
                 </span>
               ) : (
                 <button
+                  type="button"
                   onClick={() => router.push('/character')}
-                  title="Configure Gemini 2.5 Flash Key in Atelier"
-                  className="px-1.5 py-0.5 rounded-full bg-amber-500/15 border border-amber-500/30 text-amber-300 font-mono text-[8px] font-bold flex items-center gap-0.5 cursor-pointer hover:bg-amber-500/25"
+                  title="View Kyro Neural Diagnostics in Atelier"
+                  className="px-2 py-1 min-h-[28px] rounded-full bg-amber-500/15 border border-amber-500/30 text-amber-300 font-mono text-[9px] font-bold flex items-center gap-1 cursor-pointer hover:bg-amber-500/25 touch-manipulation"
                 >
-                  <ShieldCheck className="w-2 h-2 text-amber-400" />
-                  <span>0ms</span>
+                  <ShieldCheck className="w-2.5 h-2.5 text-amber-400" />
+                  <span>Status</span>
                 </button>
               )}
 
               {/* Pin / Unpin */}
               <button
+                type="button"
                 onClick={togglePinned}
                 title={settings.isPinned ? 'Unpin Bubble' : 'Pin Bubble Open'}
-                className="p-0.5 text-stone-400 hover:text-amber-400 transition-colors cursor-pointer"
+                aria-label={settings.isPinned ? 'Unpin Bubble' : 'Pin Bubble Open'}
+                className="w-7 h-7 rounded-lg flex items-center justify-center text-stone-300 hover:text-amber-400 hover:bg-stone-800/80 transition-colors cursor-pointer touch-manipulation"
               >
                 {settings.isPinned ? (
-                  <Pin className="w-3 h-3 text-amber-400" />
+                  <Pin className="w-3.5 h-3.5 text-amber-400" />
                 ) : (
-                  <PinOff className="w-3 h-3" />
+                  <PinOff className="w-3.5 h-3.5" />
                 )}
               </button>
 
               {/* Close Bubble */}
               <button
+                type="button"
                 onClick={dismissSpeech}
-                className="p-0.5 text-stone-400 hover:text-stone-200 transition-colors cursor-pointer"
+                title="Close Speech Bubble"
+                aria-label="Close Speech Bubble"
+                className="w-7 h-7 rounded-lg flex items-center justify-center text-stone-300 hover:text-stone-100 hover:bg-stone-800/80 transition-colors cursor-pointer touch-manipulation"
               >
-                <X className="w-3 h-3" />
+                <X className="w-3.5 h-3.5" />
               </button>
             </div>
           </div>
@@ -860,7 +926,7 @@ export function KyroCompanion3D() {
           {showHistory && (
             <div
               ref={chatScrollRef}
-              className="max-h-28 overflow-y-auto mb-1.5 p-1.5 rounded-xl bg-stone-900/60 border border-stone-800/80 space-y-1 text-[11px]"
+              className="max-h-28 overflow-y-auto mb-2 p-2 rounded-xl bg-stone-900/70 border border-stone-800/80 space-y-1.5 text-[11px]"
             >
               {messages.slice(-4).map((msg) => (
                 <div
@@ -868,7 +934,7 @@ export function KyroCompanion3D() {
                   className={`p-1.5 rounded-lg ${
                     msg.sender === 'user'
                       ? 'bg-amber-400/10 text-amber-200 ml-3'
-                      : 'bg-stone-800/60 text-stone-300 mr-3'
+                      : 'bg-stone-800/70 text-stone-200 mr-3'
                   }`}
                 >
                   <span className="font-bold text-[9px] block text-stone-400">
@@ -881,24 +947,60 @@ export function KyroCompanion3D() {
           )}
 
           {/* Active Typewriter Speech */}
-          <div className="flex items-start justify-between gap-1.5">
-            <p className="text-[11px] sm:text-xs leading-snug text-stone-200 font-medium">
+          <div className="flex items-start justify-between gap-2">
+            <p className="text-xs leading-relaxed text-stone-100 font-medium">
               {displayedText || activeSpeech}
             </p>
             <button
+              type="button"
               onClick={() => setShowHistory(!showHistory)}
-              className="shrink-0 text-[9px] text-amber-400/80 hover:text-amber-300 underline cursor-pointer"
+              className="shrink-0 px-2 py-1 min-h-[26px] rounded-md bg-stone-900 hover:bg-stone-800 border border-stone-800 text-[10px] font-semibold text-amber-400 hover:text-amber-300 cursor-pointer touch-manipulation"
             >
               {showHistory ? 'Hide' : 'Log'}
             </button>
           </div>
 
-          {/* Action Chips */}
+          {/* Model-Proposed Action Confirmation Card (distinct from manual Action Chips) */}
+          {latestProposedAction && !latestProposedAction.isExecuted && (
+            <div className="mt-2.5 p-2.5 rounded-xl bg-stone-900/95 border border-amber-400/40 space-y-2">
+              <div className="flex items-center gap-1.5 text-[11px] font-bold text-amber-300">
+                <Sparkles className="w-3.5 h-3.5 text-amber-400 shrink-0" />
+                <span>Confirm Proposed Action</span>
+              </div>
+              <p className="text-[11px] text-stone-200 font-medium leading-snug">
+                {latestProposedAction.label}
+              </p>
+              <div className="flex items-center gap-2 pt-0.5">
+                <button
+                  type="button"
+                  onClick={() =>
+                    executeProposedAction(latestProposedAction.id, {
+                      navigate: (route) => router.push(route),
+                    })
+                  }
+                  className="flex items-center gap-1 px-3 py-1.5 min-h-[32px] rounded-lg bg-amber-400 text-stone-950 text-[11px] font-bold hover:bg-amber-300 transition-colors cursor-pointer touch-manipulation"
+                >
+                  <Check className="w-3 h-3" />
+                  <span>Confirm</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => dismissAction(latestProposedAction.id)}
+                  className="px-3 py-1.5 min-h-[32px] rounded-lg bg-stone-800/80 text-stone-300 hover:text-stone-100 text-[11px] font-medium transition-colors cursor-pointer touch-manipulation"
+                >
+                  Dismiss
+                </button>
+              </div>
+            </div>
+          )}
+
+          {/* Manual Quick Action Chips */}
           {actionChips.length > 0 && (
-            <div className="flex flex-wrap gap-1 mt-2 pt-1.5 border-t border-stone-800/80">
+            <div className="flex flex-wrap gap-1.5 mt-2.5 pt-2 border-t border-stone-800/80">
               {actionChips.map((chip) => (
                 <button
                   key={chip.id}
+                  type="button"
                   onClick={() => {
                     if (chip.action === 'open_wardrobe') {
                       router.push('/character')
@@ -906,7 +1008,7 @@ export function KyroCompanion3D() {
                       handleActionChip(chip)
                     }
                   }}
-                  className="px-2 py-0.5 rounded-lg bg-amber-500/15 hover:bg-amber-500/25 border border-amber-500/30 text-amber-300 text-[10px] font-semibold transition-all cursor-pointer"
+                  className="px-2.5 py-1.5 min-h-[30px] rounded-lg bg-amber-500/15 hover:bg-amber-500/25 active:bg-amber-500/35 border border-amber-500/35 text-amber-300 text-[11px] font-semibold transition-colors cursor-pointer touch-manipulation"
                 >
                   {chip.label}
                 </button>
@@ -915,117 +1017,162 @@ export function KyroCompanion3D() {
           )}
 
           {/* Direct Command Input */}
-          <form onSubmit={handleQuickChatSubmit} className="mt-2 flex items-center gap-1">
+          <form onSubmit={handleQuickChatSubmit} className="mt-2.5 flex items-center gap-1.5">
             <input
               type="text"
               value={quickInput}
               onChange={(e) => setQuickInput(e.target.value)}
               placeholder="Ask Kyro..."
-              className="flex-1 min-w-0 bg-stone-900/90 border border-stone-800 focus:border-amber-500/50 rounded-lg px-2 py-1 text-[11px] text-stone-100 placeholder:text-stone-500 outline-none"
+              className="flex-1 min-w-0 min-h-[34px] bg-stone-900 border border-stone-800 focus:border-amber-500/60 rounded-lg px-2.5 py-1.5 text-xs text-stone-100 placeholder:text-stone-500 outline-none"
             />
             <button
               type="submit"
               disabled={isSendingQuick}
-              className="p-1 rounded-lg bg-amber-500 hover:bg-amber-400 text-stone-950 font-bold transition-colors cursor-pointer shrink-0"
+              aria-label="Send quick message"
+              className="w-8 h-8 rounded-lg bg-amber-500 hover:bg-amber-400 active:scale-95 text-stone-950 font-bold flex items-center justify-center transition-all cursor-pointer shrink-0 touch-manipulation"
             >
-              <Send className="w-3 h-3" />
+              <Send className="w-3.5 h-3.5" />
             </button>
           </form>
         </div>
       )}
 
-      {/* ── ULTRA-COMPACT 3D WEBGL COMPANION STAGE ── */}
-      <div className="relative pointer-events-auto flex flex-col items-center">
+      {/* ── ULTRA-COMPACT 3D WEBGL COMPANION STAGE (DRAGGABLE & TAPPABLE FROM ANY ANGLE) ── */}
+      <div className="relative z-20 pointer-events-auto flex flex-col items-center w-full">
         <div
           ref={mountRef}
-          onClick={() => {
-            speak('Standing by at your side, Boss! What objective shall we tackle next?', 6000, [
-              { id: 'next', label: '🎯 Next Task', action: 'ask_next_task' },
-              { id: 'focus', label: '⚡ 25m Focus', action: 'start_focus' },
-              { id: 'wardrobe', label: '🎨 Atelier', action: 'open_wardrobe' },
-            ])
+          style={{
+            width: `${stageWidth}px`,
+            height: `${stageHeight}px`,
+            touchAction: 'none',
           }}
-          style={{ width: `${stageWidth}px`, height: `${stageHeight}px` }}
-          className="cursor-pointer"
-          title="Tap Kyro for tactical guidance"
+          onPointerDown={(e) =>
+            handleInteractivePointerDown(
+              e,
+              () => {
+                speak(
+                  'Standing by at your side, Boss! What objective shall we tackle next?',
+                  6000,
+                  [
+                    { id: 'next', label: '🎯 Next Task', action: 'ask_next_task' },
+                    { id: 'focus', label: '⚡ 25m Focus', action: 'start_focus' },
+                    { id: 'wardrobe', label: '🎨 Atelier', action: 'open_wardrobe' },
+                  ]
+                )
+              },
+              false
+            )
+          }
+          className={`cursor-grab active:cursor-grabbing select-none ${
+            isDragging ? 'scale-105 transition-transform' : ''
+          }`}
+          title="Tap Kyro for guidance, or drag Kyro anywhere on screen"
         />
 
-        {/* ── STREAMLINED MINI CONTROL BAR ── */}
-        <div className="flex items-center justify-center gap-0.5 px-2 py-1 rounded-full bg-stone-950/90 backdrop-blur-md border border-stone-800/90 shadow-lg">
+        {/* ── TOUCH-OPTIMIZED MINI CONTROL BAR ── */}
+        <div
+          onPointerDown={(e) => e.stopPropagation()}
+          className="relative z-20 flex items-center justify-center gap-1 px-2 py-1 rounded-full bg-stone-950/95 backdrop-blur-md border border-stone-800/95 shadow-xl"
+        >
           {/* Scoped Drag Handle */}
           <button
+            type="button"
             style={{ touchAction: 'none' }}
-            onPointerDown={(e) => {
-              e.preventDefault()
-              startDrag(e.clientX, e.clientY)
-            }}
-            onTouchStart={(e) => {
-              if (e.touches[0]) {
-                startDrag(e.touches[0].clientX, e.touches[0].clientY)
-              }
-            }}
+            onPointerDown={(e) =>
+              handleInteractivePointerDown(
+                e,
+                () => {
+                  if (customPosition) {
+                    setCustomPosition(null)
+                    toast.info('Snapped back to corner')
+                  } else {
+                    toast.info('Drag Kyro or this handle to move anywhere')
+                  }
+                },
+                false
+              )
+            }
             onDoubleClick={() => {
               setCustomPosition(null)
               toast.info('Snapped back to corner')
             }}
-            className={`p-1 transition-colors cursor-grab active:cursor-grabbing ${
-              isDragging ? 'text-amber-400' : 'text-stone-400 hover:text-amber-400'
+            className={`w-8 h-8 rounded-full flex items-center justify-center transition-colors cursor-grab active:cursor-grabbing touch-manipulation ${
+              isDragging
+                ? 'bg-amber-400/20 text-amber-400'
+                : 'text-stone-300 hover:text-amber-400 hover:bg-stone-800/70'
             }`}
-            title="Drag Kyro (Double-tap to reset)"
+            title="Drag Kyro (Tap when moved to reset to corner)"
+            aria-label="Move Kyro"
           >
-            <Move className="w-3 h-3" />
+            <Move className="w-3.5 h-3.5" />
           </button>
 
           {/* Snap Back if Custom Positioned */}
           {customPosition && (
             <button
+              type="button"
               onClick={() => {
                 setCustomPosition(null)
                 toast.info('Re-anchored to corner')
               }}
-              className="p-1 text-amber-400 hover:text-amber-300 transition-colors cursor-pointer"
+              className="w-8 h-8 rounded-full flex items-center justify-center text-amber-400 hover:text-amber-300 hover:bg-stone-800/70 transition-colors cursor-pointer touch-manipulation"
               title="Reset to corner"
+              aria-label="Reset position to corner"
             >
-              <RotateCcw className="w-3 h-3" />
+              <RotateCcw className="w-3.5 h-3.5" />
             </button>
           )}
 
           {/* Open Companion Atelier (/character) */}
           <button
+            type="button"
             onClick={() => router.push('/character')}
-            className="p-1 text-stone-400 hover:text-amber-400 transition-colors cursor-pointer"
-            title="Open Companion Atelier (3D Models, Costumes, Shaders & Gemini Key)"
+            className="w-8 h-8 rounded-full flex items-center justify-center text-stone-300 hover:text-amber-400 hover:bg-stone-800/70 transition-colors cursor-pointer touch-manipulation"
+            title="Open Companion Atelier (3D Models, Costumes & Shaders)"
+            aria-label="Open Companion Atelier"
           >
-            <Palette className="w-3 h-3" />
+            <Palette className="w-3.5 h-3.5" />
           </button>
 
           {/* Toggle Voice */}
           <button
+            type="button"
             onClick={toggleVoice}
-            className={`p-1 transition-colors cursor-pointer ${
-              settings.voiceEnabled ? 'text-amber-400' : 'text-stone-400 hover:text-stone-200'
+            className={`w-8 h-8 rounded-full flex items-center justify-center transition-colors cursor-pointer touch-manipulation ${
+              settings.voiceEnabled
+                ? 'text-amber-400 bg-amber-400/10'
+                : 'text-stone-300 hover:text-stone-100 hover:bg-stone-800/70'
             }`}
             title="Toggle Voice Output"
+            aria-label="Toggle Voice Output"
           >
-            {settings.voiceEnabled ? <Volume2 className="w-3 h-3" /> : <VolumeX className="w-3 h-3" />}
+            {settings.voiceEnabled ? (
+              <Volume2 className="w-3.5 h-3.5" />
+            ) : (
+              <VolumeX className="w-3.5 h-3.5" />
+            )}
           </button>
 
           {/* Full Chat Drawer */}
           <button
+            type="button"
             onClick={toggleOpen}
-            className="p-1 text-stone-400 hover:text-amber-400 transition-colors cursor-pointer"
+            className="w-8 h-8 rounded-full flex items-center justify-center text-amber-300 hover:text-amber-400 hover:bg-stone-800/70 transition-colors cursor-pointer touch-manipulation"
             title="Open Full Command Chat"
+            aria-label="Open Full Command Chat"
           >
-            <MessageSquare className="w-3 h-3" />
+            <MessageSquare className="w-3.5 h-3.5" />
           </button>
 
           {/* Minimize */}
           <button
+            type="button"
             onClick={toggleMinimized}
-            className="p-1 text-stone-400 hover:text-stone-200 transition-colors cursor-pointer"
+            className="w-8 h-8 rounded-full flex items-center justify-center text-stone-300 hover:text-stone-100 hover:bg-stone-800/70 transition-colors cursor-pointer touch-manipulation"
             title="Minimize Companion"
+            aria-label="Minimize Companion"
           >
-            <Minimize2 className="w-3 h-3" />
+            <Minimize2 className="w-3.5 h-3.5" />
           </button>
         </div>
       </div>

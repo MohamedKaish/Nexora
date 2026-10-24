@@ -71,7 +71,7 @@ export function CompanionSelector({
 
   if (variant === 'compact') {
     return (
-      <div className={`inline-flex items-center p-1 rounded-xl bg-stone-900/90 border border-stone-800/80 gap-1 ${className}`}>
+      <div className={`inline-flex flex-wrap items-center p-1 rounded-xl bg-stone-900/90 border border-stone-800/80 gap-1 max-w-full ${className}`}>
         {MODELS.map((m) => {
           const isSelected = currentModel === m.id
           return (
@@ -79,10 +79,10 @@ export function CompanionSelector({
               key={m.id}
               type="button"
               onClick={(e) => handleSelect(m.id, e)}
-              className={`px-2.5 py-1 rounded-lg text-xs font-semibold flex items-center gap-1.5 transition-all cursor-pointer ${
+              className={`px-2.5 py-1.5 min-h-[30px] rounded-lg text-xs font-semibold flex items-center gap-1.5 transition-all cursor-pointer touch-manipulation ${
                 isSelected
-                  ? 'bg-amber-400 text-stone-950 shadow-sm font-bold scale-105'
-                  : 'text-stone-400 hover:text-stone-200 hover:bg-stone-800/60'
+                  ? 'bg-amber-400 text-stone-950 shadow-sm font-bold'
+                  : 'text-stone-300 hover:text-stone-100 hover:bg-stone-800/70'
               }`}
               title={`Morph 3D Companion to ${m.name} (${m.title})`}
             >
@@ -104,7 +104,7 @@ export function CompanionSelector({
             <div
               key={m.id}
               onClick={(e) => handleSelect(m.id, e)}
-              className={`p-4 rounded-2xl border transition-all cursor-pointer flex flex-col justify-between group ${
+              className={`p-4 rounded-2xl border transition-all cursor-pointer flex flex-col justify-between group touch-manipulation ${
                 isSelected
                   ? 'bg-amber-400/10 border-amber-400 shadow-[0_0_24px_rgba(212,168,83,0.3)] ring-1 ring-amber-400'
                   : 'bg-stone-900/60 border-stone-800/90 hover:border-stone-700 hover:bg-stone-900/90'
@@ -144,11 +144,11 @@ export function CompanionSelector({
 
   // Default: 'pills'
   return (
-    <div className={`flex flex-wrap items-center gap-2 ${className}`}>
+    <div className={`flex flex-wrap items-center justify-center gap-2 ${className}`}>
       <span className="text-xs font-semibold text-stone-400 flex items-center gap-1">
         <Sparkles className="w-3 h-3 text-amber-400" /> 3D Model:
       </span>
-      <div className="inline-flex items-center p-1 rounded-2xl bg-stone-900/90 border border-stone-800 gap-1.5 shadow-inner">
+      <div className="inline-flex flex-wrap items-center justify-center p-1 rounded-2xl bg-stone-900/90 border border-stone-800 gap-1.5 shadow-inner">
         {MODELS.map((m) => {
           const isSelected = currentModel === m.id
           return (
@@ -156,7 +156,7 @@ export function CompanionSelector({
               key={m.id}
               type="button"
               onClick={(e) => handleSelect(m.id, e)}
-              className={`px-3 py-1.5 rounded-xl text-xs font-bold flex items-center gap-1.5 transition-all cursor-pointer ${
+              className={`px-3 py-1.5 min-h-[34px] rounded-xl text-xs font-bold flex items-center gap-1.5 transition-all cursor-pointer touch-manipulation ${
                 isSelected
                   ? 'bg-amber-400 text-stone-950 shadow-[0_0_15px_rgba(212,168,83,0.35)]'
                   : 'text-stone-300 hover:text-stone-100 hover:bg-stone-800/80'

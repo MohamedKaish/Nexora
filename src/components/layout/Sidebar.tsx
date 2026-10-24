@@ -20,6 +20,7 @@ import {
   User,
   Download,
   StickyNote,
+  LogIn,
 } from 'lucide-react'
 import { useAppStore } from '@/store/appStore'
 import { usePwa } from '@/components/pwa/PwaProvider'
@@ -69,6 +70,7 @@ const NAV_SECTIONS: NavSection[] = [
       { name: 'Companion Atelier', href: '/character', icon: Sparkles },
       { name: 'Kyro Agent', href: '/agent', icon: Bot },
       { name: 'Settings', href: '/settings', icon: Settings },
+      { name: 'Login & Cloud', href: '/login', icon: LogIn },
     ],
   },
 ]

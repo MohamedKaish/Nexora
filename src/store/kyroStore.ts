@@ -1,20 +1,30 @@
 import { create } from 'zustand'
 import { persist } from 'zustand/middleware'
-import { KyroMessage, KyroProposedAction } from '@/types/local'
+import type { KyroMessage, KyroProposedAction } from '@/types/local'
 import { KyroAIService } from '@/features/kyro/KyroAIService'
-import { RawContextInputs } from '@/features/kyro/KyroContextBuilder'
+import { KyroContextBuilder, type RawContextInputs } from '@/features/kyro/KyroContextBuilder'
+import {
+  executeKyroAction,
+  type ActionExecutionOutcome,
+} from '@/features/kyro/KyroActionRegistry'
 import { companionController } from '@/components/companion/CompanionController'
 import { playChime, speakWithKyroVoice } from '@/utils/soundEngine'
 import {
-  KyroAnimationState,
-  KyroCompanionSettings,
   DEFAULT_KYRO_SETTINGS,
-  KyroActionChip,
-  KyroCharacterModel,
-  KyroCostume,
-  KyroColorTheme,
-  KyroScreenAnchor,
+  type KyroAnimationState,
+  type KyroCompanionSettings,
+  type KyroActionChip,
+  type KyroCharacterModel,
+  type KyroCostume,
+  type KyroColorTheme,
+  type KyroScreenAnchor,
 } from '@/types/kyro'
+
+export type KyroProviderType =
+  | 'gemini-2.5-flash'
+  | 'local-context-engine'
+  | 'unavailable'
+  | null
 
 interface KyroChatState {
   isOpen: boolean
@@ -33,7 +43,7 @@ interface KyroChatState {
   customPosition: { x: number; y: number } | null
 
   // ── Live Telemetry ──
-  lastProvider: 'gemini-2.5-flash' | 'local-context-engine' | null
+  lastProvider: KyroProviderType
   lastLatencyMs: number | null
   lastErrorReason: string | null
 
@@ -41,8 +51,17 @@ interface KyroChatState {
   setOpen: (open: boolean) => void
   toggleOpen: () => void
   notifyTyping: () => void
-  setAnimationState: (state: KyroAnimationState, revertAfterMs?: number, revertTo?: KyroAnimationState) => void
-  speak: (text: string, durationMs?: number, chips?: KyroActionChip[], forceShow?: boolean) => void
+  setAnimationState: (
+    state: KyroAnimationState,
+    revertAfterMs?: number,
+    revertTo?: KyroAnimationState
+  ) => void
+  speak: (
+    text: string,
+    durationMs?: number,
+    chips?: KyroActionChip[],
+    forceShow?: boolean
+  ) => void
   dismissSpeech: () => void
   updateSettings: (partial: Partial<KyroCompanionSettings>) => void
   setModel: (model: KyroCharacterModel, customGlbUrl?: string | null) => void
@@ -54,14 +73,19 @@ interface KyroChatState {
   togglePinned: () => void
   toggleVoice: () => void
   setProviderTelemetry: (
-    provider: 'gemini-2.5-flash' | 'local-context-engine',
+    provider: KyroProviderType,
     latencyMs?: number | null,
     errorReason?: string | null
   ) => void
 
-  sendMessage: (text: string, contextInputs: RawContextInputs) => Promise<void>
-  retryLastMessage: (contextInputs: RawContextInputs) => Promise<void>
-  executeProposedAction: (actionId: string, onExecute: (action: KyroProposedAction) => void) => void
+  sendMessage: (text: string, contextInputs?: RawContextInputs) => Promise<void>
+  retryLastMessage: (contextInputs?: RawContextInputs) => Promise<void>
+  executeProposedAction: (
+    actionId: string,
+    onExecuteOrOptions?:
+      | ((action: KyroProposedAction) => void)
+      | { navigate?: (route: string) => void }
+  ) => ActionExecutionOutcome
   dismissAction: (actionId: string) => void
   clearHistory: () => void
 }
@@ -70,19 +94,18 @@ const INITIAL_MESSAGES: KyroMessage[] = [
   {
     id: 'msg-welcome',
     sender: 'kyro',
-    text: "Sanctuary neural link verified. I am Kyro, your 3D J.A.R.V.I.S. companion and tactical guide. I track your tasks, habit horizons, focus sessions, and timetable to keep your momentum aligned. How shall we make meaningful progress today?",
+    text: 'Nexora companion link ready. I am Kyro—I can review your real tasks, habits, hydration, focus timer, notes, and reminders, or help you navigate Nexora and prepare actions for your confirmation.',
     timestamp: new Date().toISOString(),
   },
 ]
 
 export const QUICK_PROMPTS = [
-  "What should I work on today?",
-  "How am I doing today?",
+  'What should I work on today?',
+  'How is my hydration today?',
   "What's my next priority?",
-  "Start a focus session.",
-  "Review my habits.",
-  "Switch to Pyro Fox.",
-  "Wear the Sovereign Crown.",
+  'Start a 25m focus session.',
+  'Review my habits.',
+  'Open my Task Matrix.',
 ]
 
 let animationTimer: NodeJS.Timeout | null = null
@@ -100,7 +123,7 @@ export const useKyroStore = create<KyroChatState>()(
 
       // ── 3D Companion Initial State ──
       animationState: 'IDLE',
-      activeSpeech: "Sanctuary systems online. Standing by at your side, Boss!",
+      activeSpeech: 'Nexora systems online. Standing by at your side!',
       speechBubbleVisible: true,
       actionChips: [
         { id: 'next', label: '🎯 What next?', action: 'ask_next_task' },
@@ -126,7 +149,6 @@ export const useKyroStore = create<KyroChatState>()(
         if (animationTimer) clearTimeout(animationTimer)
         set({ animationState: animState })
 
-        // Trigger thematic sound effects if sound is enabled
         if (get().settings.soundEnabled) {
           if (animState === 'CELEBRATING') {
             playChime('celebrate')
@@ -139,13 +161,13 @@ export const useKyroStore = create<KyroChatState>()(
           animationTimer = setTimeout(() => {
             set({ animationState: revertTo })
           }, revertAfterMs)
+          animationTimer.unref?.()
         }
       },
 
       speak: (text, durationMs = 10000, chips = [], forceShow = true) => {
         if (speechTimer) clearTimeout(speechTimer)
 
-        // Android APK Native TTS + Web Speech API fallback
         if (get().settings.voiceEnabled) {
           speakWithKyroVoice(text)
         } else if (get().settings.soundEnabled) {
@@ -160,11 +182,11 @@ export const useKyroStore = create<KyroChatState>()(
           actionChips: chips.length > 0 ? chips : get().actionChips,
         })
 
-        // Auto-fade only if NOT pinned and duration is positive
         if (!get().settings.isPinned && durationMs > 0) {
           speechTimer = setTimeout(() => {
             set({ speechBubbleVisible: false })
           }, durationMs)
+          speechTimer.unref?.()
         }
       },
 
@@ -184,7 +206,8 @@ export const useKyroStore = create<KyroChatState>()(
           settings: {
             ...state.settings,
             model,
-            customGlbUrl: customGlbUrl !== undefined ? customGlbUrl : state.settings.customGlbUrl,
+            customGlbUrl:
+              customGlbUrl !== undefined ? customGlbUrl : state.settings.customGlbUrl,
           },
         }))
         const names: Record<string, string> = {
@@ -193,7 +216,7 @@ export const useKyroStore = create<KyroChatState>()(
           aegis_bot: 'Aegis Bot (Armored Defender)',
           custom_glb: 'Custom 3D Blender GLB',
         }
-        get().speak(`Transmuted into ${names[model] || model}. Matrix calibrated!`, 4000)
+        get().speak(`Switched model to ${names[model] || model}.`, 4000)
       },
 
       setCostume: (costume) => {
@@ -208,7 +231,7 @@ export const useKyroStore = create<KyroChatState>()(
           wizard_hat: 'Star-Weaver Arcane Hat',
           pro_headphones: 'Studio Deep-Focus Headphones',
         }
-        get().speak(`Equipped ${costumeNames[costume] || costume}. Looking sharp!`, 3500)
+        get().speak(`Equipped ${costumeNames[costume] || costume}.`, 3500)
       },
 
       setColorTheme: (colorTheme) => {
@@ -241,7 +264,7 @@ export const useKyroStore = create<KyroChatState>()(
         if (next) {
           get().speak("Speech bubble pinned. I'll stay open until you close me.", 3000)
         } else {
-          get().speak("Speech bubble unpinned. Will auto-collapse after dialogue.", 3000)
+          get().speak('Speech bubble unpinned. Will auto-collapse after dialogue.', 3000)
         }
       },
 
@@ -251,9 +274,9 @@ export const useKyroStore = create<KyroChatState>()(
           settings: { ...state.settings, voiceEnabled: next },
         }))
         if (next) {
-          get().speak("Vocal synthesis matrix activated. I can speak aloud now!", 3000)
+          get().speak('Vocal synthesis activated. I can speak aloud now!', 3000)
         } else {
-          get().speak("Vocal synthesis silenced. Operating in silent stealth.", 2500)
+          get().speak('Vocal synthesis muted.', 2500)
         }
       },
 
@@ -265,7 +288,7 @@ export const useKyroStore = create<KyroChatState>()(
         })
       },
 
-      sendMessage: async (text: string, contextInputs: RawContextInputs) => {
+      sendMessage: async (text: string, contextInputs?: RawContextInputs) => {
         if (!text.trim()) return
 
         const userMsg: KyroMessage = {
@@ -288,7 +311,13 @@ export const useKyroStore = create<KyroChatState>()(
         }))
 
         try {
-          const result = await KyroAIService.queryKyro(text, contextInputs, currentHistory)
+          const resolvedInputs =
+            contextInputs ?? KyroContextBuilder.collectLiveStoreInputs()
+          const result = await KyroAIService.queryKyro(
+            text,
+            resolvedInputs,
+            currentHistory
+          )
 
           const kyroMsg: KyroMessage = {
             id: 'kyro_' + Math.random().toString(36).substring(2, 9),
@@ -301,15 +330,15 @@ export const useKyroStore = create<KyroChatState>()(
           set((state) => ({
             messages: [...state.messages, kyroMsg],
             isTyping: false,
-            hasError: false,
+            hasError: !result.ok,
+            lastFailedText: result.ok ? null : text,
           }))
 
-          // Also set companion speech bubble
           get().speak(result.speechBubble || result.responseText, 10000, [
             { id: 'next', label: '🎯 What next?', action: 'ask_next_task' },
             { id: 'focus', label: '⚡ 25m Focus', action: 'start_focus' },
           ])
-        } catch (error) {
+        } catch {
           set({
             isTyping: false,
             hasError: true,
@@ -319,26 +348,59 @@ export const useKyroStore = create<KyroChatState>()(
         }
       },
 
-      retryLastMessage: async (contextInputs: RawContextInputs) => {
+      retryLastMessage: async (contextInputs?: RawContextInputs) => {
         const text = get().lastFailedText
         if (text) {
           await get().sendMessage(text, contextInputs)
         }
       },
 
-      executeProposedAction: (actionId, onExecute) => {
+      executeProposedAction: (actionId, onExecuteOrOptions) => {
+        const targetMsg = get().messages.find((m) => m.proposedAction?.id === actionId)
+        if (!targetMsg || !targetMsg.proposedAction) {
+          return { ok: false, message: 'Action not found.' }
+        }
+
+        if (targetMsg.proposedAction.isExecuted) {
+          return {
+            ok: true,
+            message: targetMsg.proposedAction.executionResult || 'Action already executed.',
+          }
+        }
+
+        const action = targetMsg.proposedAction
+        const options =
+          typeof onExecuteOrOptions === 'object' && onExecuteOrOptions !== null
+            ? onExecuteOrOptions
+            : undefined
+
+        const outcome = executeKyroAction(action, options)
+
+        if (typeof onExecuteOrOptions === 'function' && outcome.ok) {
+          try {
+            onExecuteOrOptions(action)
+          } catch {
+            // Handled via executeKyroAction
+          }
+        }
+
         set((state) => ({
           messages: state.messages.map((m) => {
-            if (m.proposedAction?.id === actionId) {
-              onExecute(m.proposedAction)
-              return {
-                ...m,
-                proposedAction: { ...m.proposedAction, isExecuted: true },
-              }
+            if (m.proposedAction?.id !== actionId) return m
+            return {
+              ...m,
+              proposedAction: {
+                ...m.proposedAction,
+                isExecuted: outcome.ok,
+                executionStatus: outcome.ok ? 'executed' : 'failed',
+                executionResult: outcome.message,
+              },
             }
-            return m
           }),
         }))
+
+        get().speak(outcome.message, 5000)
+        return outcome
       },
 
       dismissAction: (actionId) => {

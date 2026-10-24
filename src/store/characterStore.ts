@@ -1,6 +1,6 @@
 import { create } from 'zustand'
 import { persist } from 'zustand/middleware'
-import { CharacterConfig, DEFAULT_CHARACTER_CONFIG, CompanionArchetype, CompanionMood } from '@/types/local'
+import { DEFAULT_CHARACTER_CONFIG, type CharacterConfig, type CompanionArchetype, type CompanionMood } from '@/types/local'
 import { companionController } from '@/components/companion/CompanionController'
 
 interface CharacterState {

@@ -171,10 +171,8 @@ export default function CharacterAtelierPage() {
     `I stand with you, Explorer. Let us shape our sanctuary.`
   )
 
-  // Gemini 2.5 Flash Key & Audio states
-  const [apiKeyInput, setApiKeyInput] = useState('')
-  const [showKey, setShowKey] = useState(false)
-  const [isTestingKey, setIsTestingKey] = useState(false)
+  // Server-managed Gemini 2.5 Flash Diagnostics & Audio states
+  const [isTestingConnection, setIsTestingConnection] = useState(false)
   const [testResult, setTestResult] = useState<{
     ok: boolean
     provider: string
@@ -186,8 +184,8 @@ export default function CharacterAtelierPage() {
   useEffect(() => {
     setMounted(true)
     if (typeof window !== 'undefined') {
-      const savedKey = localStorage.getItem('nexora_gemini_api_key') || ''
-      setApiKeyInput(savedKey)
+      // Purge any legacy client-stored API key for security
+      localStorage.removeItem('nexora_gemini_api_key')
       const savedSound = localStorage.getItem('nexora_sound_enabled')
       setChimesEnabled(savedSound !== 'false')
     }
@@ -196,48 +194,38 @@ export default function CharacterAtelierPage() {
   const currentArchetype = normalizeArchetype(config.archetype)
   const activeCreature = ORIGINAL_CREATURES[currentArchetype] || ORIGINAL_CREATURES.nyxen
 
-  const handleSaveApiKey = () => {
-    if (typeof window === 'undefined') return
-    const trimmed = apiKeyInput.trim()
-    if (trimmed) {
-      localStorage.setItem('nexora_gemini_api_key', trimmed)
-      playChime('click')
-      toast.success('Gemini 2.5 Flash API Key saved to local device storage!')
-    } else {
-      localStorage.removeItem('nexora_gemini_api_key')
-      toast.info('API key cleared. Using 0ms Local Context Engine.')
-    }
-  }
-
   const handleTestConnection = async () => {
-    setIsTestingKey(true)
+    setIsTestingConnection(true)
     setTestResult(null)
     try {
-      const trimmed = apiKeyInput.trim()
-      if (trimmed && typeof window !== 'undefined') {
-        localStorage.setItem('nexora_gemini_api_key', trimmed)
-      }
-
       const res = await fetch('/api/kyro', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          message: 'Confirm neural link and report telemetry status.',
-          userApiKey: trimmed || undefined,
+          message: 'Confirm neural link and report current workspace readiness.',
           context: {
-            userName: useAppStore.getState().preferences?.displayName || 'Commander',
-            agentName,
+            systemMetadata: {
+              userName: useAppStore.getState().preferences?.displayName || 'Explorer',
+              agentName,
+              creatureArchetype: config.archetype || 'nyxen',
+              currentDate: new Date().toISOString().split('T')[0],
+              currentDayOfWeek: 'Today',
+              currentTime: new Date().toTimeString().slice(0, 5),
+            },
           },
         }),
       })
 
       const data = await res.json()
-      setProviderTelemetry(data.provider, data.latencyMs, data.errorReason)
+      const provider =
+        data.provider === 'gemini-2.5-flash' ? 'gemini-2.5-flash' : 'unavailable'
+      setProviderTelemetry(provider, data.latencyMs ?? null, data.errorReason ?? null)
 
-      const replyText = data.speechBubble || data.reply || 'Neural link verified!'
+      const replyText =
+        data.speechBubble || data.reply || data.errorReason || 'Diagnostic check complete.'
       speak(replyText, 6000)
 
-      if (data.provider === 'gemini-2.5-flash') {
+      if (res.ok && data.provider === 'gemini-2.5-flash') {
         playChime('celebrate')
         setTestResult({
           ok: true,
@@ -250,25 +238,26 @@ export default function CharacterAtelierPage() {
         playChime('click')
         setTestResult({
           ok: false,
-          provider: 'local-context-engine',
-          latency: data.latencyMs || 1,
-          message: data.errorReason
-            ? `Fallback to 0ms Local Brain (${data.errorReason}). Reply: "${replyText}"`
-            : `0ms Local Context Engine active: "${replyText}"`,
+          provider: 'unavailable',
+          latency: data.latencyMs || 0,
+          message:
+            data.reply ||
+            data.errorReason ||
+            'Server GEMINI_API_KEY is not configured.',
         })
-        toast.info('Responded via 0ms Local Context Engine.')
+        toast.error(data.errorReason || 'Gemini 2.5 Flash is currently unavailable on the server.')
       }
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : 'Connection test failed'
       setTestResult({
         ok: false,
-        provider: 'error',
+        provider: 'unavailable',
         latency: 0,
         message: msg,
       })
       toast.error('Failed to reach /api/kyro endpoint.')
     } finally {
-      setIsTestingKey(false)
+      setIsTestingConnection(false)
     }
   }
 
@@ -626,13 +615,13 @@ export default function CharacterAtelierPage() {
             </div>
           </section>
 
-          {/* ── SECTION 4: GEMINI 2.5 FLASH BRAIN & API KEY TESTER ── */}
+          {/* ── SECTION 4: GEMINI 2.5 FLASH SERVER NEURAL DIAGNOSTICS ── */}
           <section className="world-deck p-5 sm:p-6 space-y-4">
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pb-2 border-b border-stone-800">
               <div className="flex items-center gap-2">
                 <KeyRound className="w-4 h-4 text-amber-400" />
                 <h2 className="text-sm font-bold uppercase tracking-wider text-stone-100 font-mono">
-                  4. Gemini 2.5 Flash Neural Brain &amp; Live Diagnostics
+                  4. Gemini 2.5 Flash Neural Brain &amp; Server Diagnostics
                 </h2>
               </div>
 
@@ -640,87 +629,35 @@ export default function CharacterAtelierPage() {
                 {lastProvider === 'gemini-2.5-flash' ? (
                   <span className="px-2.5 py-1 rounded-full bg-emerald-500/15 border border-emerald-500/30 text-emerald-300 font-mono text-[10px] font-bold flex items-center gap-1">
                     <Zap className="w-3 h-3 text-emerald-400" />
-                    <span>GEMINI 2.5 FLASH • {lastLatencyMs}ms</span>
+                    <span>GEMINI 2.5 FLASH • {lastLatencyMs ?? 0}ms</span>
                   </span>
                 ) : (
                   <span className="px-2.5 py-1 rounded-full bg-amber-500/15 border border-amber-500/30 text-amber-300 font-mono text-[10px] font-bold flex items-center gap-1">
                     <ShieldCheck className="w-3 h-3 text-amber-400" />
-                    <span>0ms LOCAL BRAIN FALLBACK</span>
+                    <span>SERVER ENV MANAGED</span>
                   </span>
                 )}
               </div>
             </div>
 
-            <p className="text-xs text-stone-300 leading-relaxed">
-              Enter your free Google AI Studio API Key (`AIzaSy...`) to unlock cloud-powered Gemini 2.5 Flash conversations. Stored locally in your device&apos;s `localStorage` so it works seamlessly on web and inside the Android APK.
-            </p>
-
-            <div className="flex flex-col sm:flex-row gap-2.5">
-              <div className="relative flex-1">
-                <input
-                  type={showKey ? 'text' : 'password'}
-                  value={apiKeyInput}
-                  onChange={(e) => setApiKeyInput(e.target.value)}
-                  placeholder="AIzaSy... (Paste Google AI Studio Gemini API Key)"
-                  className="w-full px-4 py-2.5 rounded-xl bg-stone-900 border border-stone-800 focus:border-amber-400 text-xs text-stone-100 font-mono outline-none pr-16"
-                />
-                <button
-                  type="button"
-                  onClick={() => setShowKey(!showKey)}
-                  className="absolute right-3 top-1/2 -translate-y-1/2 text-[10px] font-mono text-stone-400 hover:text-amber-300 cursor-pointer"
-                >
-                  {showKey ? 'HIDE' : 'SHOW'}
-                </button>
-              </div>
-
-              <button
-                type="button"
-                onClick={handleSaveApiKey}
-                className="px-4 py-2.5 rounded-xl bg-stone-900 hover:bg-stone-800 border border-stone-700 text-stone-200 font-bold text-xs transition-colors cursor-pointer shrink-0"
-              >
-                Save Key
-              </button>
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+              <p className="text-xs text-stone-300 leading-relaxed">
+                Kyro communicates with Gemini 2.5 Flash exclusively through a secure server-only environment variable (<code className="text-amber-300 font-mono">GEMINI_API_KEY</code>). API keys are never requested in the browser or stored in client localStorage.
+              </p>
 
               <button
                 type="button"
                 onClick={handleTestConnection}
-                disabled={isTestingKey}
+                disabled={isTestingConnection}
                 className="px-5 py-2.5 rounded-xl bg-amber-400 hover:bg-amber-300 text-stone-950 font-bold text-xs flex items-center justify-center gap-1.5 transition-all cursor-pointer shadow-[0_0_15px_rgba(212,168,83,0.3)] shrink-0"
               >
-                {isTestingKey ? (
+                {isTestingConnection ? (
                   <RotateCcw className="w-3.5 h-3.5 animate-spin" />
                 ) : (
                   <Zap className="w-3.5 h-3.5 fill-stone-950" />
                 )}
-                <span>{isTestingKey ? 'Testing Link...' : 'Test Connection'}</span>
+                <span>{isTestingConnection ? 'Verifying Server Link...' : 'Verify Server Link'}</span>
               </button>
-            </div>
-
-            <div className="flex items-center justify-between text-[11px] text-stone-400 pt-1">
-              <a
-                href="https://aistudio.google.com/app/apikey"
-                target="_blank"
-                rel="noreferrer"
-                className="text-amber-400 hover:text-amber-300 underline font-medium"
-              >
-                Get a free Gemini API key from Google AI Studio ↗
-              </a>
-              {apiKeyInput && (
-                <button
-                  type="button"
-                  onClick={() => {
-                    setApiKeyInput('')
-                    if (typeof window !== 'undefined') {
-                      localStorage.removeItem('nexora_gemini_api_key')
-                    }
-                    setProviderTelemetry('local-context-engine', 0, null)
-                    toast.info('API Key cleared from device.')
-                  }}
-                  className="text-rose-400 hover:text-rose-300 underline cursor-pointer"
-                >
-                  Clear Saved Key
-                </button>
-              )}
             </div>
 
             {testResult && (
@@ -728,13 +665,13 @@ export default function CharacterAtelierPage() {
                 className={`p-3.5 rounded-xl border text-xs font-mono ${
                   testResult.ok
                     ? 'bg-emerald-500/10 border-emerald-500/30 text-emerald-200'
-                    : 'bg-amber-500/10 border-amber-500/30 text-amber-200'
+                    : 'bg-rose-500/10 border-rose-500/30 text-rose-200'
                 }`}
               >
                 <div className="font-bold mb-1">
                   {testResult.ok
                     ? `✓ LIVE GEMINI 2.5 FLASH CONNECTED (${testResult.latency}ms)`
-                    : `⚡ ENGINE STATUS: ${testResult.provider.toUpperCase()} (${testResult.latency}ms)`}
+                    : `✕ GEMINI SERVER UNAVAILABLE`}
                 </div>
                 <p className="text-stone-300 font-sans text-xs">{testResult.message}</p>
               </div>

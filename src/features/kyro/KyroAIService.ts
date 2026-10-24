@@ -1,80 +1,131 @@
-import { KyroProposedAction } from '@/types/local'
-import {
-  buildKyroContext,
-  RawContextInputs,
-  StructuredNexoraContext,
-} from './KyroContextBuilder'
+import { KyroContextBuilder, type RawContextInputs } from './KyroContextBuilder'
+import type { KyroProposedAction } from '@/types/local'
 import { companionController } from '@/components/companion/CompanionController'
+import type { CompanionMood } from '@/components/companion/CompanionState'
+import { useKyroStore } from '@/store/kyroStore'
+import type { KyroAnimationState } from '@/types/kyro'
 
-export interface KyroQueryResult {
+export interface KyroAIResponse {
+  ok: boolean
+  configured: boolean
   responseText: string
   speechBubble?: string
   proposedAction?: KyroProposedAction
-  isOffline?: boolean
-  provider?: string
+  mood: CompanionMood
+  errorReason?: string | null
 }
 
+/**
+ * KyroAIService
+ * Bridges the frontend Kyro UI surfaces (Chat Panel, Agent Page, 3D Companion)
+ * with the server-only `/api/kyro` Gemini 2.5 Flash endpoint.
+ * Never reads or transmits API keys from client storage.
+ */
 export class KyroAIService {
-  /**
-   * Queries the real server-side Kyro AI route with live structured Nexora context.
-   */
-  static async queryKyro(
-    userText: string,
-    rawInputs: RawContextInputs,
-    history: Array<{ sender: 'user' | 'kyro'; text: string }> = []
-  ): Promise<KyroQueryResult> {
-    // 1. Build clean structured context
-    const structuredContext = buildKyroContext(rawInputs)
+  static async checkServerStatus(): Promise<{
+    ok: boolean
+    configured: boolean
+    provider: 'gemini-2.5-flash' | 'unavailable'
+    message: string
+  }> {
+    try {
+      const res = await fetch('/api/kyro', { method: 'GET' })
+      const data = await res.json()
+      return {
+        ok: Boolean(data.ok),
+        configured: Boolean(data.configured),
+        provider: data.configured ? 'gemini-2.5-flash' : 'unavailable',
+        message:
+          data.message ||
+          (data.configured
+            ? 'Server-side GEMINI_API_KEY is configured.'
+            : 'GEMINI_API_KEY is not configured on the server.'),
+      }
+    } catch (err) {
+      return {
+        ok: false,
+        configured: false,
+        provider: 'unavailable',
+        message: err instanceof Error ? err.message : 'Unable to reach /api/kyro.',
+      }
+    }
+  }
 
-    // 2. Notify companion controller
+  static async queryKyro(
+    userInput: string,
+    rawInputs: RawContextInputs,
+    recentHistory: Array<{ sender: 'user' | 'kyro'; text: string }> = []
+  ): Promise<KyroAIResponse> {
     companionController.onKyroThinking()
+    useKyroStore.getState().setAnimationState('TALKING', 2500, 'IDLE')
+
+    const fullInputs = KyroContextBuilder.collectLiveStoreInputs(rawInputs)
+    const structuredContext = KyroContextBuilder.buildContext(fullInputs)
 
     try {
-      const userApiKey = typeof window !== 'undefined' ? localStorage.getItem('nexora_gemini_api_key') || undefined : undefined
       const response = await fetch('/api/kyro', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+          'Content-Type': 'application/json',
+        },
         body: JSON.stringify({
-          message: userText,
+          message: userInput,
           context: structuredContext,
-          history: history.slice(-6),
-          userApiKey,
+          history: recentHistory.slice(-6),
         }),
       })
 
-      if (!response.ok) {
-        throw new Error(`Server returned ${response.status}`)
+      const data = await response.json().catch(() => ({}))
+
+      const provider =
+        data.provider === 'gemini-2.5-flash' ? 'gemini-2.5-flash' : 'unavailable'
+      useKyroStore
+        .getState()
+        .setProviderTelemetry(provider, data.latencyMs ?? null, data.errorReason ?? null)
+
+      if (!response.ok || data.ok === false) {
+        const honestReply =
+          data.reply ||
+          data.errorReason ||
+          `Kyro AI is currently unavailable (HTTP ${response.status}).`
+        const honestSpeech =
+          data.speechBubble || honestReply
+        companionController.onKyroError(honestSpeech)
+        return {
+          ok: false,
+          configured: Boolean(data.configured),
+          responseText: honestReply,
+          speechBubble: honestSpeech,
+          mood: 'idle',
+          errorReason: data.errorReason || `HTTP ${response.status}`,
+        }
       }
 
-      const data = await response.json()
+      const replyText: string =
+        data.reply || 'I reviewed your Nexora telemetry. How can I help next?'
+      const speechBubble: string = data.speechBubble || replyText
+      const mood: CompanionMood = (data.mood as CompanionMood) || 'speaking'
+      const anim: KyroAnimationState = (data.animation as KyroAnimationState) || 'TALKING'
 
-      const replyText = data.reply || 'Kyro received your transmission.'
-      const speechBubble = data.speechBubble || replyText.substring(0, 80)
-
-      // 3. Trigger speaking state on 3D companion & controller
       companionController.onKyroSpeaking(speechBubble)
-      try {
-        const { useKyroStore } = await import('@/store/kyroStore')
-        useKyroStore.getState().speak(speechBubble, 6000)
-      } catch {
-        // Ignore store import error if isolated
-      }
+      companionController.emitMood(mood, 4500, 'idle')
+      useKyroStore.getState().setAnimationState(anim, 4500, 'IDLE')
 
       return {
+        ok: true,
+        configured: true,
         responseText: replyText,
         speechBubble,
         proposedAction: data.proposedAction,
-        provider: data.provider,
+        mood,
+        errorReason: null,
       }
-    } catch (err) {
-      console.warn('Kyro AI server route unreachable, generating contextual fallback:', err)
-      companionController.onKyroError('Neural link connection interrupted.')
-
-      return {
-        responseText: `Kyro neural link is temporarily operating in local offline mode. Your Nexora workspace data is completely safe and synchronized.\n\nActive tasks: ${structuredContext.tasks.activeCount} (${structuredContext.tasks.urgentTasks.length} urgent), ${structuredContext.habits.completedToday}/${structuredContext.habits.total} habits checked today.`,
-        speechBubble: 'Local mode active. Workspace telemetry synchronized.',
-        isOffline: true,
-      }
+    } catch (error) {
+      const errMsg =
+        error instanceof Error ? error.message : 'Network error reaching /api/kyro'
+      useKyroStore.getState().setProviderTelemetry('unavailable', null, errMsg)
+      companionController.onKyroError('Connection to Kyro endpoint failed.')
+      throw error
     }
   }
 }

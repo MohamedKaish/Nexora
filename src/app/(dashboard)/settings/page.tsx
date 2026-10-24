@@ -1,7 +1,8 @@
 'use client'
 
-import React, { useState, useRef } from 'react'
+import React, { useState, useEffect, useRef } from 'react'
 import { useRouter } from 'next/navigation'
+import Link from 'next/link'
 import { useAppStore } from '@/store/appStore'
 import { useTaskStore } from '@/store/useTaskStore'
 import { useHabitStore } from '@/store/useHabitStore'
@@ -32,11 +33,26 @@ import {
   Laptop,
   CheckCircle2,
   Bell,
+  Cloud,
+  Lock,
+  LogOut,
+  RefreshCw,
+  ExternalLink,
+  ShieldCheck,
 } from 'lucide-react'
 import { toast } from 'sonner'
 import {
   requestPhoneNotificationPermission,
 } from '@/utils/notificationBridge'
+import {
+  signInWithGoogle,
+  signOutFromSupabase,
+  getSupabaseSession,
+  isSupabaseConfigured,
+  getSupabaseProjectRef,
+  onSupabaseAuthStateChange,
+} from '@/lib/supabase'
+import { pullUserDataFromSupabase } from '@/lib/supabaseSync'
 
 export default function SettingsPage() {
   const router = useRouter()
@@ -188,6 +204,9 @@ export default function SettingsPage() {
       </div>
 
       <div className="space-y-6">
+        {/* ── GOOGLE AUTHENTICATION & CLOUD SYNC CARD ── */}
+        <GoogleAuthSettingsCard />
+
         {/* Profile & Explorer Identity */}
         <div className="world-deck p-6 space-y-4">
           <div className="flex items-center gap-2.5 pb-2 border-b border-stone-800">
@@ -538,30 +557,43 @@ function PhoneNotificationSettingsCard() {
 }
 
 function KyroBrainSettingsCard() {
-  const { settings, setAnchor, toggleVoice, toggleMinimized, speak } = useKyroStore()
-  const [apiKey, setApiKey] = useState(() => {
-    if (typeof window !== 'undefined') {
-      return localStorage.getItem('nexora_gemini_api_key') || ''
-    }
-    return ''
+  const { settings, setAnchor, toggleVoice } = useKyroStore()
+  const [serverStatus, setServerStatus] = useState<{
+    checked: boolean
+    configured: boolean
+    message: string
+  }>({
+    checked: false,
+    configured: false,
+    message: 'Checking server neural link configuration...',
   })
 
-  const isGeminiActive = Boolean(apiKey.trim().length > 20)
-
-  const handleSaveKey = (e: React.FormEvent) => {
-    e.preventDefault()
+  useEffect(() => {
     if (typeof window !== 'undefined') {
-      if (apiKey.trim()) {
-        localStorage.setItem('nexora_gemini_api_key', apiKey.trim())
-        toast.success('Gemini API key saved! Kyro is now operating with Gemini 2.5 Flash.')
-        speak('Neural uplink established with Gemini 2.5 Flash. High-bandwidth intelligence online, Boss!', 5000)
-      } else {
-        localStorage.removeItem('nexora_gemini_api_key')
-        toast.info('API key removed. Kyro switched to 0ms Local Context Engine.')
-        speak('Operating in 0ms Local Context Engine mode. All sanctuary systems secure offline.', 4000)
-      }
+      // Purge any legacy client-stored API key
+      localStorage.removeItem('nexora_gemini_api_key')
     }
-  }
+    fetch('/api/kyro', { method: 'GET' })
+      .then((res) => res.json())
+      .then((data) => {
+        setServerStatus({
+          checked: true,
+          configured: Boolean(data.configured),
+          message:
+            data.message ||
+            (data.configured
+              ? 'Server-side GEMINI_API_KEY is configured.'
+              : 'GEMINI_API_KEY is not configured in the server environment.'),
+        })
+      })
+      .catch(() => {
+        setServerStatus({
+          checked: true,
+          configured: false,
+          message: 'Unable to verify /api/kyro server status.',
+        })
+      })
+  }, [])
 
   return (
     <div className="world-deck p-6 space-y-5 border border-amber-500/30">
@@ -570,61 +602,33 @@ function KyroBrainSettingsCard() {
           <Bot className="w-5 h-5 text-amber-400" />
           <div>
             <h3 className="text-sm font-bold text-foreground">Kyro 3D Companion &amp; AI Brain</h3>
-            <p className="text-xs text-stone-400">Powered by Gemini 2.5 Flash Free Tier with 0ms Local Engine fallback.</p>
+            <p className="text-xs text-stone-400">
+              Powered by server-managed Gemini 2.5 Flash with validated Nexora tool execution.
+            </p>
           </div>
         </div>
 
         <div>
-          {isGeminiActive ? (
+          {serverStatus.configured ? (
             <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-emerald-500/15 border border-emerald-500/30 text-emerald-300 text-xs font-semibold font-mono">
               <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
-              <span>Gemini 2.5 Flash Active</span>
+              <span>Gemini 2.5 Flash Ready</span>
             </span>
           ) : (
-            <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-cyan-500/15 border border-cyan-500/30 text-cyan-300 text-xs font-semibold font-mono">
-              <span className="w-2 h-2 rounded-full bg-cyan-400 animate-pulse" />
-              <span>0ms Local Engine (Offline Ready)</span>
+            <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-amber-500/15 border border-amber-500/30 text-amber-300 text-xs font-semibold font-mono">
+              <span className="w-2 h-2 rounded-full bg-amber-400" />
+              <span>{serverStatus.checked ? 'Server Key Unconfigured' : 'Checking Status...'}</span>
             </span>
           )}
         </div>
       </div>
 
-      {/* API Key Form */}
-      <form onSubmit={handleSaveKey} className="space-y-3">
-        <div>
-          <div className="flex items-center justify-between mb-1.5">
-            <label className="text-xs font-semibold text-stone-300">
-              Google AI Studio API Key (Optional Free Key for Android APK)
-            </label>
-            <a
-              href="https://aistudio.google.com/app/apikey"
-              target="_blank"
-              rel="noreferrer"
-              className="text-[11px] text-amber-400 hover:text-amber-300 underline font-medium"
-            >
-              Get Free Gemini Key ↗
-            </a>
-          </div>
-          <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2">
-            <input
-              type="password"
-              value={apiKey}
-              onChange={(e) => setApiKey(e.target.value)}
-              placeholder="Paste AIzaSy... or leave blank for 0ms local offline mode"
-              className="flex-1 px-3.5 py-2.5 rounded-xl bg-stone-900 border border-stone-800 focus:border-amber-400 text-xs text-stone-100 placeholder:text-stone-500 outline-none font-mono"
-            />
-            <button
-              type="submit"
-              className="px-4 py-2.5 rounded-xl bg-amber-400 hover:bg-amber-300 text-stone-950 font-bold text-xs transition-colors cursor-pointer shrink-0"
-            >
-              Save Key
-            </button>
-          </div>
-          <p className="text-[11px] text-stone-500 mt-1">
-            Keys are stored strictly in local device memory (`localStorage`) and never transmitted to third-party trackers.
-          </p>
-        </div>
-      </form>
+      <div className="p-3.5 rounded-xl bg-stone-900/60 border border-stone-800 text-xs text-stone-300 space-y-1">
+        <p className="font-semibold text-stone-200">{serverStatus.message}</p>
+        <p className="text-[11px] text-stone-400">
+          For security, Gemini API credentials are read strictly from the server environment (<code className="text-amber-300 font-mono">GEMINI_API_KEY</code>) and are never stored in browser localStorage or sent in client requests.
+        </p>
+      </div>
 
       {/* Companion Controls & Anchoring */}
       <div className="pt-2 border-t border-stone-800/80 grid grid-cols-1 sm:grid-cols-2 gap-3">
@@ -687,4 +691,249 @@ function KyroBrainSettingsCard() {
     </div>
   )
 }
+
+function GoogleAuthSettingsCard() {
+  const router = useRouter()
+  const { preferences, login, logout } = useAppStore()
+  const [supabaseUser, setSupabaseUser] = useState<any>(null)
+  const [isConfigured, setIsConfigured] = useState(false)
+  const [projectRef, setProjectRef] = useState('')
+  const [isGoogleLoading, setIsGoogleLoading] = useState(false)
+  const [isSyncing, setIsSyncing] = useState(false)
+  const [lastSyncTime, setLastSyncTime] = useState<string | null>(null)
+
+  React.useEffect(() => {
+    const configured = isSupabaseConfigured()
+    setIsConfigured(configured)
+    setProjectRef(getSupabaseProjectRef())
+
+    // Check initial session
+    getSupabaseSession().then(({ user }) => {
+      if (user) {
+        setSupabaseUser(user)
+      }
+    })
+
+    // Listen to real-time auth changes
+    const subscription = onSupabaseAuthStateChange((event, session) => {
+      if (session?.user) {
+        setSupabaseUser(session.user)
+      } else if (event === 'SIGNED_OUT') {
+        setSupabaseUser(null)
+      }
+    })
+
+    return () => {
+      subscription.unsubscribe()
+    }
+  }, [])
+
+  const handleGoogleSignIn = async () => {
+    setIsGoogleLoading(true)
+    try {
+      const res = await signInWithGoogle()
+      if (!res.success) {
+        toast.error(res.error || 'Failed to initialize Google Authentication')
+        setIsGoogleLoading(false)
+      }
+      // Browser navigates to Google OAuth consent if redirect URL was returned
+    } catch (err: any) {
+      toast.error(err?.message || 'Google Sign-in failed')
+      setIsGoogleLoading(false)
+    }
+  }
+
+  const handleSignOut = async () => {
+    setIsGoogleLoading(true)
+    try {
+      await signOutFromSupabase()
+      setSupabaseUser(null)
+      toast.success('Signed out from Google Account.')
+    } catch {
+      toast.error('Sign out failed')
+    } finally {
+      setIsGoogleLoading(false)
+    }
+  }
+
+  const handleManualSync = async () => {
+    if (!supabaseUser?.id) return
+    setIsSyncing(true)
+    try {
+      await pullUserDataFromSupabase(supabaseUser.id)
+      setLastSyncTime(new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' }))
+      toast.success('Sanctuary data successfully synchronized with Cloud Vault!')
+    } catch {
+      toast.error('Sync failed. Please check your network connection.')
+    } finally {
+      setIsSyncing(false)
+    }
+  }
+
+  return (
+    <div className="world-deck p-6 space-y-5 border border-amber-500/40 relative overflow-hidden shadow-[0_4px_24px_rgba(212,168,83,0.08)]">
+      {/* Decorative Glow */}
+      <div className="absolute top-0 right-0 w-72 h-72 bg-amber-500/10 blur-[90px] pointer-events-none rounded-full" />
+
+      {/* Header */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-stone-800 relative z-10">
+        <div className="flex items-center gap-3">
+          <div className="p-2.5 rounded-xl bg-amber-400/10 border border-amber-400/25 text-amber-400 shadow-sm">
+            <Cloud className="w-5 h-5" />
+          </div>
+          <div>
+            <div className="flex items-center gap-2">
+              <h3 className="text-sm font-bold text-foreground">
+                Google Authentication &amp; Cloud Sync
+              </h3>
+              <span className="px-2 py-0.5 rounded-full bg-amber-400/20 text-amber-300 text-[10px] font-mono font-bold">
+                Supabase OAuth
+              </span>
+            </div>
+            <p className="text-xs text-stone-400">
+              Synchronize your tasks, habits, hydration records, and finances seamlessly across devices.
+            </p>
+          </div>
+        </div>
+
+        <div>
+          {supabaseUser ? (
+            <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-emerald-500/15 border border-emerald-500/30 text-emerald-300 text-xs font-semibold font-mono">
+              <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
+              <span>Cloud Connected</span>
+            </span>
+          ) : (
+            <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-stone-900 border border-stone-700 text-stone-400 text-xs font-semibold font-mono">
+              <span className="w-2 h-2 rounded-full bg-stone-500" />
+              <span>Local Offline Vault</span>
+            </span>
+          )}
+        </div>
+      </div>
+
+      {/* Main Content Area */}
+      <div className="space-y-4 relative z-10">
+        {supabaseUser ? (
+          /* User is Signed In */
+          <div className="p-4 rounded-2xl bg-stone-900/70 border border-stone-800 space-y-4">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-full bg-gradient-to-br from-amber-400 to-amber-600 border border-amber-300/40 flex items-center justify-center text-stone-950 font-bold text-sm shadow">
+                  {(supabaseUser.user_metadata?.full_name || supabaseUser.email || 'G').charAt(0).toUpperCase()}
+                </div>
+                <div>
+                  <div className="flex items-center gap-2">
+                    <h4 className="text-sm font-bold text-stone-100">
+                      {supabaseUser.user_metadata?.full_name || preferences.displayName || 'Google Explorer'}
+                    </h4>
+                    <span className="text-[10px] px-1.5 py-0.5 rounded bg-emerald-500/20 text-emerald-300 font-mono font-bold">
+                      Verified
+                    </span>
+                  </div>
+                  <p className="text-xs text-stone-400 font-mono">{supabaseUser.email}</p>
+                </div>
+              </div>
+
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={handleManualSync}
+                  disabled={isSyncing}
+                  className="px-3.5 py-2 rounded-xl bg-amber-400 hover:bg-amber-300 text-stone-950 font-bold text-xs flex items-center gap-1.5 transition-all cursor-pointer shadow-sm disabled:opacity-50"
+                >
+                  <RefreshCw className={`w-3.5 h-3.5 ${isSyncing ? 'animate-spin' : ''}`} />
+                  <span>{isSyncing ? 'Syncing...' : 'Sync Now'}</span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={handleSignOut}
+                  disabled={isGoogleLoading}
+                  className="px-3.5 py-2 rounded-xl bg-stone-800 hover:bg-rose-950/40 hover:border-rose-800/60 border border-stone-700 text-stone-300 hover:text-rose-300 font-semibold text-xs flex items-center gap-1.5 transition-all cursor-pointer"
+                >
+                  <LogOut className="w-3.5 h-3.5" />
+                  <span>Disconnect</span>
+                </button>
+              </div>
+            </div>
+
+            {lastSyncTime && (
+              <p className="text-[11px] text-stone-500 font-mono flex items-center gap-1">
+                <CheckCircle2 className="w-3 h-3 text-emerald-400" />
+                <span>Last bidirectional sync completed at {lastSyncTime}</span>
+              </p>
+            )}
+          </div>
+        ) : (
+          /* User is NOT Signed In */
+          <div className="space-y-4">
+            <div className="p-4 rounded-2xl bg-gradient-to-r from-stone-900/90 to-stone-900/50 border border-stone-800 space-y-3">
+              <div className="space-y-1">
+                <h4 className="text-xs sm:text-sm font-bold text-stone-100 flex items-center gap-2">
+                  <span>Sign in with Google Account</span>
+                  <span className="text-[10px] px-2 py-0.5 rounded bg-amber-400/20 text-amber-300 font-bold">
+                    Recommended
+                  </span>
+                </h4>
+                <p className="text-xs text-stone-400 leading-relaxed">
+                  Connect your Google identity to back up your quests, habit streaks, water logs, and multi-currency wallets to the encrypted Supabase cloud vault.
+                </p>
+              </div>
+
+              <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 pt-1">
+                {/* Official Google Sign-In Button */}
+                <button
+                  type="button"
+                  onClick={handleGoogleSignIn}
+                  disabled={isGoogleLoading}
+                  className="flex-1 py-3 px-4 rounded-xl bg-stone-100 hover:bg-white text-stone-900 font-bold text-xs flex items-center justify-center gap-2.5 shadow-md hover:shadow-lg transition-all cursor-pointer disabled:opacity-60"
+                >
+                  <svg className="w-4 h-4 shrink-0" viewBox="0 0 24 24">
+                    <path
+                      fill="#4285F4"
+                      d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"
+                    />
+                    <path
+                      fill="#34A853"
+                      d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"
+                    />
+                    <path
+                      fill="#FBBC05"
+                      d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.06H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.94l2.85-2.22.81-.63z"
+                    />
+                    <path
+                      fill="#EA4335"
+                      d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.06l3.66 2.84c.87-2.6 3.3-4.52 6.16-4.52z"
+                    />
+                  </svg>
+                  <span>{isGoogleLoading ? 'Connecting to Google OAuth...' : 'Sign in with Google'}</span>
+                </button>
+
+                {/* Direct Link to Login Gateway Route */}
+                <Link
+                  href="/login?tab=returning"
+                  className="py-3 px-4 rounded-xl bg-stone-900 hover:bg-stone-800 border border-stone-700 text-stone-200 font-semibold text-xs flex items-center justify-center gap-1.5 transition-colors"
+                >
+                  <Lock className="w-3.5 h-3.5 text-amber-400" />
+                  <span>Open Login Page (/login)</span>
+                  <ExternalLink className="w-3 h-3 text-stone-400" />
+                </Link>
+              </div>
+            </div>
+
+            {/* Cloud Status Footer */}
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 px-1 text-[11px] text-stone-400 font-mono">
+              <span className="flex items-center gap-1.5">
+                <ShieldCheck className="w-3.5 h-3.5 text-amber-400" />
+                <span>Supabase Cloud Gateway: {projectRef ? `Active (${projectRef})` : 'Standby'}</span>
+              </span>
+              <span>Need account setup? Visit <Link href="/login" className="text-amber-400 hover:underline">/login</Link></span>
+            </div>
+          </div>
+        )}
+      </div>
+    </div>
+  )
+}
+
 

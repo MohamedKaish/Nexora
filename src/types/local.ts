@@ -228,6 +228,37 @@ export const DEFAULT_PREFERENCES: LocalPreferences = {
 }
 
 // ─── Kyro AI Conversation & Action Types ───
+export type KyroActionType =
+  | 'read_tasks'
+  | 'create_task'
+  | 'start_focus'
+  | 'read_hydration'
+  | 'log_hydration'
+  | 'navigate_to'
+  | 'open_route'
+  | 'update_reminder'
+  | 'switch_companion'
+
+export const NEXORA_ALLOWED_ROUTES = {
+  '/dashboard': 'Main Command Dashboard (Tasks, Hydration, Finance & Overview)',
+  '/tasks': 'Task Matrix (Objectives, Subtasks, Priorities & Reminders)',
+  '/habits': 'Habit Horizon (Daily Habits, Windows & Streaks)',
+  '/focus': 'Focus Chamber (Pomodoro, Deep Work & Stopwatch Timer)',
+  '/notes': 'Tactical Notes & Vault (Notes, Checklists & Scheduled Reminders)',
+  '/timetable': 'Weekly Timetable (Chronological Time Blocks)',
+  '/calendar': 'Calendar View (Monthly & Daily Schedule)',
+  '/analytics': 'Performance Analytics (Velocity & Consistency Charts)',
+  '/goals': 'Strategic Goals (Weekly, Monthly & Yearly Milestones)',
+  '/projects': 'Projects Workspace (Grouped Task Initiatives)',
+  '/character': 'Companion Atelier (3D Models, Costumes & Shaders)',
+  '/settings': 'System Settings (Account, Notifications & Data Management)',
+  '/notifications': 'Notifications Center (Scheduled Alarms & Channels)',
+  '/account': 'User Profile & Account',
+  '/agent': 'Kyro Neural Core (Dedicated Full-Screen AI Console)',
+} as const
+
+export type NexoraAllowedRoute = keyof typeof NEXORA_ALLOWED_ROUTES
+
 export interface KyroMessage {
   id: string
   sender: 'user' | 'kyro'
@@ -238,8 +269,12 @@ export interface KyroMessage {
 
 export interface KyroProposedAction {
   id: string
-  type: string
+  type: KyroActionType
   label: string
   payload: Record<string, unknown>
+  requiresConfirmation?: boolean
   isExecuted?: boolean
+  executionStatus?: 'pending' | 'executed' | 'failed'
+  executionResult?: string
 }
+

@@ -549,3 +549,368 @@ test('PHASE 5: Notes Vault, Focus Timer, Goals, Projects, Timetable & Security',
   })
 })
 
+import { KyroContextBuilder } from '../src/features/kyro/KyroContextBuilder'
+import {
+  validateKyroToolCall,
+  executeKyroAction,
+} from '../src/features/kyro/KyroActionRegistry'
+import {
+  POST as kyroPost,
+  GET as kyroGet,
+  normalizeIncomingContext,
+  buildNexoraSystemInstruction,
+} from '../src/app/api/kyro/route'
+import { useKyroStore } from '../src/store/kyroStore'
+
+test('PHASE 6: Kyro AI Companion — Secure Integration, Context Honesty & Real Action Execution', async (t) => {
+  await t.test('1. Real task/habit/hydration/finance/note context maps accurately into server request', () => {
+    useTaskStore.setState({ tasks: [], subtasks: [] })
+    useHabitStore.setState({ habits: [], completions: [] })
+    useHydrationStore.setState({ dailyGoalMl: 3000, goalMode: 'custom', logs: [], lastLogTimestampMs: 0 })
+    useFinanceStore.setState({ defaultCurrency: 'INR', wallets: [], transactions: [], expenses: [] })
+    useNoteStore.setState({ notes: [] })
+
+    useTaskStore.getState().addTask({
+      title: 'Review Substation Protection Relay',
+      priority: 'urgent',
+      dueDate: '2099-12-31',
+      reminderTime: '16:00',
+      enableReminder: true,
+    })
+    useHabitStore.getState().addHabit({ name: 'Morning Mobility', frequency: 'daily' })
+    useHydrationStore.getState().logDrink(600, 'water', { bypassDebounce: true })
+    const wallet = useFinanceStore.getState().addWallet({
+      name: 'Primary Checking',
+      type: 'bank',
+      currency: 'INR',
+      openingBalance: 12000,
+    })
+    useFinanceStore.getState().addTransaction({
+      type: 'expense',
+      amount: 450,
+      currency: 'INR',
+      category: 'Food',
+      walletId: wallet.id,
+      title: 'Team Lunch',
+    })
+    useNoteStore.getState().addNote({
+      title: 'Lab Calibration Checklist',
+      priority: 'high',
+      remindAt: '2099-12-31T09:30',
+      isPinned: true,
+    })
+
+    const rawInputs = KyroContextBuilder.collectLiveStoreInputs({ userName: 'Arjun', agentName: 'Kyro' })
+    const built = KyroContextBuilder.buildContext(rawInputs)
+
+    assert.equal(built.systemMetadata.userName, 'Arjun')
+    assert.equal(built.tasks.available, true)
+    assert.equal(built.tasks.totalActive, 1)
+    assert.equal(built.tasks.urgentCount, 1)
+    assert.equal(built.tasks.topPriorityTasks[0].title, 'Review Substation Protection Relay')
+
+    assert.equal(built.habits.available, true)
+    assert.equal(built.habits.totalHabits, 1)
+    assert.equal(built.habits.pendingHabitsToday[0], 'Morning Mobility')
+
+    assert.equal(built.hydration.available, true)
+    assert.equal(built.hydration.consumedMl, 600)
+    assert.equal(built.hydration.dailyGoalMl, 3000)
+    assert.equal(built.hydration.remainingMl, 2400)
+    assert.equal(built.hydration.completionPercentage, 20)
+
+    assert.equal(built.finance.available, true)
+    assert.equal(built.finance.hasActivityOrBalances, true)
+    assert.equal(built.finance.totalBalanceFormatted, '₹11,550.00')
+    assert.equal(built.finance.spentTodayFormatted, '₹450.00')
+
+    assert.equal(built.notesAndReminders.available, true)
+    assert.equal(built.notesAndReminders.totalNotes, 1)
+    assert.equal(built.notesAndReminders.pinnedNotesCount, 1)
+    assert.equal(built.notesAndReminders.pendingRemindersCount, 2) // 1 note reminder + 1 task reminder
+
+    const systemPrompt = buildNexoraSystemInstruction(built)
+    assert.ok(!systemPrompt.includes('AURA LIFE OS'), 'Must not contain stale AURA LIFE OS branding')
+    assert.ok(systemPrompt.includes('Nexora'), 'Must identify as Nexora companion')
+  })
+
+  await t.test('2. Missing or unconfigured data is represented honestly and never fabricated', () => {
+    // Empty finance store with 0 balance and 0 transactions
+    useFinanceStore.setState({
+      defaultCurrency: 'INR',
+      wallets: [
+        {
+          id: 'w_zero',
+          name: 'Empty Wallet',
+          type: 'cash',
+          currency: 'INR',
+          openingBalance: 0,
+          color: '#10B981',
+          createdAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString(),
+        },
+      ],
+      transactions: [],
+      expenses: [],
+    })
+
+    const rawInputs = KyroContextBuilder.collectLiveStoreInputs({
+      hydration: null,
+      tasks: null,
+    })
+    const built = KyroContextBuilder.buildContext(rawInputs)
+
+    assert.equal(built.tasks.available, false)
+    assert.equal(built.hydration.available, false)
+    assert.equal(built.hydration.consumedMl, null)
+    assert.equal(built.finance.available, true)
+    assert.equal(built.finance.hasActivityOrBalances, false)
+    assert.equal(built.finance.totalBalanceFormatted, null)
+
+    // Also verify server-side normalizeIncomingContext with empty object
+    const normalizedEmpty = normalizeIncomingContext({})
+    assert.equal(normalizedEmpty.tasks.available, false)
+    assert.equal(normalizedEmpty.hydration.available, false)
+    assert.equal(normalizedEmpty.finance.available, false)
+    assert.equal(normalizedEmpty.finance.totalBalanceFormatted, null)
+  })
+
+  await t.test('3. Valid and invalid function arguments are strictly validated', () => {
+    // Valid create_task
+    const validTask = validateKyroToolCall('create_task', {
+      title: 'Finish control systems lab report',
+      priority: 'high',
+      dueDate: '2026-11-15',
+      reminderTime: '17:30',
+    })
+    assert.equal(validTask.valid, true)
+    assert.equal(validTask.proposedAction?.type, 'create_task')
+    assert.equal(validTask.proposedAction?.requiresConfirmation, true)
+    assert.equal(validTask.proposedAction?.isExecuted, false)
+
+    // Invalid create_task (empty title)
+    const emptyTitle = validateKyroToolCall('create_task', { title: '   ' })
+    assert.equal(emptyTitle.valid, false)
+
+    // Invalid create_task (malformed date)
+    const badDate = validateKyroToolCall('create_task', {
+      title: 'Valid title',
+      dueDate: 'tomorrow-maybe',
+    })
+    assert.equal(badDate.valid, false)
+
+    // Valid & invalid log_hydration
+    const validHydration = validateKyroToolCall('log_hydration', {
+      amountMl: 350,
+      beverageType: 'water',
+    })
+    assert.equal(validHydration.valid, true)
+
+    const outOfRangeHydration = validateKyroToolCall('log_hydration', {
+      amountMl: 9500,
+    })
+    assert.equal(outOfRangeHydration.valid, false)
+
+    // Unknown tool
+    const unknownTool = validateKyroToolCall('execute_raw_sql', { query: 'DROP TABLE tasks' })
+    assert.equal(unknownTool.valid, false)
+  })
+
+  await t.test('4. Invalid or unallowlisted routes are rejected', () => {
+    const validNav = validateKyroToolCall('navigate_to', { route: '/tasks' })
+    assert.equal(validNav.valid, true)
+    assert.equal(validNav.proposedAction?.payload.route, '/tasks')
+
+    const externalUrl = validateKyroToolCall('navigate_to', { route: 'https://evil.example.com' })
+    assert.equal(externalUrl.valid, false)
+
+    const unknownRoute = validateKyroToolCall('navigate_to', { route: '/root-shell' })
+    assert.equal(unknownRoute.valid, false)
+
+    const execInvalidRoute = executeKyroAction({
+      id: 'act_bad_nav',
+      type: 'navigate_to',
+      label: 'Bad nav',
+      payload: { route: 'javascript:alert(1)' },
+    })
+    assert.equal(execInvalidRoute.ok, false)
+  })
+
+  await t.test('5. Confirmation-gated actions do not execute until approved, and update real stores upon confirmation', () => {
+    useTaskStore.setState({ tasks: [], subtasks: [] })
+    useHydrationStore.setState({ dailyGoalMl: 2500, goalMode: 'custom', logs: [], lastLogTimestampMs: 0 })
+
+    const validated = validateKyroToolCall('create_task', {
+      title: 'Prepare inverter PCB layout',
+      priority: 'urgent',
+      dueDate: '2026-12-01',
+    })
+    assert.equal(validated.valid, true)
+    const action = validated.proposedAction!
+
+    // Before confirmation: task store is still untouched
+    assert.equal(useTaskStore.getState().tasks.length, 0)
+    assert.equal(action.isExecuted, false)
+
+    // Seed message with proposedAction into useKyroStore
+    useKyroStore.setState({
+      messages: [
+        {
+          id: 'msg_test_1',
+          sender: 'kyro',
+          text: 'I have prepared this task for your confirmation.',
+          timestamp: new Date().toISOString(),
+          proposedAction: action,
+        },
+      ],
+    })
+
+    // Still 0 tasks before user confirms
+    assert.equal(useTaskStore.getState().tasks.length, 0)
+
+    // Now user confirms via executeProposedAction
+    const outcome = useKyroStore.getState().executeProposedAction(action.id)
+    assert.equal(outcome.ok, true)
+    assert.equal(useTaskStore.getState().tasks.length, 1)
+    assert.equal(useTaskStore.getState().tasks[0].title, 'Prepare inverter PCB layout')
+    assert.equal(useTaskStore.getState().tasks[0].priority, 'urgent')
+
+    // Message state reflects confirmed execution
+    const updatedMsg = useKyroStore.getState().messages.find((m) => m.id === 'msg_test_1')
+    assert.equal(updatedMsg?.proposedAction?.isExecuted, true)
+    assert.equal(updatedMsg?.proposedAction?.executionStatus, 'executed')
+  })
+
+  await t.test('6. API key is never read from localStorage or accepted from client request payloads', async () => {
+    const prevEnvKey = process.env.GEMINI_API_KEY
+    const prevGoogleKey = process.env.GOOGLE_API_KEY
+    delete process.env.GEMINI_API_KEY
+    delete process.env.GOOGLE_API_KEY
+
+    try {
+      // Put a fake key in localStorage and pass userApiKey in request body
+      localStorageMock.setItem('nexora_gemini_api_key', 'AIzaSyClientInjectedKey1234567890')
+
+      const req = new Request('http://localhost/api/kyro', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          message: 'What are my tasks?',
+          userApiKey: 'AIzaSyClientInjectedKey1234567890',
+          context: {},
+        }),
+      })
+
+      const res = await kyroPost(req)
+      const data = await res.json()
+
+      // Must reject/ignore client key and return 503 unavailable because server env key is unset
+      assert.equal(res.status, 503)
+      assert.equal(data.ok, false)
+      assert.equal(data.configured, false)
+      assert.equal(data.provider, 'unavailable')
+      assert.match(data.errorReason, /GEMINI_API_KEY is not configured on the server/)
+
+      const statusRes = await kyroGet()
+      const statusData = await statusRes.json()
+      assert.equal(statusData.configured, false)
+    } finally {
+      if (prevEnvKey !== undefined) process.env.GEMINI_API_KEY = prevEnvKey
+      if (prevGoogleKey !== undefined) process.env.GOOGLE_API_KEY = prevGoogleKey
+    }
+  })
+
+  await t.test('7. Both chat and floating-companion entry points handle Gemini functionCall proposals and errors honestly', async () => {
+    const prevEnvKey = process.env.GEMINI_API_KEY
+    const prevFetch = globalThis.fetch
+    process.env.GEMINI_API_KEY = 'AIzaSyTestServerOnlyEnvironmentKey999999'
+
+    try {
+      // Mock global fetch to route /api/kyro to kyroPost and Gemini API to a realistic functionCall response
+      globalThis.fetch = async (input: string | URL | Request, init?: RequestInit) => {
+        const url = typeof input === 'string' ? input : input instanceof URL ? input.toString() : input.url
+        if (url === '/api/kyro') {
+          return kyroPost(
+            new Request('http://localhost/api/kyro', {
+              method: init?.method || 'POST',
+              headers: init?.headers,
+              body: init?.body,
+            })
+          )
+        }
+        if (url.includes('generativelanguage.googleapis.com')) {
+          return new Response(
+            JSON.stringify({
+              candidates: [
+                {
+                  content: {
+                    parts: [
+                      {
+                        text: 'I have prepared a 250 ml water log for your confirmation.',
+                      },
+                      {
+                        functionCall: {
+                          name: 'log_hydration',
+                          args: { amountMl: 250, beverageType: 'water' },
+                        },
+                      },
+                    ],
+                  },
+                },
+              ],
+            }),
+            { status: 200, headers: { 'Content-Type': 'application/json' } }
+          )
+        }
+        throw new Error(`Unexpected fetch URL: ${url}`)
+      }
+
+      useHydrationStore.setState({ dailyGoalMl: 2500, goalMode: 'custom', logs: [], lastLogTimestampMs: 0 })
+      useKyroStore.setState({ messages: [], hasError: false })
+
+      await useKyroStore.getState().sendMessage('Log 250ml of water please')
+
+      const msgs = useKyroStore.getState().messages
+      assert.equal(msgs.length, 2)
+      const kyroReply = msgs[1]
+      assert.equal(kyroReply.sender, 'kyro')
+      assert.ok(kyroReply.proposedAction, 'Expected proposedAction on Kyro reply')
+      assert.equal(kyroReply.proposedAction?.type, 'log_hydration')
+      assert.equal(kyroReply.proposedAction?.isExecuted, false)
+
+      // Hydration store must still be 0 before confirmation
+      assert.equal(useHydrationStore.getState().calculateCircadianTarget().consumedTodayMl, 0)
+
+      // Floating 3D companion speech bubble was also updated
+      assert.match(useKyroStore.getState().activeSpeech || '', /250 ml/)
+
+      // Confirm action and verify hydration store updates to 250 ml
+      const execOutcome = useKyroStore.getState().executeProposedAction(kyroReply.proposedAction!.id)
+      assert.equal(execOutcome.ok, true)
+      assert.equal(useHydrationStore.getState().calculateCircadianTarget().consumedTodayMl, 250)
+
+      // Verify tool-execution failure when targeting a non-existent task reminder
+      const failedReminderOutcome = executeKyroAction({
+        id: 'act_missing_task',
+        type: 'update_reminder',
+        label: 'Update reminder',
+        payload: {
+          targetType: 'task',
+          targetIdOrTitle: 'NonExistentTaskXYZ',
+          reminderTime: '14:00',
+        },
+      })
+      assert.equal(failedReminderOutcome.ok, false)
+      assert.match(failedReminderOutcome.message, /Could not find an existing task/)
+    } finally {
+      globalThis.fetch = prevFetch
+      if (prevEnvKey !== undefined) {
+        process.env.GEMINI_API_KEY = prevEnvKey
+      } else {
+        delete process.env.GEMINI_API_KEY
+      }
+    }
+  })
+})
+
+

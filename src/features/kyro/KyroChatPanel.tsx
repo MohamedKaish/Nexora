@@ -11,7 +11,7 @@ import { useProjectStore } from '@/store/useProjectStore'
 import { useFocusStore } from '@/store/useFocusStore'
 import { useTimelineStore } from '@/store/timelineStore'
 import { useCharacterStore } from '@/store/characterStore'
-import { RawContextInputs } from '@/features/kyro/KyroContextBuilder'
+import { KyroContextBuilder, RawContextInputs } from '@/features/kyro/KyroContextBuilder'
 import { Companion } from '@/components/companion/Companion'
 import { CompanionSelector } from '@/components/companion/CompanionSelector'
 import {
@@ -20,7 +20,6 @@ import {
   Sparkles,
   X,
   Check,
-  RotateCcw,
   Minimize2,
   Maximize2,
   Trash2,
@@ -34,6 +33,7 @@ export function KyroChatPanel() {
     isOpen,
     isTyping,
     hasError,
+    lastErrorReason,
     messages,
     quickPrompts,
     setOpen,
@@ -49,37 +49,18 @@ export function KyroChatPanel() {
   const userName = useAppStore((s) => s.preferences.displayName) || 'Explorer'
   const agentName = useAppStore((s) => s.agentConfig.name) || 'Kyro'
   const characterConfig = useCharacterStore((s) => s.config)
-  const setArchetype = useCharacterStore((s) => s.setArchetype)
   const router = useRouter()
-
-  const tasks = useTaskStore((s) => s.tasks)
-  const habits = useHabitStore((s) => s.habits)
-  const completions = useHabitStore((s) => s.completions)
-  const goals = useGoalStore((s) => s.goals)
-  const projects = useProjectStore((s) => s.projects)
-  const focusSessions = useFocusStore((s) => s.sessions)
-  const isFocusRunning = useFocusStore((s) => s.isRunning)
-  const timetableSlots = useTimelineStore((s) => s.slots)
-  const startFocusTimer = useFocusStore((s) => s.startTimer)
-  const addTask = useTaskStore((s) => s.addTask)
 
   const [input, setInput] = useState('')
   const [isExpanded, setIsExpanded] = useState(false)
   const messagesEndRef = useRef<HTMLDivElement | null>(null)
 
-  const getContextInputs = (): RawContextInputs => ({
-    userName,
-    agentName,
-    creatureArchetype: characterConfig.archetype || 'nyxen',
-    tasks,
-    habits,
-    completions,
-    goals,
-    projects,
-    focusSessions,
-    isFocusRunning,
-    timetableSlots,
-  })
+  const getContextInputs = (): RawContextInputs =>
+    KyroContextBuilder.collectLiveStoreInputs({
+      userName,
+      agentName,
+      creatureArchetype: characterConfig.archetype || 'nyxen',
+    })
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
@@ -104,38 +85,19 @@ export function KyroChatPanel() {
 
   return (
     <>
-      {/* ── Floating Launcher Orb (when closed) ── */}
-      {!isOpen && (
-        <button
-          onClick={toggleOpen}
-          className="fixed bottom-20 right-4 lg:bottom-6 lg:right-6 z-50 flex items-center gap-2.5 px-4 py-3 rounded-full bg-stone-900/95 border border-amber-400/40 text-amber-200 shadow-[0_8px_30px_rgba(0,0,0,0.5)] hover:border-amber-400 transition-colors duration-200 backdrop-blur-md cursor-pointer group"
-          aria-label={`Open ${agentName} companion chat`}
-        >
-          <div className="relative">
-            <Bot className="w-5 h-5 text-amber-400" />
-            <span className="absolute -top-1 -right-1 w-2 h-2 rounded-full bg-emerald-400 animate-ping" />
-            <span className="absolute -top-1 -right-1 w-2 h-2 rounded-full bg-emerald-400" />
-          </div>
-          <span className="text-sm font-semibold tracking-wide text-foreground">
-            {agentName}
-          </span>
-          <Sparkles className="w-3.5 h-3.5 text-amber-400 opacity-60 group-hover:opacity-100 transition-opacity" />
-        </button>
-      )}
-
       {/* ── Kyro Conversational Interface (when open) ── */}
       {isOpen && (
         <div
-          className={`fixed z-50 transition-all duration-300 shadow-[0_16px_48px_rgba(0,0,0,0.6)] border border-amber-400/30 rounded-3xl bg-stone-950/95 backdrop-blur-xl flex flex-col overflow-hidden ${
+          className={`fixed z-50 transition-all duration-200 shadow-[0_16px_48px_rgba(0,0,0,0.75)] border border-amber-400/35 rounded-3xl bg-stone-950/98 backdrop-blur-md flex flex-col overflow-hidden ${
             isExpanded
-              ? 'inset-4 md:inset-10'
-              : 'bottom-20 right-4 left-4 sm:left-auto sm:w-[440px] h-[580px] max-h-[75vh] lg:bottom-6 lg:right-6 lg:max-h-[85vh]'
+              ? 'inset-3 sm:inset-6 md:inset-10 bottom-[4.5rem] lg:bottom-10'
+              : 'bottom-[4.5rem] right-3 left-3 sm:left-auto sm:w-[440px] h-[min(560px,calc(100dvh-8.75rem))] lg:bottom-6 lg:right-6 lg:h-[580px] lg:max-h-[85vh]'
           }`}
         >
           {/* Header */}
-          <div className="px-4 py-3.5 border-b border-stone-800/80 flex flex-col gap-2.5 bg-stone-900/40">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-3">
+          <div className="px-4 py-3 border-b border-stone-800/80 flex flex-col gap-2 bg-stone-900/50 shrink-0">
+            <div className="flex items-center justify-between gap-2">
+              <div className="flex items-center gap-2.5 min-w-0">
                 <div className="relative w-9 h-9 flex items-center justify-center rounded-xl bg-amber-400/10 border border-amber-400/30 overflow-hidden shrink-0">
                   <Companion
                     size={32}
@@ -144,35 +106,42 @@ export function KyroChatPanel() {
                     interactive={false}
                   />
                 </div>
-                <div>
+                <div className="min-w-0">
                   <div className="flex items-center gap-1.5">
-                    <h3 className="text-sm font-bold text-foreground">{agentName}</h3>
-                    <span className="text-[10px] px-1.5 py-0.5 rounded bg-amber-400/15 text-amber-300 font-semibold uppercase tracking-wider">
+                    <h3 className="text-sm font-bold text-foreground truncate">{agentName}</h3>
+                    <span className="text-[10px] px-1.5 py-0.5 rounded bg-amber-400/15 text-amber-300 font-semibold uppercase tracking-wider shrink-0">
                       AI Ally
                     </span>
                   </div>
-                  <p className="text-[10px] text-stone-400">Context Synchronized</p>
+                  <p className="text-[10px] text-stone-400 truncate">Context Synchronized</p>
                 </div>
               </div>
 
-              <div className="flex items-center gap-1">
+              <div className="flex items-center gap-1 shrink-0">
                 <button
+                  type="button"
                   onClick={() => setIsExpanded(!isExpanded)}
-                  className="p-1.5 rounded-lg text-stone-400 hover:text-stone-200 hover:bg-stone-800/60 transition-colors cursor-pointer"
+                  className="w-9 h-9 rounded-xl flex items-center justify-center text-stone-300 hover:text-stone-100 hover:bg-stone-800/70 transition-colors cursor-pointer touch-manipulation"
                   title={isExpanded ? 'Minimize' : 'Expand'}
+                  aria-label={isExpanded ? 'Minimize chat' : 'Expand chat'}
                 >
                   {isExpanded ? <Minimize2 className="w-4 h-4" /> : <Maximize2 className="w-4 h-4" />}
                 </button>
                 <button
+                  type="button"
                   onClick={clearHistory}
-                  className="p-1.5 rounded-lg text-stone-400 hover:text-rose-400 hover:bg-stone-800/60 transition-colors cursor-pointer"
+                  className="w-9 h-9 rounded-xl flex items-center justify-center text-stone-300 hover:text-rose-400 hover:bg-stone-800/70 transition-colors cursor-pointer touch-manipulation"
                   title="Clear chat history"
+                  aria-label="Clear chat history"
                 >
                   <Trash2 className="w-4 h-4" />
                 </button>
                 <button
+                  type="button"
                   onClick={() => setOpen(false)}
-                  className="p-1.5 rounded-lg text-stone-400 hover:text-stone-200 hover:bg-stone-800/60 transition-colors cursor-pointer"
+                  className="w-9 h-9 rounded-xl flex items-center justify-center text-stone-300 hover:text-stone-100 hover:bg-stone-800/70 transition-colors cursor-pointer touch-manipulation"
+                  title="Close chat"
+                  aria-label="Close chat"
                 >
                   <X className="w-4 h-4" />
                 </button>
@@ -180,8 +149,8 @@ export function KyroChatPanel() {
             </div>
 
             {/* In-Chat Creature Switcher Bar */}
-            <div className="flex items-center justify-between pt-1 border-t border-stone-800/60">
-              <span className="text-[11px] font-semibold text-stone-400">Persona:</span>
+            <div className="flex flex-wrap items-center justify-between gap-1.5 pt-1.5 border-t border-stone-800/60">
+              <span className="text-[11px] font-semibold text-stone-400 shrink-0">Persona:</span>
               <CompanionSelector variant="compact" />
             </div>
           </div>
@@ -200,7 +169,7 @@ export function KyroChatPanel() {
                 )}
 
                 <div
-                  className={`max-w-[82%] rounded-2xl px-4 py-2.5 leading-relaxed ${
+                  className={`max-w-[85%] rounded-2xl px-4 py-2.5 leading-relaxed ${
                     msg.sender === 'user'
                       ? 'bg-amber-500 text-stone-950 font-medium ml-auto shadow-sm'
                       : 'bg-stone-900/90 text-stone-100 border border-stone-800'
@@ -218,29 +187,29 @@ export function KyroChatPanel() {
                       <p className="text-xs text-stone-300 font-medium">
                         {msg.proposedAction.label}
                       </p>
+                      {msg.proposedAction.executionStatus === 'failed' &&
+                        msg.proposedAction.executionResult && (
+                          <p className="text-[11px] text-rose-400 font-medium">
+                            {msg.proposedAction.executionResult}
+                          </p>
+                        )}
                       <div className="flex items-center gap-2 pt-1">
                         <button
+                          type="button"
                           onClick={() =>
-                            executeProposedAction(msg.proposedAction!.id, (action) => {
-                              if (action.type === 'start_focus') {
-                                startFocusTimer()
-                              } else if (action.type === 'create_task') {
-                                addTask({ title: (action.payload.title as string) || 'New Task' })
-                              } else if (action.type === 'switch_companion') {
-                                setArchetype((action.payload.archetype as any) || 'nyxen')
-                              } else if (action.type === 'open_route') {
-                                router.push((action.payload.route as string) || '/dashboard')
-                              }
+                            executeProposedAction(msg.proposedAction!.id, {
+                              navigate: (route) => router.push(route),
                             })
                           }
-                          className="flex items-center gap-1 px-2.5 py-1 rounded-lg bg-amber-400 text-stone-950 text-xs font-bold hover:bg-amber-300 transition-colors cursor-pointer"
+                          className="flex items-center gap-1 px-3 py-1.5 min-h-[34px] rounded-lg bg-amber-400 text-stone-950 text-xs font-bold hover:bg-amber-300 transition-colors cursor-pointer touch-manipulation"
                         >
                           <Check className="w-3.5 h-3.5" />
-                          Confirm & Run
+                          Confirm &amp; Run
                         </button>
                         <button
+                          type="button"
                           onClick={() => dismissAction(msg.proposedAction!.id)}
-                          className="px-2.5 py-1 rounded-lg text-stone-400 text-xs font-medium hover:text-stone-200 transition-colors cursor-pointer"
+                          className="px-3 py-1.5 min-h-[34px] rounded-lg bg-stone-800/80 text-stone-300 text-xs font-medium hover:text-stone-100 transition-colors cursor-pointer touch-manipulation"
                         >
                           Dismiss
                         </button>
@@ -250,7 +219,10 @@ export function KyroChatPanel() {
 
                   {msg.proposedAction?.isExecuted && (
                     <div className="mt-2 text-[11px] text-emerald-400 font-medium flex items-center gap-1">
-                      <Check className="w-3 h-3" /> Action executed
+                      <Check className="w-3 h-3 shrink-0" />
+                      <span>
+                        {msg.proposedAction.executionResult || 'Action executed'}
+                      </span>
                     </div>
                   )}
 
@@ -264,7 +236,7 @@ export function KyroChatPanel() {
             {isTyping && (
               <div className="flex gap-2 items-center text-stone-400 text-xs pl-2">
                 <Bot className="w-4 h-4 text-amber-400 animate-spin" />
-                <span>{agentName} is thinking & analyzing your context...</span>
+                <span>{agentName} is thinking &amp; analyzing your context...</span>
               </div>
             )}
 
@@ -272,11 +244,12 @@ export function KyroChatPanel() {
               <div className="p-3 rounded-2xl bg-rose-500/10 border border-rose-500/30 text-rose-300 text-xs flex items-center justify-between gap-3">
                 <div className="flex items-center gap-2">
                   <AlertCircle className="w-4 h-4 text-rose-400 shrink-0" />
-                  <span>Kyro connection issue.</span>
+                  <span>{lastErrorReason || 'Kyro connection issue.'}</span>
                 </div>
                 <button
+                  type="button"
                   onClick={() => retryLastMessage(getContextInputs())}
-                  className="px-2.5 py-1 rounded-lg bg-rose-500/20 hover:bg-rose-500/30 text-rose-200 font-bold flex items-center gap-1 transition-colors cursor-pointer"
+                  className="px-3 py-1.5 min-h-[32px] rounded-lg bg-rose-500/20 hover:bg-rose-500/30 text-rose-200 font-bold flex items-center gap-1 transition-colors cursor-pointer shrink-0 touch-manipulation"
                 >
                   <RefreshCw className="w-3 h-3" /> Retry
                 </button>
@@ -287,13 +260,14 @@ export function KyroChatPanel() {
           </div>
 
           {/* Quick Suggested Prompts */}
-          <div className="px-4 py-2 border-t border-stone-800/60 bg-stone-900/30 overflow-x-auto flex gap-1.5 no-scrollbar">
+          <div className="px-3 py-2 border-t border-stone-800/60 bg-stone-900/30 overflow-x-auto flex gap-1.5 no-scrollbar shrink-0">
             {quickPrompts.map((prompt) => (
               <button
                 key={prompt}
+                type="button"
                 onClick={() => handleQuickPrompt(prompt)}
                 disabled={isTyping}
-                className="whitespace-nowrap px-3 py-1 rounded-full text-xs font-medium text-stone-300 bg-stone-800/60 hover:bg-amber-400/15 hover:text-amber-300 hover:border-amber-400/30 border border-stone-700/60 transition-all cursor-pointer"
+                className="whitespace-nowrap px-3 py-1.5 min-h-[32px] rounded-full text-xs font-medium text-stone-300 bg-stone-800/70 hover:bg-amber-400/15 hover:text-amber-300 hover:border-amber-400/30 border border-stone-700/60 transition-all cursor-pointer touch-manipulation"
               >
                 {prompt}
               </button>
@@ -306,21 +280,20 @@ export function KyroChatPanel() {
               e.preventDefault()
               handleSend()
             }}
-            className="p-3 border-t border-stone-800/80 bg-stone-900/50 flex items-center gap-2"
+            className="p-3 border-t border-stone-800/80 bg-stone-900/50 flex items-center gap-2 shrink-0"
           >
             <input
               type="text"
               value={input}
               onChange={handleInputChange}
-              placeholder={`Message ${agentName}... (e.g. "what's next", "switch to aerix")`}
+              placeholder={`Message ${agentName}...`}
               disabled={isTyping}
-              autoFocus
-              className="flex-1 bg-stone-900 border border-stone-800 rounded-xl px-3.5 py-2.5 text-sm text-foreground placeholder:text-stone-500 focus:outline-none focus:border-amber-400/60 transition-colors"
+              className="flex-1 min-w-0 bg-stone-900 border border-stone-800 rounded-xl px-3.5 py-2.5 text-sm text-foreground placeholder:text-stone-500 focus:outline-none focus:border-amber-400/60 transition-colors"
             />
             <button
               type="submit"
               disabled={!input.trim() || isTyping}
-              className="p-2.5 rounded-xl bg-amber-400 text-stone-950 hover:bg-amber-300 disabled:opacity-40 disabled:cursor-not-allowed transition-all cursor-pointer font-bold"
+              className="w-10 h-10 rounded-xl bg-amber-400 text-stone-950 hover:bg-amber-300 disabled:opacity-40 disabled:cursor-not-allowed flex items-center justify-center transition-all cursor-pointer font-bold shrink-0 touch-manipulation"
               aria-label="Send message"
             >
               <Send className="w-4 h-4" />

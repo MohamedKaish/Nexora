@@ -137,6 +137,16 @@ export function isAfter(date, dateToCompare) {
   return new Date(date).getTime() > new Date(dateToCompare).getTime();
 }
 
+export function isBefore(date, dateToCompare) {
+  return new Date(date).getTime() < new Date(dateToCompare).getTime();
+}
+
+export function startOfDay(date) {
+  const d = new Date(date);
+  d.setHours(0, 0, 0, 0);
+  return d;
+}
+
 export function parseISO(str) {
   if (/^\\d{4}-\\d{2}-\\d{2}$/.test(str)) {
     const [y, m, d] = str.split('-').map(Number);
@@ -144,6 +154,30 @@ export function parseISO(str) {
   }
   return new Date(str);
 }
+`
+
+const nextServerShim = `
+export class NextResponse extends Response {
+  static json(body, init) {
+    const headers = new Headers(init?.headers);
+    if (!headers.has('content-type')) {
+      headers.set('content-type', 'application/json');
+    }
+    return new Response(JSON.stringify(body), {
+      ...init,
+      headers,
+    });
+  }
+}
+`
+
+const sonnerShim = `
+export const toast = {
+  success: () => {},
+  error: () => {},
+  info: () => {},
+  warning: () => {},
+};
 `
 
 const loaderCode = `
@@ -156,6 +190,8 @@ const shims = {
   'zustand': ${JSON.stringify(`data:text/javascript;base64,${Buffer.from(zustandShim).toString('base64')}`)},
   'zustand/middleware': ${JSON.stringify(`data:text/javascript;base64,${Buffer.from(zustandMiddlewareShim).toString('base64')}`)},
   'date-fns': ${JSON.stringify(`data:text/javascript;base64,${Buffer.from(dateFnsShim).toString('base64')}`)},
+  'next/server': ${JSON.stringify(`data:text/javascript;base64,${Buffer.from(nextServerShim).toString('base64')}`)},
+  'sonner': ${JSON.stringify(`data:text/javascript;base64,${Buffer.from(sonnerShim).toString('base64')}`)},
 };
 
 export async function resolve(specifier, context, nextResolve) {

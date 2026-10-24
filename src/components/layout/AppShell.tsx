@@ -83,6 +83,12 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   // Mobile edge-swipe gesture detection (Swipe right from left screen edge to open menu)
   useEffect(() => {
     const handleTouchStart = (e: TouchEvent) => {
+      const target = e.target as HTMLElement | null
+      if (target?.closest('[data-kyro-companion]')) {
+        touchStartXRef.current = null
+        touchStartYRef.current = null
+        return
+      }
       if (e.touches.length === 1) {
         touchStartXRef.current = e.touches[0].clientX
         touchStartYRef.current = e.touches[0].clientY

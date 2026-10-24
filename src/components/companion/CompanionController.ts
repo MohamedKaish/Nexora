@@ -1,4 +1,4 @@
-import { CompanionMood, EyeExpression, MouthExpression } from './CompanionState'
+import type { CompanionMood, EyeExpression, MouthExpression } from './CompanionState'
 
 type MoodListener = (mood: CompanionMood) => void
 
@@ -34,15 +34,17 @@ class CompanionEventBus {
         this.listeners.forEach((l) => l(revertTo))
         this.timer = null
       }, revertAfterMs)
+      this.timer.unref?.()
     }
   }
 
   emitSpeech(text: string | null, clearAfterMs?: number) {
     this.speechListeners.forEach((l) => l(text))
     if (clearAfterMs && clearAfterMs > 0 && text) {
-      setTimeout(() => {
+      const t = setTimeout(() => {
         this.speechListeners.forEach((l) => l(null))
       }, clearAfterMs)
+      t.unref?.()
     }
   }
 

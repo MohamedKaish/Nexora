@@ -28,6 +28,7 @@ import {
   ChevronRight,
   Download,
   StickyNote,
+  LogIn,
 } from 'lucide-react'
 import { usePwa } from '@/components/pwa/PwaProvider'
 
@@ -80,6 +81,7 @@ const DRAWER_SECTIONS: DrawerSection[] = [
     items: [
       { name: 'Explorer Profile', href: '/account', icon: User },
       { name: 'Sanctuary Settings', href: '/settings', icon: Settings },
+      { name: 'Login & Cloud Gateway', href: '/login', icon: LogIn },
     ],
   },
 ]

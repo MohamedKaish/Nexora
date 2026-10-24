@@ -13,12 +13,11 @@ import { useTimelineStore } from '@/store/timelineStore'
 import { useCharacterStore } from '@/store/characterStore'
 import { Companion } from '@/components/companion/Companion'
 import { CompanionSelector } from '@/components/companion/CompanionSelector'
-import { RawContextInputs } from '@/features/kyro/KyroContextBuilder'
+import { KyroContextBuilder, RawContextInputs } from '@/features/kyro/KyroContextBuilder'
 import {
   Bot,
   Send,
   Sparkles,
-  Zap,
   CheckCircle2,
   AlertCircle,
   Flame,
@@ -36,6 +35,7 @@ export default function DedicatedAgentPage() {
     messages,
     isTyping,
     hasError,
+    lastErrorReason,
     quickPrompts,
     notifyTyping,
     sendMessage,
@@ -52,19 +52,12 @@ export default function DedicatedAgentPage() {
   const userName = useAppStore((s) => s.preferences.displayName) || 'Explorer'
   const agentName = useAppStore((s) => s.agentConfig.name) || 'Kyro'
   const charConfig = useCharacterStore((s) => s.config)
-  const setArchetype = useCharacterStore((s) => s.setArchetype)
   const router = useRouter()
 
   const tasks = useTaskStore((s) => s.tasks)
   const habits = useHabitStore((s) => s.habits)
   const completions = useHabitStore((s) => s.completions)
   const goals = useGoalStore((s) => s.goals)
-  const projects = useProjectStore((s) => s.projects)
-  const focusSessions = useFocusStore((s) => s.sessions)
-  const isFocusRunning = useFocusStore((s) => s.isRunning)
-  const timetableSlots = useTimelineStore((s) => s.slots)
-  const startFocusTimer = useFocusStore((s) => s.startTimer)
-  const addTask = useTaskStore((s) => s.addTask)
 
   const [input, setInput] = useState('')
   const messagesEndRef = useRef<HTMLDivElement | null>(null)
@@ -74,19 +67,12 @@ export default function DedicatedAgentPage() {
   const activeTasks = tasks.filter((t) => t.status !== 'done')
   const urgentTasks = activeTasks.filter((t) => t.priority === 'urgent' || t.priority === 'high')
 
-  const getContextInputs = (): RawContextInputs => ({
-    userName,
-    agentName,
-    creatureArchetype: charConfig.archetype || 'nyxen',
-    tasks,
-    habits,
-    completions,
-    goals,
-    projects,
-    focusSessions,
-    isFocusRunning,
-    timetableSlots,
-  })
+  const getContextInputs = (): RawContextInputs =>
+    KyroContextBuilder.collectLiveStoreInputs({
+      userName,
+      agentName,
+      creatureArchetype: charConfig.archetype || 'nyxen',
+    })
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
@@ -255,25 +241,23 @@ export default function DedicatedAgentPage() {
                         <p className="text-xs text-stone-300 font-medium">
                           {msg.proposedAction.label}
                         </p>
+                        {msg.proposedAction.executionStatus === 'failed' &&
+                          msg.proposedAction.executionResult && (
+                            <p className="text-xs text-rose-400 font-medium">
+                              {msg.proposedAction.executionResult}
+                            </p>
+                          )}
                         <div className="flex items-center gap-2 pt-1">
                           <button
                             onClick={() =>
-                              executeProposedAction(msg.proposedAction!.id, (action) => {
-                                if (action.type === 'start_focus') {
-                                  startFocusTimer()
-                                } else if (action.type === 'create_task') {
-                                  addTask({ title: (action.payload.title as string) || 'New Task' })
-                                } else if (action.type === 'switch_companion') {
-                                  setArchetype((action.payload.archetype as any) || 'nyxen')
-                                } else if (action.type === 'open_route') {
-                                  router.push((action.payload.route as string) || '/dashboard')
-                                }
+                              executeProposedAction(msg.proposedAction!.id, {
+                                navigate: (route) => router.push(route),
                               })
                             }
                             className="flex items-center gap-1 px-3 py-1.5 rounded-lg bg-amber-400 text-stone-950 text-xs font-bold hover:bg-amber-300 transition-colors cursor-pointer"
                           >
                             <Check className="w-3.5 h-3.5" />
-                            Confirm & Execute
+                            Confirm &amp; Execute
                           </button>
                           <button
                             onClick={() => dismissAction(msg.proposedAction!.id)}
@@ -287,7 +271,11 @@ export default function DedicatedAgentPage() {
 
                     {msg.proposedAction?.isExecuted && (
                       <div className="mt-2 text-xs text-emerald-400 font-medium flex items-center gap-1">
-                        <Check className="w-3 h-3" /> Action successfully applied to your workspace
+                        <Check className="w-3 h-3 shrink-0" />
+                        <span>
+                          {msg.proposedAction.executionResult ||
+                            'Action successfully applied to your workspace'}
+                        </span>
                       </div>
                     )}
 
@@ -301,7 +289,7 @@ export default function DedicatedAgentPage() {
               {isTyping && (
                 <div className="flex gap-2 items-center text-stone-400 text-xs pl-2">
                   <Bot className="w-4 h-4 text-amber-400 animate-spin" />
-                  <span>{agentName} is thinking & analyzing your context...</span>
+                  <span>{agentName} is thinking &amp; analyzing your context...</span>
                 </div>
               )}
 
@@ -309,11 +297,11 @@ export default function DedicatedAgentPage() {
                 <div className="p-3.5 rounded-2xl bg-rose-500/10 border border-rose-500/30 text-rose-300 text-xs flex items-center justify-between gap-3">
                   <div className="flex items-center gap-2">
                     <AlertCircle className="w-4 h-4 text-rose-400 shrink-0" />
-                    <span>Neural link communication issue.</span>
+                    <span>{lastErrorReason || 'Neural link communication issue.'}</span>
                   </div>
                   <button
                     onClick={() => retryLastMessage(getContextInputs())}
-                    className="px-3 py-1.5 rounded-lg bg-rose-500/20 hover:bg-rose-500/30 text-rose-200 font-bold flex items-center gap-1 transition-colors cursor-pointer"
+                    className="px-3 py-1.5 rounded-lg bg-rose-500/20 hover:bg-rose-500/30 text-rose-200 font-bold flex items-center gap-1 transition-colors cursor-pointer shrink-0"
                   >
                     <RefreshCw className="w-3.5 h-3.5" /> Retry
                   </button>

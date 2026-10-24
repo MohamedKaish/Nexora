@@ -27,6 +27,7 @@ import {
   Award,
   Crown,
   Lock,
+  Cloud,
 } from 'lucide-react'
 
 const GENDER_OPTIONS = [
@@ -406,6 +407,14 @@ export default function AccountPage() {
           </div>
 
           <div className="pt-2 border-t border-stone-800/80 space-y-2">
+            <Link
+              href="/settings"
+              className="w-full py-2.5 px-3 rounded-xl bg-amber-400/10 hover:bg-amber-400/20 border border-amber-400/30 text-amber-300 text-xs font-semibold flex items-center justify-center gap-1.5 transition-colors"
+            >
+              <Cloud className="w-3.5 h-3.5" />
+              <span>Google Account &amp; Cloud Sync (Settings)</span>
+            </Link>
+
             <Link
               href="/login?tab=setup&recalibrate=true"
               className="w-full py-2.5 px-3 rounded-xl bg-stone-900 hover:bg-stone-800 border border-stone-800 text-stone-200 text-xs font-semibold flex items-center justify-center gap-1.5 transition-colors"

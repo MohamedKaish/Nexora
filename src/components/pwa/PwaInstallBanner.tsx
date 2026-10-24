@@ -16,8 +16,8 @@ export function PwaInstallBanner() {
   if (!mounted || isInstalled || !showBanner) return null
 
   return (
-    <div className="fixed bottom-20 lg:bottom-6 right-4 sm:right-6 z-50 max-w-md w-[calc(100%-2rem)] sm:w-auto animate-in slide-in-from-bottom-5 duration-300">
-      <div className="world-deck p-4 bg-stone-950/95 border-amber-400/50 shadow-[0_12px_40px_rgba(0,0,0,0.7)] flex items-center justify-between gap-3 sm:gap-4 ring-1 ring-amber-400/30">
+    <div className="fixed bottom-[4.5rem] lg:bottom-6 left-3 sm:left-6 z-30 max-w-sm w-[calc(100%-7.5rem)] sm:w-auto animate-in slide-in-from-bottom-5 duration-300">
+      <div className="world-deck p-3.5 sm:p-4 bg-stone-950/95 border-amber-400/50 shadow-[0_12px_40px_rgba(0,0,0,0.7)] flex items-center justify-between gap-2.5 sm:gap-4 ring-1 ring-amber-400/30">
         <div className="flex items-center gap-3 min-w-0">
           <NexoraLogo size={38} />
 

@@ -1,13 +1,13 @@
 import { create } from 'zustand'
 import { persist } from 'zustand/middleware'
 import {
-  LocalPreferences,
   DEFAULT_PREFERENCES,
-  AgentConfig,
   DEFAULT_AGENT_CONFIG,
-  MissionArchetype,
-  Chronotype,
-  CoachingTone,
+  type LocalPreferences,
+  type AgentConfig,
+  type MissionArchetype,
+  type Chronotype,
+  type CoachingTone,
 } from '@/types/local'
 
 interface AppState {
