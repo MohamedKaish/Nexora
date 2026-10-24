@@ -19,7 +19,72 @@ function getServerGeminiKey(): string | null {
 
 export function getGeminiModel(): string {
   const custom = (process.env.GEMINI_MODEL || '').trim()
-  return custom || 'gemini-2.0-flash'
+  return custom || 'gemini-3.8-flash'
+}
+
+// ── In-Memory Conservative Usage Guards for Launch ──
+interface ClientRateRecord {
+  windowStart: number
+  count: number
+}
+
+const clientRateMap = new Map<string, ClientRateRecord>()
+let globalDailyTracker = {
+  date: new Date().toISOString().split('T')[0],
+  count: 0,
+}
+
+export function getUsageLimits() {
+  const maxInputChars = Number(process.env.KYRO_MAX_INPUT_CHARS || 1000)
+  const clientRpmLimit = Number(process.env.KYRO_RPM_LIMIT || 15)
+  const globalDailyLimit = Number(process.env.KYRO_DAILY_LIMIT || 500)
+  return { maxInputChars, clientRpmLimit, globalDailyLimit }
+}
+
+export function checkUsageGuards(clientKey: string): {
+  allowed: boolean
+  reason?: string
+  status?: number
+} {
+  const { clientRpmLimit, globalDailyLimit } = getUsageLimits()
+  const today = new Date().toISOString().split('T')[0]
+
+  if (globalDailyTracker.date !== today) {
+    globalDailyTracker = { date: today, count: 0 }
+  }
+
+  if (globalDailyTracker.count >= globalDailyLimit) {
+    return {
+      allowed: false,
+      status: 429,
+      reason:
+        'Kyro has reached the daily request capacity for this deployment. Please try again tomorrow.',
+    }
+  }
+
+  const now = Date.now()
+  const record = clientRateMap.get(clientKey)
+  if (!record || now - record.windowStart > 60_000) {
+    clientRateMap.set(clientKey, { windowStart: now, count: 1 })
+  } else {
+    if (record.count >= clientRpmLimit) {
+      return {
+        allowed: false,
+        status: 429,
+        reason:
+          'Too many requests sent in a short period. Please wait a moment before sending another message.',
+      }
+    }
+    record.count += 1
+  }
+
+  globalDailyTracker.count += 1
+  return { allowed: true }
+}
+
+export function resetUsageGuardsForTesting() {
+  clientRateMap.clear()
+  globalDailyTracker = { date: new Date().toISOString().split('T')[0], count: 0 }
 }
 
 /**
@@ -170,7 +235,7 @@ STRICT NEXORA GROUNDING & HONESTY RULES:
    - Use the provided Gemini function declarations (\`read_tasks\`, \`create_task\`, \`start_focus\`, \`read_hydration\`, \`log_hydration\`, \`navigate_to\`, \`update_reminder\`, \`switch_companion\`) when the user requests a supported Nexora action.
    - Mutating and navigation tools (\`create_task\`, \`start_focus\`, \`log_hydration\`, \`navigate_to\`, \`update_reminder\`, \`switch_companion\`) require user confirmation in the UI before they take effect. When you call one of these tools, state clearly that you have prepared the action for their confirmation—NEVER claim the action has already been executed.
    - Do NOT promise that you can directly create/edit/delete financial transactions, habits, or notes unless a tool is explicitly provided; instead, offer to navigate the user to the appropriate Nexora screen (\`/dashboard\`, \`/habits\`, \`/notes\`, \`/tasks\`, etc.).
-6. **Tone**: Concise, grounded, encouraging, and practical. Avoid hype or filler.
+6. **Tone**: Concise, grounded, encouraging, and practical. Keep responses brief (1 to 3 short sentences by default) and focused on immediate productivity. Avoid hype or filler.
 
 VERIFIED NEXORA WORKSPACE TELEMETRY:
 ${JSON.stringify(ctx, null, 2)}`
@@ -216,6 +281,47 @@ export async function POST(request: Request) {
           latencyMs: Date.now() - startTime,
         },
         { status: 400 }
+      )
+    }
+
+    const { maxInputChars } = getUsageLimits()
+    if (message.length > maxInputChars) {
+      return NextResponse.json(
+        {
+          ok: false,
+          configured: Boolean(getServerGeminiKey()),
+          error: `Message exceeds the maximum limit of ${maxInputChars} characters.`,
+          errorReason: `Message exceeds the maximum limit of ${maxInputChars} characters.`,
+          reply: `Your message is too long (${message.length} characters). Please shorten it to under ${maxInputChars} characters.`,
+          speechBubble: `Message too long (${message.length} chars).`,
+          provider: 'unavailable',
+          latencyMs: Date.now() - startTime,
+        },
+        { status: 400 }
+      )
+    }
+
+    // Client IP or forwarded-for header for per-client rate limit
+    const clientIp =
+      request.headers.get('x-forwarded-for')?.split(',')[0]?.trim() ||
+      request.headers.get('x-real-ip') ||
+      'anonymous-client'
+
+    const guardResult = checkUsageGuards(clientIp)
+    if (!guardResult.allowed) {
+      return NextResponse.json(
+        {
+          ok: false,
+          configured: Boolean(getServerGeminiKey()),
+          provider: 'unavailable',
+          latencyMs: Date.now() - startTime,
+          errorReason: guardResult.reason,
+          reply: guardResult.reason,
+          speechBubble: 'Usage limit reached. Please wait.',
+          mood: 'idle',
+          animation: 'IDLE',
+        },
+        { status: guardResult.status || 429 }
       )
     }
 
@@ -275,7 +381,7 @@ export async function POST(request: Request) {
       },
       generationConfig: {
         temperature: 0.3,
-        maxOutputTokens: 600,
+        maxOutputTokens: 350,
       },
     }
 
@@ -292,14 +398,30 @@ export async function POST(request: Request) {
     let activeModel = targetModel
     let geminiRes = await sendGenerateContent(activeModel)
 
-    // Graceful 404 fallback: if the configured model is not found on this API key and is not already 'gemini-1.5-flash',
-    // attempt a fallback to 'gemini-1.5-flash'
-    if (geminiRes.status === 404 && activeModel !== 'gemini-1.5-flash') {
-      const fallbackModel = 'gemini-1.5-flash'
-      const fallbackRes = await sendGenerateContent(fallbackModel)
-      if (fallbackRes.ok) {
-        geminiRes = fallbackRes
-        activeModel = fallbackModel
+    // Graceful 404 fallback: if the configured model is not found, check Google's recommendation or cascade
+    if (geminiRes.status === 404) {
+      const errorJson = (await geminiRes.clone().json().catch(() => null)) as {
+        error?: { message?: string }
+      } | null
+      const rawMsg = errorJson?.error?.message || ''
+      const recommendedMatch = rawMsg.match(/models\/(gemini-[\w.-]+)/i)
+      const recommendedModel = recommendedMatch?.[1]
+
+      const candidateFallbacks = [
+        recommendedModel,
+        'gemini-3.8-flash',
+        'gemini-2.5-flash',
+        'gemini-2.0-flash',
+        'gemini-1.5-flash',
+      ].filter((m): m is string => Boolean(m && m !== activeModel))
+
+      for (const fallbackModel of candidateFallbacks) {
+        const fallbackRes = await sendGenerateContent(fallbackModel)
+        if (fallbackRes.ok) {
+          geminiRes = fallbackRes
+          activeModel = fallbackModel
+          break
+        }
       }
     }
 
@@ -327,12 +449,12 @@ export async function POST(request: Request) {
         speechBubble = `Gemini access forbidden (HTTP 403).`
       } else if (status === 404) {
         errorReason = `Gemini model '${activeModel}' was not found (HTTP 404). ${rawApiError || 'Model not available on v1beta.'}`
-        reply = `Kyro could not reach model '${activeModel}' (HTTP 404: Not Found). ${rawApiError ? `Provider reported: "${rawApiError}". ` : ''}Please configure an active model such as gemini-2.0-flash or gemini-1.5-flash via GEMINI_MODEL.`
+        reply = `Kyro could not reach model '${activeModel}' (HTTP 404: Not Found). ${rawApiError ? `Provider reported: "${rawApiError}". ` : ''}Please configure an active model such as gemini-3.8-flash or gemini-2.5-flash via GEMINI_MODEL.`
         speechBubble = `Gemini model not found (HTTP 404).`
       } else if (status === 429) {
-        errorReason = `Gemini API rate limit or quota exceeded (HTTP 429).`
-        reply = `Kyro reached the Google Gemini rate limit or quota allowance (HTTP 429). Please wait a moment and try again.`
-        speechBubble = `Gemini quota limit reached (HTTP 429).`
+        errorReason = `Google Gemini rate limit or quota exceeded (HTTP 429).`
+        reply = `Kyro reached the Google Gemini API rate limits (HTTP 429). Service is temporarily resting. Please try again shortly.`
+        speechBubble = `Gemini quota limit reached (HTTP 429). Please wait.`
       } else if (status >= 500) {
         errorReason = `Google Gemini service temporarily unavailable (HTTP ${status}).`
         reply = `Google Gemini servers are temporarily unavailable (HTTP ${status}). Please try again shortly.`

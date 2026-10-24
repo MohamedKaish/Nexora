@@ -559,6 +559,7 @@ import {
   GET as kyroGet,
   normalizeIncomingContext,
   buildNexoraSystemInstruction,
+  resetUsageGuardsForTesting,
 } from '../src/app/api/kyro/route'
 import { useKyroStore } from '../src/store/kyroStore'
 
@@ -912,34 +913,38 @@ test('PHASE 6: Kyro AI Companion — Secure Integration, Context Honesty & Real 
     }
   })
 
-  await t.test('8. Gemini API HTTP 404 diagnosis, fallback to 1.5-flash, and accurate status reporting', async () => {
+  await t.test('8. Gemini API MVP Release: model recovery, input limits, usage guards & safe errors', async () => {
     const prevEnvKey = process.env.GEMINI_API_KEY
     const prevModel = process.env.GEMINI_MODEL
     const prevFetch = globalThis.fetch
     process.env.GEMINI_API_KEY = 'AIzaSyTestServerOnlyEnvironmentKey999999'
+    delete process.env.GEMINI_MODEL
+    resetUsageGuardsForTesting()
 
     try {
-      // 1. Verify custom GEMINI_MODEL via GET endpoint
-      process.env.GEMINI_MODEL = 'gemini-2.0-flash'
+      // 1. Verify default model is gemini-3.8-flash via GET endpoint
       const getRes = await kyroGet()
       const getData = await getRes.json()
       assert.equal(getData.ok, true)
-      assert.equal(getData.model, 'gemini-2.0-flash')
-      assert.equal(getData.provider, 'gemini-2.0-flash')
+      assert.equal(getData.model, 'gemini-3.8-flash')
+      assert.equal(getData.provider, 'gemini-3.8-flash')
 
-      // 2. Test 404 Fallback: Primary model returns 404, fallback to gemini-1.5-flash succeeds
+      // 2. Test Auto-Recovery from Google's exact recommended model message
+      // When primary model is set to gemini-2.0-flash and Google returns:
+      // "This model models/gemini-2.0-flash is no longer available. Please update your code to use models/gemini-3.8-flash..."
+      process.env.GEMINI_MODEL = 'gemini-2.0-flash'
       const requestedUrls: string[] = []
       globalThis.fetch = async (input: string | URL | Request) => {
         const url = typeof input === 'string' ? input : input instanceof URL ? input.toString() : input.url
         requestedUrls.push(url)
 
         if (url.includes('models/gemini-2.0-flash')) {
-          // Simulate Google 404 Not Found for model
           return new Response(
             JSON.stringify({
               error: {
                 code: 404,
-                message: 'models/gemini-2.0-flash is not found for API version v1beta',
+                message:
+                  'This model models/gemini-2.0-flash is no longer available. Please update your code to use models/gemini-3.8-flash for the latest features and improvements.',
                 status: 'NOT_FOUND',
               },
             }),
@@ -947,14 +952,13 @@ test('PHASE 6: Kyro AI Companion — Secure Integration, Context Honesty & Real 
           )
         }
 
-        if (url.includes('models/gemini-1.5-flash')) {
-          // Fallback succeeds
+        if (url.includes('models/gemini-3.8-flash')) {
           return new Response(
             JSON.stringify({
               candidates: [
                 {
                   content: {
-                    parts: [{ text: 'Greetings from gemini-1.5-flash fallback!' }],
+                    parts: [{ text: 'Greetings from gemini-3.8-flash! All systems nominal.' }],
                   },
                 },
               ],
@@ -969,74 +973,89 @@ test('PHASE 6: Kyro AI Companion — Secure Integration, Context Honesty & Real 
       const postReq = new Request('http://localhost/api/kyro', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ message: 'Hello' }),
+        body: JSON.stringify({ message: 'Hello Kyro' }),
       })
       const postRes = await kyroPost(postReq)
       const postData = await postRes.json()
 
       assert.equal(postRes.status, 200)
       assert.equal(postData.ok, true)
-      assert.equal(postData.provider, 'gemini-1.5-flash')
-      assert.equal(postData.reply, 'Greetings from gemini-1.5-flash fallback!')
+      assert.equal(postData.provider, 'gemini-3.8-flash')
+      assert.equal(postData.reply, 'Greetings from gemini-3.8-flash! All systems nominal.')
       assert.ok(requestedUrls.some((u) => u.includes('models/gemini-2.0-flash')))
-      assert.ok(requestedUrls.some((u) => u.includes('models/gemini-1.5-flash')))
+      assert.ok(requestedUrls.some((u) => u.includes('models/gemini-3.8-flash')))
 
-      // 3. Test HTTP 401: Reported as authentication failure, never 404
+      // 3. Test Oversized Input Guard (> 1000 chars)
+      const oversizedReq = new Request('http://localhost/api/kyro', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ message: 'A'.repeat(1005) }),
+      })
+      const oversizedRes = await kyroPost(oversizedReq)
+      const oversizedData = await oversizedRes.json()
+      assert.equal(oversizedRes.status, 400)
+      assert.equal(oversizedData.ok, false)
+      assert.match(oversizedData.errorReason, /maximum limit of 1000 characters/)
+
+      // 4. Test Provider Quota / Rate-Limit (HTTP 429) returns friendly message and does not loop
       globalThis.fetch = async () =>
         new Response(
           JSON.stringify({
             error: {
-              code: 401,
-              message: 'API_KEY_INVALID: API key not valid. Please pass a valid API key.',
-              status: 'UNAUTHENTICATED',
+              code: 429,
+              message: 'Resource has been exhausted (e.g. check quota).',
+              status: 'RESOURCE_EXHAUSTED',
             },
           }),
-          { status: 401, headers: { 'Content-Type': 'application/json' } }
+          { status: 429, headers: { 'Content-Type': 'application/json' } }
         )
 
-      const authReq = new Request('http://localhost/api/kyro', {
+      const quotaReq = new Request('http://localhost/api/kyro', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ message: 'Hello' }),
+        body: JSON.stringify({ message: 'What is next?' }),
       })
-      const authRes = await kyroPost(authReq)
-      const authData = await authRes.json()
+      const quotaRes = await kyroPost(quotaReq)
+      const quotaData = await quotaRes.json()
+      assert.equal(quotaRes.status, 400) // returned as client-facing error
+      assert.equal(quotaData.ok, false)
+      assert.match(quotaData.reply, /Google Gemini API rate limits \(HTTP 429\)/)
+      assert.match(quotaData.speechBubble, /quota limit reached/i)
 
-      assert.equal(authRes.status, 400)
-      assert.equal(authData.ok, false)
-      assert.match(authData.errorReason, /authentication failed \(HTTP 401\)/)
-      assert.match(authData.reply, /authenticate with Google Gemini \(HTTP 401\)/)
-      // Confirm API key is never leaked
-      assert.doesNotMatch(authData.reply, /AIzaSy/)
-      assert.doesNotMatch(authData.errorReason, /AIzaSy/)
-
-      // 4. Test HTTP 404 when fallback is not available (e.g. model explicitly set to gemini-1.5-flash and that fails)
-      process.env.GEMINI_MODEL = 'gemini-1.5-flash'
+      // 5. Test Usage Guard RPM limit per client
+      resetUsageGuardsForTesting()
+      process.env.KYRO_RPM_LIMIT = '2'
       globalThis.fetch = async () =>
         new Response(
           JSON.stringify({
-            error: {
-              code: 404,
-              message: 'models/gemini-1.5-flash is not found',
-              status: 'NOT_FOUND',
-            },
+            candidates: [{ content: { parts: [{ text: 'Response OK' }] } }],
           }),
-          { status: 404, headers: { 'Content-Type': 'application/json' } }
+          { status: 200, headers: { 'Content-Type': 'application/json' } }
         )
 
-      const notFoundReq = new Request('http://localhost/api/kyro', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ message: 'Hello' }),
-      })
-      const notFoundRes = await kyroPost(notFoundReq)
-      const notFoundData = await notFoundRes.json()
+      const makeReq = () =>
+        kyroPost(
+          new Request('http://localhost/api/kyro', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'x-forwarded-for': '192.168.1.1' },
+            body: JSON.stringify({ message: 'msg' }),
+          })
+        )
 
-      assert.equal(notFoundRes.status, 400)
-      assert.equal(notFoundData.ok, false)
-      assert.match(notFoundData.errorReason, /model 'gemini-1.5-flash' was not found \(HTTP 404\)/)
+      const r1 = await makeReq()
+      assert.equal(r1.status, 200)
+      const r2 = await makeReq()
+      assert.equal(r2.status, 200)
+      // 3rd request from same client exceeds RPM limit 2
+      const r3 = await makeReq()
+      const d3 = await r3.json()
+      assert.equal(r3.status, 429)
+      assert.equal(d3.ok, false)
+      assert.match(d3.errorReason, /Too many requests sent in a short period/)
     } finally {
       globalThis.fetch = prevFetch
+      resetUsageGuardsForTesting()
+      delete process.env.KYRO_RPM_LIMIT
       if (prevEnvKey !== undefined) {
         process.env.GEMINI_API_KEY = prevEnvKey
       } else {

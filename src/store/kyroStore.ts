@@ -21,6 +21,7 @@ import {
 } from '@/types/kyro'
 
 export type KyroProviderType =
+  | 'gemini-3.8-flash'
   | 'gemini-2.5-flash'
   | 'gemini-2.0-flash'
   | 'gemini-1.5-flash'
