@@ -26,7 +26,7 @@ export interface StructuredHydrationContext {
   dailyGoalMl: number | null
   remainingMl: number | null
   completionPercentage: number | null
-  preferredUnit: 'ml' | 'oz' | null
+  preferredUnit: 'ml' | 'L' | 'oz' | null
   remindersEnabled: boolean | null
 }
 
@@ -158,7 +158,7 @@ export interface RawContextInputs {
     targetHydrationMl: number
     remainingMl: number
     completionPercentage: number
-    preferredUnit?: 'ml' | 'oz'
+    preferredUnit?: 'ml' | 'L' | 'oz'
     remindersEnabled?: boolean
   } | null
   finance?: {

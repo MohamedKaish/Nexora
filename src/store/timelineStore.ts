@@ -2,6 +2,9 @@ import { create } from 'zustand'
 import { persist } from 'zustand/middleware'
 import type { LocalTimetableSlot } from '@/types/local'
 
+export type TimetableSlot = LocalTimetableSlot
+export type { LocalTimetableSlot }
+
 interface TimelineState {
   slots: LocalTimetableSlot[]
   addSlot: (slot: Omit<LocalTimetableSlot, 'id' | 'createdAt' | 'updatedAt'>) => void

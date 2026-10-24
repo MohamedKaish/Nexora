@@ -97,6 +97,8 @@ export interface LocalTimetableSlot extends LocalEntity {
   color: string
 }
 
+export type TimetableSlot = LocalTimetableSlot
+
 export type FocusMode = 'pomodoro' | 'short_break' | 'long_break' | 'deep_work' | 'stopwatch'
 
 export interface LocalFocusSession {
