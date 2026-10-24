@@ -84,12 +84,22 @@ export async function sendNexoraNotification(
   triggerHapticFeedback([150, 80, 150])
 
   // 2. Log in Sanctuary Transmissions Inbox
+  const resolvedLink = tag.includes('habit')
+    ? '/habits'
+    : tag.includes('note')
+    ? '/notes'
+    : tag.includes('hydration')
+    ? '/dashboard?modal=hydration'
+    : tag.includes('expense')
+    ? '/dashboard?modal=finance'
+    : '/tasks'
+
   try {
     useNotificationStore.getState().addNotification({
       title: messageTitle,
       message: messageBody,
       type: tag.includes('habit') ? 'habit' : tag.includes('note') ? 'kyro' : 'task',
-      link: tag.includes('habit') ? '/habits' : tag.includes('note') ? '/notes' : '/tasks',
+      link: resolvedLink,
     })
   } catch (err) {
     console.warn('Failed to store notification record:', err)
@@ -146,7 +156,7 @@ export async function sendNexoraNotification(
         requireInteraction: true,
         renotify: true,
         silent: false,
-        data: { url: tag.includes('habit') ? '/habits' : tag.includes('note') ? '/notes' : '/dashboard' },
+        data: { url: resolvedLink },
       }
 
       // Relay to active Service Worker controller
@@ -184,12 +194,3 @@ export async function sendNexoraNotification(
   return true
 }
 
-export async function testPhoneNotificationAndSound(): Promise<boolean> {
-  await requestPhoneNotificationPermission()
-  return sendNexoraNotification(
-    '⚡ Nexora Sanctuary Link Verified',
-    'Phone notifications, tactile haptics, and Kyro vocal transmissions are 100% active!',
-    'nexora-test-signal',
-    true
-  )
-}

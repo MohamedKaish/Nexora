@@ -1,6 +1,6 @@
 'use client'
 
-import React, { useState, useMemo } from 'react'
+import React, { useState, useMemo, useEffect } from 'react'
 import { useHabitStore } from '@/store/useHabitStore'
 import { useCharacterStore } from '@/store/characterStore'
 import { HabitFrequency, LocalHabit } from '@/types/local'
@@ -9,41 +9,37 @@ import {
   Plus,
   CheckCircle2,
   Trash2,
-  Calendar,
   Clock,
   Bell,
-  Sunrise,
-  Sun,
-  Sunset,
-  Moon,
-  Sparkles,
   Edit3,
   X,
   Check,
-  Zap,
 } from 'lucide-react'
 import { format, subDays } from 'date-fns'
 import { toast } from 'sonner'
 import {
-  isNotificationSupported,
   getNotificationPermission,
   requestNotificationPermission,
-  sendTestNotification,
 } from '@/lib/notificationService'
 
-const WINDOW_PRESETS = [
-  { label: 'Morning', icon: '🌅', start: '07:00', end: '09:00' },
-  { label: 'Midday', icon: '☀️', start: '12:00', end: '14:00' },
-  { label: 'Evening', icon: '🌇', start: '17:30', end: '19:30' },
-  { label: 'Night', icon: '🌙', start: '21:00', end: '22:30' },
+const WEEKDAYS = [
+  { day: 0, label: 'Sun' },
+  { day: 1, label: 'Mon' },
+  { day: 2, label: 'Tue' },
+  { day: 3, label: 'Wed' },
+  { day: 4, label: 'Thu' },
+  { day: 5, label: 'Fri' },
+  { day: 6, label: 'Sat' },
 ]
 
 export default function HabitsPage() {
   const [mounted, setMounted] = useState(false)
-  const { habits, completions, addHabit, updateHabit, removeHabit, toggleCompletion } = useHabitStore()
+  const { habits, completions, addHabit, updateHabit, removeHabit, toggleCompletion } =
+    useHabitStore()
   const celebrate = useCharacterStore((s) => s.celebrate)
 
   const [activeFilter, setActiveFilter] = useState<'all' | 'scheduled' | 'anytime'>('all')
+  const [highlightedHabitId, setHighlightedHabitId] = useState<string | null>(null)
 
   // Modal State
   const [showAddModal, setShowAddModal] = useState(false)
@@ -52,37 +48,54 @@ export default function HabitsPage() {
   // Habit Form Fields
   const [newHabitName, setNewHabitName] = useState('')
   const [newFrequency, setNewFrequency] = useState<HabitFrequency>('daily')
+  const [selectedDays, setSelectedDays] = useState<number[]>([1, 2, 3, 4, 5])
   const [selectedColor, setSelectedColor] = useState('#34D399')
-  const [hasTimeRange, setHasTimeRange] = useState(false)
-  const [startTime, setStartTime] = useState('08:00')
-  const [endTime, setEndTime] = useState('09:30')
+  const [hasTimeRange, setHasTimeRange] = useState(true)
+  const [startTime, setStartTime] = useState('06:00')
+  const [endTime, setEndTime] = useState('07:00')
   const [enableReminder, setEnableReminder] = useState(true)
 
   // Notification Permission State
   const [notifPermission, setNotifPermission] = useState<string>('default')
 
-  React.useEffect(() => {
+  useEffect(() => {
     setMounted(true)
     setNotifPermission(getNotificationPermission())
+
+    if (typeof window !== 'undefined') {
+      const params = new URLSearchParams(window.location.search)
+      const habitId = params.get('habitId')
+      const completeHabitId = params.get('completeHabitId')
+
+      if (completeHabitId) {
+        const todayKey = format(new Date(), 'yyyy-MM-dd')
+        const alreadyDone = useHabitStore
+          .getState()
+          .completions.some(
+            (c) => c.habitId === completeHabitId && c.completedDate === todayKey
+          )
+        if (!alreadyDone) {
+          useHabitStore.getState().toggleCompletion(completeHabitId)
+          toast.success('Habit checked off for today from notification!')
+        }
+        setHighlightedHabitId(completeHabitId)
+      } else if (habitId) {
+        setHighlightedHabitId(habitId)
+      }
+    }
   }, [])
 
   const handleRequestPermission = async () => {
     const perm = await requestNotificationPermission()
     setNotifPermission(perm)
     if (perm === 'granted') {
-      toast.success('Phone notifications enabled! You will be alerted when habit windows open.')
+      toast.success(
+        'Phone notifications enabled! You will be alerted at your scheduled habit times.'
+      )
     } else if (perm === 'denied') {
-      toast.error('Permission blocked. Please tap the padlock/tune icon in your browser URL bar to allow notifications.')
-    }
-  }
-
-  const handleRequestPermission = async () => {
-    const perm = await requestNotificationPermission()
-    setNotifPermission(perm)
-    if (perm === 'granted') {
-      toast.success('Phone notifications enabled! You will be alerted when habit windows open.')
-    } else if (perm === 'denied') {
-      toast.error('Permission blocked. Please tap the padlock/tune icon in your browser URL bar to allow notifications.')
+      toast.error(
+        'Permission blocked. Please enable notifications in Android App Settings.'
+      )
     }
   }
 
@@ -94,6 +107,7 @@ export default function HabitsPage() {
     const isCompleted = toggleCompletion(habitId)
     if (isCompleted) {
       celebrate()
+      toast.success('Habit completed for today! Today’s remaining reminder suppressed.')
     }
   }
 
@@ -101,10 +115,11 @@ export default function HabitsPage() {
     setEditingHabitId(null)
     setNewHabitName('')
     setNewFrequency('daily')
+    setSelectedDays([1, 2, 3, 4, 5])
     setSelectedColor('#34D399')
     setHasTimeRange(true)
     setStartTime('06:00')
-    setEndTime('07:30')
+    setEndTime('07:00')
     setEnableReminder(true)
     setShowAddModal(true)
   }
@@ -113,75 +128,85 @@ export default function HabitsPage() {
     setEditingHabitId(habit.id)
     setNewHabitName(habit.name)
     setNewFrequency(habit.frequency)
+    setSelectedDays(habit.selectedDays || [1, 2, 3, 4, 5])
     setSelectedColor(habit.color || '#34D399')
-    setHasTimeRange(habit.hasTimeRange ?? Boolean(habit.startTime))
-    setStartTime(habit.startTime || '06:00')
-    setEndTime(habit.endTime || '07:30')
+    setHasTimeRange(habit.hasTimeRange ?? Boolean(habit.startTime || habit.reminderTime))
+    setStartTime(habit.reminderTime || habit.startTime || '06:00')
+    setEndTime(habit.endTime || '07:00')
     setEnableReminder(habit.enableReminder ?? true)
     setShowAddModal(true)
+  }
+
+  const toggleCustomDay = (day: number) => {
+    setSelectedDays((prev) =>
+      prev.includes(day) ? prev.filter((d) => d !== day) : [...prev, day].sort()
+    )
   }
 
   const handleSaveHabit = async () => {
     if (!newHabitName.trim()) return
 
-    // Auto-request notification permission if user wants phone reminders
-    if (enableReminder && typeof window !== 'undefined' && 'Notification' in window && Notification.permission === 'default') {
+    if (
+      enableReminder &&
+      hasTimeRange &&
+      typeof window !== 'undefined' &&
+      'Notification' in window &&
+      Notification.permission === 'default'
+    ) {
       try {
-        await requestNotificationPermission()
+        const perm = await requestNotificationPermission()
+        setNotifPermission(perm)
       } catch {}
     }
 
+    const payload = {
+      name: newHabitName.trim(),
+      frequency: newFrequency,
+      selectedDays: newFrequency === 'custom' ? selectedDays : undefined,
+      color: selectedColor,
+      hasTimeRange,
+      startTime: hasTimeRange ? startTime : null,
+      endTime: hasTimeRange ? endTime : null,
+      reminderTime: hasTimeRange ? startTime : null,
+      enableReminder: hasTimeRange ? enableReminder : false,
+    }
+
     if (editingHabitId) {
-      updateHabit(editingHabitId, {
-        name: newHabitName.trim(),
-        frequency: newFrequency,
-        color: selectedColor,
-        hasTimeRange,
-        startTime: hasTimeRange ? startTime : null,
-        endTime: hasTimeRange ? endTime : null,
-        enableReminder: hasTimeRange ? enableReminder : false,
-      })
-      toast.success(`Habit "${newHabitName.trim()}" updated with ${startTime} reminder.`)
+      updateHabit(editingHabitId, payload)
+      toast.success(
+        hasTimeRange && enableReminder
+          ? `Habit "${newHabitName.trim()}" updated with ${startTime} Android reminder.`
+          : `Habit "${newHabitName.trim()}" updated.`
+      )
     } else {
-      addHabit({
-        name: newHabitName.trim(),
-        frequency: newFrequency,
-        color: selectedColor,
-        hasTimeRange,
-        startTime: hasTimeRange ? startTime : null,
-        endTime: hasTimeRange ? endTime : null,
-        enableReminder: hasTimeRange ? enableReminder : false,
-      })
-      toast.success(`Habit "${newHabitName.trim()}" created! Phone reminder set for ${startTime}.`)
+      addHabit(payload)
+      toast.success(
+        hasTimeRange && enableReminder
+          ? `Habit "${newHabitName.trim()}" created! Phone reminder scheduled for ${startTime}.`
+          : `Habit "${newHabitName.trim()}" created.`
+      )
     }
 
     setShowAddModal(false)
-  }
-
-    setShowAddModal(false)
+    setEditingHabitId(null)
   }
 
   const handleToggleReminderSwitch = async (val: boolean) => {
     setEnableReminder(val)
     if (val && typeof window !== 'undefined' && 'Notification' in window) {
       if (Notification.permission === 'default') {
-        const perm = await Notification.requestPermission()
-        if (perm === 'granted') {
-          toast.success('Notifications enabled! You will be reminded when habit windows open.')
-        } else {
-          toast.info('Enable browser notifications in site settings to receive reminders.')
-        }
+        const perm = await requestNotificationPermission()
+        setNotifPermission(perm)
       }
     }
   }
 
-  // Filtered habits list
   const filteredHabits = useMemo(() => {
     if (activeFilter === 'scheduled') {
-      return habits.filter((h) => h.hasTimeRange)
+      return habits.filter((h) => h.hasTimeRange || h.reminderTime)
     }
     if (activeFilter === 'anytime') {
-      return habits.filter((h) => !h.hasTimeRange)
+      return habits.filter((h) => !h.hasTimeRange && !h.reminderTime)
     }
     return habits
   }, [habits, activeFilter])
@@ -203,7 +228,9 @@ export default function HabitsPage() {
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
           <h1 className="text-3xl font-serif font-bold text-foreground">Habit Momentum</h1>
-          <p className="text-stone-400 text-sm">Forge unbroken routines with smart timing windows & alerts.</p>
+          <p className="text-stone-400 text-sm">
+            Forge unbroken routines with scheduled Android notifications &amp; streak tracking.
+          </p>
         </div>
 
         <button
@@ -215,7 +242,7 @@ export default function HabitsPage() {
         </button>
       </div>
 
-      {/* ─── Notification Permission & Live Test Card ─── */}
+      {/* Notification Permission Status Banner */}
       <div className="p-3.5 sm:p-4 rounded-2xl bg-gradient-to-r from-stone-900/80 via-stone-950 to-stone-900/60 border border-stone-800 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
         <div className="flex items-center gap-3">
           <div className="p-2 rounded-xl bg-amber-400/10 text-amber-400 shrink-0">
@@ -223,14 +250,16 @@ export default function HabitsPage() {
           </div>
           <div>
             <div className="flex items-center gap-2">
-              <span className="text-xs font-bold text-foreground">Phone & Desktop Habit Reminders</span>
+              <span className="text-xs font-bold text-foreground">
+                Android Habit Reminder Notifications
+              </span>
               {notifPermission === 'granted' ? (
                 <span className="px-1.5 py-0.2 rounded-full bg-emerald-400/20 text-emerald-300 text-[10px] font-bold flex items-center gap-1 font-mono">
                   <Check className="w-2.5 h-2.5" /> Active
                 </span>
               ) : notifPermission === 'denied' ? (
                 <span className="px-1.5 py-0.2 rounded-full bg-rose-400/20 text-rose-300 text-[10px] font-bold font-mono">
-                  Blocked in Browser
+                  Permission Denied
                 </span>
               ) : (
                 <span className="px-1.5 py-0.2 rounded-full bg-amber-400/20 text-amber-300 text-[10px] font-bold font-mono">
@@ -240,10 +269,10 @@ export default function HabitsPage() {
             </div>
             <p className="text-[11px] text-stone-400">
               {notifPermission === 'granted'
-                ? 'Your phone & desktop will alert you whenever your scheduled habit window opens.'
+                ? 'Scheduled habit notifications appear in your Android notification shade at your chosen time.'
                 : notifPermission === 'denied'
-                ? 'Notifications are blocked. Tap the lock/tune icon in your browser URL bar to allow alerts.'
-                : 'Grant notification permission so your phone alerts you when habit timing windows open.'}
+                ? 'Notifications are disabled. Enable notifications in Android Settings > Apps > Nexora > Notifications.'
+                : 'Allow notification permission so your phone rings and shows habit reminders on time.'}
             </p>
           </div>
         </div>
@@ -282,7 +311,9 @@ export default function HabitsPage() {
           }`}
         >
           <Clock className="w-3.5 h-3.5" />
-          <span>Scheduled Windows ({habits.filter((h) => h.hasTimeRange).length})</span>
+          <span>
+            Scheduled Windows ({habits.filter((h) => h.hasTimeRange || h.reminderTime).length})
+          </span>
         </button>
         <button
           onClick={() => setActiveFilter('anytime')}
@@ -292,7 +323,7 @@ export default function HabitsPage() {
               : 'text-stone-400 hover:text-stone-200'
           }`}
         >
-          Anytime Flow ({habits.filter((h) => !h.hasTimeRange).length})
+          Anytime Flow ({habits.filter((h) => !h.hasTimeRange && !h.reminderTime).length})
         </button>
       </div>
 
@@ -303,14 +334,14 @@ export default function HabitsPage() {
             (c) => c.habitId === habit.id && c.completedDate === todayStr
           )
 
-          // Timing Range analysis
-          const hasWindow = habit.hasTimeRange && habit.startTime && habit.endTime
+          const effectiveStart = habit.reminderTime || habit.startTime
+          const hasWindow = Boolean(habit.hasTimeRange && effectiveStart)
           const isWindowActive =
             hasWindow &&
-            currentTimeStr >= habit.startTime! &&
-            currentTimeStr <= habit.endTime!
-          const isWindowUpcoming =
-            hasWindow && currentTimeStr < habit.startTime!
+            currentTimeStr >= effectiveStart! &&
+            (!habit.endTime || currentTimeStr <= habit.endTime)
+          const isWindowUpcoming = hasWindow && currentTimeStr < effectiveStart!
+          const isHighlighted = highlightedHabitId === habit.id
 
           return (
             <div
@@ -318,6 +349,8 @@ export default function HabitsPage() {
               className={`world-deck p-4 sm:p-5 transition-all ${
                 isDoneToday
                   ? 'border-emerald-500/30'
+                  : isHighlighted
+                  ? 'border-amber-400 ring-1 ring-amber-400/50'
                   : isWindowActive
                   ? 'border-amber-400/60 ring-1 ring-amber-400/40 bg-amber-500/5'
                   : 'hover:border-stone-700'
@@ -369,19 +402,17 @@ export default function HabitsPage() {
                         >
                           <Clock className="w-3 h-3" />
                           <span>
-                            {habit.startTime} – {habit.endTime}
+                            {effectiveStart}
+                            {habit.endTime ? ` – ${habit.endTime}` : ''}
                           </span>
-                          {isWindowActive && !isDoneToday && (
-                            <span className="w-1.5 h-1.5 rounded-full bg-amber-400 animate-ping" />
-                          )}
                         </span>
                       )}
 
                       {/* Reminder active indicator */}
-                      {habit.hasTimeRange && habit.enableReminder && (
+                      {hasWindow && habit.enableReminder && (
                         <span
                           className="text-[10px] text-amber-400/80 bg-stone-900 p-1 rounded-md border border-stone-800"
-                          title="Reminder notifications enabled"
+                          title="Scheduled Android reminder active"
                         >
                           <Bell className="w-3 h-3" />
                         </span>
@@ -390,7 +421,11 @@ export default function HabitsPage() {
 
                     <div className="flex items-center gap-2 pt-0.5">
                       <span className="text-[11px] text-stone-400 capitalize">
-                        {habit.frequency} frequency
+                        {habit.frequency === 'custom' && habit.selectedDays?.length
+                          ? `Custom days (${habit.selectedDays
+                              .map((d) => WEEKDAYS.find((w) => w.day === d)?.label)
+                              .join(', ')})`
+                          : `${habit.frequency} frequency`}
                       </span>
                       {isWindowActive && !isDoneToday && (
                         <span className="text-[11px] text-amber-400 font-semibold">
@@ -446,7 +481,10 @@ export default function HabitsPage() {
 
                   {/* Delete button */}
                   <button
-                    onClick={() => removeHabit(habit.id)}
+                    onClick={() => {
+                      removeHabit(habit.id)
+                      toast.info('Habit deleted and scheduled reminders cancelled.')
+                    }}
                     className="p-1.5 rounded-lg text-stone-500 hover:text-rose-400 hover:bg-stone-800/60 transition-colors cursor-pointer"
                     title="Delete habit"
                   >
@@ -462,7 +500,9 @@ export default function HabitsPage() {
           <div className="p-12 text-center world-deck border-dashed border-stone-800">
             <Flame className="w-10 h-10 text-stone-600 mx-auto mb-3" />
             <h3 className="text-base font-bold text-foreground">No habits found in this category</h3>
-            <p className="text-xs text-stone-400 mt-1">Start tracking daily routines to ignite your momentum.</p>
+            <p className="text-xs text-stone-400 mt-1">
+              Start tracking daily routines to ignite your momentum.
+            </p>
           </div>
         )}
       </div>
@@ -485,30 +525,62 @@ export default function HabitsPage() {
 
             <div className="flex-1 overflow-y-auto space-y-4 pr-1">
               <div>
-                <label className="block text-xs font-semibold text-stone-300 mb-1">Habit Name</label>
+                <label className="block text-xs font-semibold text-stone-300 mb-1">
+                  Habit Name
+                </label>
                 <input
                   type="text"
                   value={newHabitName}
                   onChange={(e) => setNewHabitName(e.target.value)}
-                  placeholder="e.g. Morning Workout, Deep Reading, Meditation..."
+                  placeholder="e.g. Wake Up 06:00 AM, Evening Workout, Meditation..."
                   className="w-full bg-stone-900 border border-stone-800 rounded-xl px-3.5 py-2.5 text-sm text-foreground focus:outline-none focus:border-amber-400"
                 />
               </div>
 
               <div>
-                <label className="block text-xs font-semibold text-stone-300 mb-1">Frequency</label>
+                <label className="block text-xs font-semibold text-stone-300 mb-1">
+                  Frequency
+                </label>
                 <select
                   value={newFrequency}
                   onChange={(e) => setNewFrequency(e.target.value as HabitFrequency)}
                   className="w-full bg-stone-900 border border-stone-800 rounded-xl px-3.5 py-2 text-xs text-foreground"
                 >
                   <option value="daily">Daily Habit</option>
-                  <option value="weekdays">Weekdays Only (Mon-Fri)</option>
+                  <option value="weekdays">Weekdays Only (Mon–Fri)</option>
                   <option value="weekly">Weekly Routine</option>
+                  <option value="custom">Custom Selected Days</option>
                 </select>
               </div>
 
-              {/* ─── PHONE REMINDER TIMING (E.G. WAKE UP 6:00 AM) ─── */}
+              {newFrequency === 'custom' && (
+                <div>
+                  <label className="block text-[11px] font-semibold text-stone-400 mb-1.5">
+                    Select Days of Week
+                  </label>
+                  <div className="flex gap-1.5">
+                    {WEEKDAYS.map((w) => {
+                      const active = selectedDays.includes(w.day)
+                      return (
+                        <button
+                          key={w.day}
+                          type="button"
+                          onClick={() => toggleCustomDay(w.day)}
+                          className={`flex-1 py-1.5 rounded-lg text-[11px] font-bold border transition-colors cursor-pointer ${
+                            active
+                              ? 'bg-amber-400 text-stone-950 border-amber-400'
+                              : 'bg-stone-900 text-stone-400 border-stone-800'
+                          }`}
+                        >
+                          {w.label}
+                        </button>
+                      )
+                    })}
+                  </div>
+                </div>
+              )}
+
+              {/* PHONE REMINDER TIMING */}
               <div className="p-4 rounded-xl bg-stone-900/60 border border-stone-800 space-y-3">
                 <div className="flex items-center justify-between">
                   <div>
@@ -517,7 +589,7 @@ export default function HabitsPage() {
                       <span>Phone Reminder Timing (e.g. 06:00 AM)</span>
                     </label>
                     <p className="text-[11px] text-stone-400">
-                      Rings, vibrates &amp; shows lock-screen notification on your phone
+                      Schedules an Android notification shade alert at your exact time
                     </p>
                   </div>
                   <button
@@ -542,7 +614,7 @@ export default function HabitsPage() {
                         {[
                           { label: '06:00 Wake Up', icon: '🌅', start: '06:00', end: '07:00' },
                           { label: '08:00 Routine', icon: '☀️', start: '08:00', end: '09:00' },
-                          { label: '13:00 Midday', icon: '🥗', start: '13:00', end: '14:00' },
+                          { label: '18:00 Workout', icon: '💪', start: '18:00', end: '19:00' },
                           { label: '22:00 Sleep', icon: '🌙', start: '22:00', end: '23:00' },
                         ].map((p) => (
                           <button
@@ -597,10 +669,10 @@ export default function HabitsPage() {
                         <Bell className="w-3.5 h-3.5 text-amber-400" />
                         <div>
                           <span className="text-xs text-stone-200 font-semibold block">
-                            Send Phone Notification
+                            Send Android System Notification
                           </span>
                           <span className="text-[10px] text-stone-400">
-                            Pushes alert to your phone screen at {startTime}
+                            Delivers reminder at {startTime} to your phone notification shade
                           </span>
                         </div>
                       </div>
@@ -616,15 +688,17 @@ export default function HabitsPage() {
               </div>
 
               <div>
-                <label className="block text-xs font-semibold text-stone-300 mb-2">Accent Color</label>
+                <label className="block text-xs font-semibold text-stone-300 mb-2">
+                  Accent Color
+                </label>
                 <div className="flex gap-2">
                   {habitColors.map((hex) => (
                     <button
                       key={hex}
                       type="button"
                       onClick={() => setSelectedColor(hex)}
-                      className={`w-7 h-7 rounded-full border-2 transition-all ${
-                        selectedColor === hex ? 'border-amber-400 scale-110' : 'border-transparent'
+                      className={`w-7 h-7 rounded-full border-2 transition-colors ${
+                        selectedColor === hex ? 'border-amber-400 ring-2 ring-amber-400/40' : 'border-transparent'
                       }`}
                       style={{ backgroundColor: hex }}
                     />

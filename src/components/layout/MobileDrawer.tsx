@@ -27,6 +27,7 @@ import {
   Crown,
   ChevronRight,
   Download,
+  StickyNote,
 } from 'lucide-react'
 import { usePwa } from '@/components/pwa/PwaProvider'
 
@@ -52,6 +53,7 @@ const DRAWER_SECTIONS: DrawerSection[] = [
       { name: 'Sanctuary World', href: '/dashboard', icon: Compass },
       { name: 'Task Matrix', href: '/tasks', icon: CheckSquare },
       { name: 'Habit Momentum', href: '/habits', icon: Flame },
+      { name: 'Notes & Vault', href: '/notes', icon: StickyNote },
       { name: 'Focus Chamber', href: '/focus', icon: Zap },
     ],
   },

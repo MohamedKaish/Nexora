@@ -11,7 +11,7 @@ import { useFocusStore } from '@/store/useFocusStore'
 import { useCharacterStore } from '@/store/characterStore'
 import { useKyroStore } from '@/store/kyroStore'
 import { useNoteStore } from '@/store/useNoteStore'
-import { useFinanceStore } from '@/store/useFinanceStore'
+import { useFinanceStore, formatCurrency } from '@/store/useFinanceStore'
 import { useHydrationStore } from '@/store/useHydrationStore'
 import { Companion } from '@/components/companion/Companion'
 import { CompanionSelector } from '@/components/companion/CompanionSelector'
@@ -49,6 +49,9 @@ import {
   Receipt,
   X,
   CreditCard,
+  Wallet,
+  Settings,
+  Settings2,
 } from 'lucide-react'
 import { format } from 'date-fns'
 import { usePwa } from '@/components/pwa/PwaProvider'
@@ -56,8 +59,9 @@ import {
   getNotificationPermission,
   requestNotificationPermission,
 } from '@/lib/notificationService'
-import { triggerCircadianTestAlert } from '@/lib/scheduleNotificationWatcher'
 import { MultiRailIngestionModal } from '@/components/finance/MultiRailIngestionModal'
+import { FinanceManagerModal } from '@/components/finance/FinanceManagerModal'
+import { HydrationManagerModal } from '@/components/hydration/HydrationManagerModal'
 import { toast } from 'sonner'
 
 export default function DashboardPage() {
@@ -89,14 +93,40 @@ export default function DashboardPage() {
   const [mounted, setMounted] = useState(false)
   const [notifPermission, setNotifPermission] = useState<string>('default')
   const [isExpenseModalOpen, setIsExpenseModalOpen] = useState(false)
+  const [isFinanceManagerOpen, setIsFinanceManagerOpen] = useState(false)
+  const [financeInitialTab, setFinanceInitialTab] = useState<
+    'transactions' | 'wallets' | 'summaries' | 'reminders'
+  >('transactions')
+  const [isHydrationManagerOpen, setIsHydrationManagerOpen] = useState(false)
+  const [hydrationInitialTab, setHydrationInitialTab] = useState<
+    'log' | 'goal' | 'reminders' | 'history'
+  >('log')
   const [isMultiRailOpen, setIsMultiRailOpen] = useState(false)
   const [expenseTitle, setExpenseTitle] = useState('')
   const [expenseAmount, setExpenseAmount] = useState('')
-  const [expenseCategory, setExpenseCategory] = useState('Food & Dining')
+  const [expenseCategory, setExpenseCategory] = useState('Food')
 
   useEffect(() => {
     setMounted(true)
     setNotifPermission(getNotificationPermission())
+
+    if (typeof window !== 'undefined') {
+      const hash = window.location.hash
+      const params = new URLSearchParams(window.location.search)
+      const quickHydrate = params.get('quickHydrateMl')
+      if (quickHydrate) {
+        const ml = parseInt(quickHydrate, 10)
+        if (!isNaN(ml) && ml > 0) {
+          useHydrationStore.getState().logDrink(ml, 'water')
+          toast.success(`Logged +${ml} ml water from notification!`)
+        }
+      }
+      if (hash === '#hydration') {
+        setIsHydrationManagerOpen(true)
+      } else if (hash === '#finance') {
+        setIsFinanceManagerOpen(true)
+      }
+    }
   }, [])
 
   const todayStr = format(new Date(), 'yyyy-MM-dd')
@@ -121,20 +151,36 @@ export default function DashboardPage() {
     }
   }, [tasks, habits, completions, goals, todayStr])
 
+  const formattedSafeDaily = formatCurrency(
+    financeCalc.safeToSpendDaily,
+    financeCalc.primaryCurrency
+  )
+  const formattedActiveBalance = formatCurrency(
+    financeCalc.activeWalletBalance,
+    financeCalc.primaryCurrency
+  )
+  const formattedSpentToday = formatCurrency(
+    financeCalc.totalSpentToday,
+    financeCalc.primaryCurrency
+  )
+
   // Contextual speech bubble message from Kyro
   const companionMessage = useMemo(() => {
-    if (isFocusRunning) return "Chamber locked. Stay in flow. One breath, one task."
-    if (financeCalc.isAtRisk) {
-      return `Warning: Cash trajectory is at risk of dipping below your $${financeStore.accountFloor} floor. Let's pace our spending today.`
-    }
+    if (isFocusRunning) return 'Chamber locked. Stay in flow. One breath, one task.'
     if (hydrationCalc.completionPercentage < 40 && new Date().getHours() >= 13) {
-      return `Circadian hydration checkpoint: we need ${hydrationCalc.remainingMl}ml before evening. Grab a glass of water!`
+      return `Hydration checkpoint: ${hydrationCalc.remainingMl.toLocaleString()} ml remaining to reach your ${hydrationCalc.targetHydrationMl.toLocaleString()} ml daily goal.`
     }
     if (stats.urgentTasks.length > 0) {
-      return `Safe-to-Spend is $${financeCalc.safeToSpendDaily.toFixed(2)}. ${stats.urgentTasks.length} high-leverage objective${stats.urgentTasks.length > 1 ? 's' : ''} on the docket.`
+      return `Balance: ${formattedActiveBalance}. ${stats.urgentTasks.length} high-priority task${stats.urgentTasks.length > 1 ? 's' : ''} ready.`
     }
-    return `Systems aligned! $${financeCalc.safeToSpendDaily.toFixed(2)} safe to spend today. Hydration at ${hydrationCalc.completionPercentage}%.`
-  }, [isFocusRunning, financeCalc, hydrationCalc, stats.urgentTasks.length, financeStore.accountFloor])
+    return `Systems aligned! Active ${financeCalc.primaryCurrency} balance: ${formattedActiveBalance}. Hydration at ${hydrationCalc.completionPercentage}%.`
+  }, [
+    isFocusRunning,
+    hydrationCalc,
+    stats.urgentTasks.length,
+    formattedActiveBalance,
+    financeCalc.primaryCurrency,
+  ])
 
   const greeting = useMemo(() => {
     if (!mounted) return `Welcome, ${userName}`
@@ -164,9 +210,9 @@ export default function DashboardPage() {
     const perm = await requestNotificationPermission()
     setNotifPermission(perm)
     if (perm === 'granted') {
-      toast.success('Phone notifications enabled! You will receive lock-screen reminder alerts for habits and hydration.')
+      toast.success('Android notifications enabled! Scheduled reminders will appear in your phone notification shade.')
     } else if (perm === 'denied') {
-      toast.error('Permission blocked. Please allow notifications in site/browser settings.')
+      toast.error('Permission blocked. Please allow notifications in Android App Settings.')
     }
   }
 
@@ -178,9 +224,10 @@ export default function DashboardPage() {
       return
     }
 
-    financeStore.logExpense(expenseTitle || 'Discretionary Expense', amountNum, expenseCategory)
-    speakKyro(`Logged $${amountNum.toFixed(2)} for ${expenseTitle || 'discretionary spend'}. Safe-to-Spend updated!`, 4500)
-    toast.success(`Logged $${amountNum.toFixed(2)}. New daily allowance updated.`)
+    financeStore.logExpense(expenseTitle || 'Expense', amountNum, expenseCategory)
+    const formattedAmt = formatCurrency(amountNum, financeStore.defaultCurrency)
+    speakKyro(`Logged ${formattedAmt} for ${expenseTitle || 'expense'}. Wallet balance updated!`, 4500)
+    toast.success(`Logged ${formattedAmt}. Wallet balance recalculated.`)
     setExpenseTitle('')
     setExpenseAmount('')
     setIsExpenseModalOpen(false)
@@ -199,8 +246,10 @@ export default function DashboardPage() {
     )
   }
 
-  // Calculate Safe-to-Spend Ring Progress (scaled against a nominal $100 ceiling or available ratio)
-  const spendRingPercent = Math.min(100, Math.max(8, Math.round((financeCalc.safeToSpendDaily / 120) * 100)))
+  const spendRingPercent = Math.min(
+    100,
+    Math.max(12, financeCalc.activeWalletBalance > 0 ? 75 : 15)
+  )
 
   return (
     <div className="space-y-8 animate-in fade-in duration-500 pb-12">
@@ -216,31 +265,49 @@ export default function DashboardPage() {
                 <Calendar className="w-3.5 h-3.5 text-amber-400" />
                 <span>{dateHeading}</span>
               </div>
-              <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-emerald-500/10 border border-emerald-500/25 text-emerald-300 text-xs font-mono font-bold">
-                <DollarSign className="w-3.5 h-3.5 text-emerald-400" />
-                <span>${financeCalc.safeToSpendDaily.toFixed(2)}/day safe</span>
-              </div>
-              <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-sky-500/10 border border-sky-500/25 text-sky-300 text-xs font-mono font-bold">
+              <button
+                onClick={() => {
+                  setFinanceInitialTab('wallets')
+                  setIsFinanceManagerOpen(true)
+                }}
+                className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-emerald-500/10 hover:bg-emerald-500/20 border border-emerald-500/25 text-emerald-300 text-xs font-mono font-bold cursor-pointer transition-colors"
+              >
+                <Wallet className="w-3.5 h-3.5 text-emerald-400" />
+                <span>
+                  {financeCalc.primaryCurrency}: {formattedActiveBalance}
+                </span>
+              </button>
+              <button
+                onClick={() => {
+                  setHydrationInitialTab('goal')
+                  setIsHydrationManagerOpen(true)
+                }}
+                className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-sky-500/10 hover:bg-sky-500/20 border border-sky-500/25 text-sky-300 text-xs font-mono font-bold cursor-pointer transition-colors"
+              >
                 <Droplets className="w-3.5 h-3.5 text-sky-400" />
-                <span>{hydrationCalc.completionPercentage}% Hydrated</span>
-              </div>
+                <span>
+                  {hydrationCalc.consumedTodayMl.toLocaleString()} /{' '}
+                  {hydrationCalc.targetHydrationMl.toLocaleString()} ml ({hydrationCalc.completionPercentage}%)
+                </span>
+              </button>
             </div>
 
             <h1 className="text-3xl sm:text-4xl md:text-5xl font-serif font-bold tracking-tight text-foreground">
               {greeting}
             </h1>
 
-            {/* Single-Sentence Contextual Executive Synthesis (from Blueprint) */}
             <p className="text-sm sm:text-base text-stone-300 max-w-xl leading-relaxed font-normal">
-              {financeCalc.isAtRisk ? (
-                <span className="text-amber-200">
-                  ⚠️ Pacing Warning: Projected low balance touches your ${financeStore.accountFloor} floor in {financeStore.payPeriodDaysRemaining} days. Smooth out non-essential expenses today.
-                </span>
-              ) : (
-                <span>
-                  All committed bills (${financeCalc.totalCommittedUnpaid.toFixed(0)} unpaid) remain fully funded; you have <strong className="text-emerald-400 font-mono font-bold">${financeCalc.safeToSpendDaily.toFixed(2)}</strong> safe to spend today and <strong className="text-sky-400 font-mono font-bold">{hydrationCalc.remainingMl}ml</strong> of hydration needed to peak.
-                </span>
-              )}
+              <span>
+                Active {financeCalc.primaryCurrency} wallet balance is{' '}
+                <strong className="text-emerald-400 font-mono font-bold">
+                  {formattedActiveBalance}
+                </strong>{' '}
+                (spent today: {formattedSpentToday}), with{' '}
+                <strong className="text-sky-400 font-mono font-bold">
+                  {hydrationCalc.remainingMl.toLocaleString()} ml
+                </strong>{' '}
+                remaining to reach your {hydrationCalc.targetHydrationMl.toLocaleString()} ml daily hydration goal.
+              </span>
             </p>
 
             {/* Quick Command Bar */}
@@ -264,23 +331,26 @@ export default function DashboardPage() {
               )}
 
               <button
-                onClick={() => setIsExpenseModalOpen(true)}
+                onClick={() => {
+                  setFinanceInitialTab('transactions')
+                  setIsFinanceManagerOpen(true)
+                }}
                 className="px-3.5 sm:px-4 py-2 sm:py-2.5 rounded-xl bg-emerald-500/15 hover:bg-emerald-500/25 border border-emerald-500/35 text-emerald-300 font-bold text-xs flex items-center gap-1.5 transition-all cursor-pointer shadow-[0_0_15px_rgba(16,185,129,0.2)]"
               >
-                <Plus className="w-3.5 h-3.5 text-emerald-400" />
-                <span>Log Discretionary Spend</span>
+                <Wallet className="w-3.5 h-3.5 text-emerald-400" />
+                <span>Wallets &amp; Expenses</span>
               </button>
 
               <button
                 onClick={() => {
                   hydrationStore.logDrink(250, 'water')
-                  toast.success('Logged +250ml pure water.')
-                  speakKyro('Replenished 250ml pure water! Circadian curve rising.', 3500)
+                  toast.success('Logged +250 ml water.')
+                  speakKyro('Replenished 250 ml water! Daily progress updated.', 3500)
                 }}
                 className="px-3.5 sm:px-4 py-2 sm:py-2.5 rounded-xl bg-sky-500/15 hover:bg-sky-500/25 border border-sky-500/35 text-sky-300 font-bold text-xs flex items-center gap-1.5 transition-all cursor-pointer shadow-[0_0_15px_rgba(56,189,248,0.2)]"
               >
                 <Droplets className="w-3.5 h-3.5 text-sky-400" />
-                <span>+250ml Water</span>
+                <span>+250 ml Water</span>
               </button>
 
               <button
@@ -312,9 +382,9 @@ export default function DashboardPage() {
         </div>
       </section>
 
-      {/* ─── 2. TRIPARTITE BENTO GRID: FINANCE PACING, HYDRATION, & OUT-OF-APP NOTIFICATIONS ─── */}
+      {/* ─── 2. TRIPARTITE BENTO GRID: MULTI-CURRENCY WALLETS, PERSONALIZED HYDRATION, & ANDROID REMINDERS ─── */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* TILE 1: SAFE-TO-SPEND PACING RING (EMERALD) */}
+        {/* TILE 1: MULTI-CURRENCY WALLETS & EXPENSE TRACKER (EMERALD) */}
         <div className="world-deck p-6 flex flex-col justify-between space-y-5 border-emerald-500/25 bg-gradient-to-b from-stone-950 via-stone-900/40 to-stone-950 relative overflow-hidden">
           <div className="absolute top-0 right-0 w-44 h-44 rounded-full blur-[70px] bg-emerald-500/10 pointer-events-none" />
 
@@ -322,30 +392,32 @@ export default function DashboardPage() {
             <div className="flex items-center justify-between pb-3 border-b border-stone-800/80">
               <div className="flex items-center gap-2">
                 <div className="w-7 h-7 rounded-lg bg-emerald-500/15 border border-emerald-500/30 flex items-center justify-center text-emerald-400">
-                  <DollarSign className="w-4 h-4" />
+                  <Wallet className="w-4 h-4" />
                 </div>
                 <div>
                   <h3 className="text-xs font-bold uppercase tracking-wider text-stone-200 font-mono">
-                    Safe-to-Spend Pacing
+                    Wallets &amp; Cash-Flow ({financeCalc.primaryCurrency})
                   </h3>
-                  <span className="text-[10px] text-stone-400">Deterministic cash-flow horizon</span>
+                  <span className="text-[10px] text-stone-400">
+                    Multi-currency accounts &amp; real-time balance
+                  </span>
                 </div>
               </div>
 
               {financeCalc.isAtRisk ? (
                 <span className="px-2 py-0.5 rounded-full bg-rose-500/15 border border-rose-500/30 text-rose-300 font-mono text-[10px] font-bold flex items-center gap-1">
                   <AlertTriangle className="w-3 h-3 text-rose-400" />
-                  <span>AT RISK</span>
+                  <span>LOW BALANCE</span>
                 </span>
               ) : (
                 <span className="px-2 py-0.5 rounded-full bg-emerald-500/15 border border-emerald-500/30 text-emerald-300 font-mono text-[10px] font-bold flex items-center gap-1">
                   <ShieldCheck className="w-3 h-3 text-emerald-400" />
-                  <span>SAFE</span>
+                  <span>BALANCED</span>
                 </span>
               )}
             </div>
 
-            {/* Radial SVG Pacing Ring */}
+            {/* Radial SVG Balance Ring */}
             <div className="my-5 flex items-center justify-center">
               <div className="relative w-44 h-44 flex items-center justify-center">
                 <svg className="w-full h-full -rotate-90" viewBox="0 0 100 100">
@@ -371,35 +443,43 @@ export default function DashboardPage() {
                   />
                 </svg>
 
-                <div className="absolute inset-0 flex flex-col items-center justify-center text-center">
-                  <span className="text-[10px] uppercase font-mono tracking-widest text-stone-400">Today&apos;s Pacing</span>
-                  <span className="text-3xl font-serif font-bold text-foreground">
-                    ${financeCalc.safeToSpendDaily.toFixed(2)}
+                <div className="absolute inset-0 flex flex-col items-center justify-center text-center px-3">
+                  <span className="text-[10px] uppercase font-mono tracking-widest text-stone-400">
+                    {financeCalc.primaryCurrency} Balance
+                  </span>
+                  <span className="text-2xl sm:text-3xl font-serif font-bold text-foreground truncate max-w-full">
+                    {formattedActiveBalance}
                   </span>
                   <span className="text-[10px] text-emerald-400/90 font-mono font-semibold">
-                    per day safe
+                    Safe/day: {formattedSafeDaily}
                   </span>
                 </div>
               </div>
             </div>
 
-            {/* Ledger Breakdown Grid */}
+            {/* Wallet Breakdown Grid */}
             <div className="grid grid-cols-2 gap-2 text-xs font-mono">
               <div className="p-2.5 rounded-xl bg-stone-900/60 border border-stone-800/80">
-                <span className="text-[10px] text-stone-400 block">Liquid Checking</span>
-                <span className="text-sm font-bold text-stone-100">${financeStore.liquidChecking.toLocaleString()}</span>
+                <span className="text-[10px] text-stone-400 block">Spent Today</span>
+                <span className="text-sm font-bold text-rose-300">{formattedSpentToday}</span>
               </div>
               <div className="p-2.5 rounded-xl bg-stone-900/60 border border-stone-800/80">
-                <span className="text-[10px] text-stone-400 block">Unpaid Bills</span>
-                <span className="text-sm font-bold text-amber-300">-${financeCalc.totalCommittedUnpaid.toLocaleString()}</span>
+                <span className="text-[10px] text-stone-400 block">Earned Today</span>
+                <span className="text-sm font-bold text-emerald-300">
+                  {formatCurrency(financeCalc.totalIncomeToday, financeCalc.primaryCurrency)}
+                </span>
               </div>
               <div className="p-2.5 rounded-xl bg-stone-900/60 border border-stone-800/80">
-                <span className="text-[10px] text-stone-400 block">Comfort Floor</span>
-                <span className="text-sm font-bold text-stone-200">${financeStore.accountFloor}</span>
+                <span className="text-[10px] text-stone-400 block">Active Wallets</span>
+                <span className="text-sm font-bold text-stone-200">
+                  {financeStore.wallets.filter((w) => !w.archived).length} accounts
+                </span>
               </div>
               <div className="p-2.5 rounded-xl bg-stone-900/60 border border-stone-800/80">
-                <span className="text-[10px] text-stone-400 block">Cycle Days Left</span>
-                <span className="text-sm font-bold text-stone-200">{financeStore.payPeriodDaysRemaining} days</span>
+                <span className="text-[10px] text-stone-400 block">Transactions</span>
+                <span className="text-sm font-bold text-stone-200">
+                  {financeStore.transactions.length} logged
+                </span>
               </div>
             </div>
           </div>
@@ -407,11 +487,25 @@ export default function DashboardPage() {
           {/* Quick Action Footer */}
           <div className="pt-2 flex flex-wrap items-center gap-2">
             <button
-              onClick={() => setIsExpenseModalOpen(true)}
+              onClick={() => {
+                setFinanceInitialTab('transactions')
+                setIsFinanceManagerOpen(true)
+              }}
               className="flex-1 py-2 rounded-xl bg-emerald-500/20 hover:bg-emerald-500/30 border border-emerald-500/40 text-emerald-300 font-bold text-xs flex items-center justify-center gap-1.5 transition-all cursor-pointer"
             >
               <Plus className="w-3.5 h-3.5" />
-              <span>Log Expense</span>
+              <span>Expense / Income / Transfer</span>
+            </button>
+            <button
+              onClick={() => {
+                setFinanceInitialTab('wallets')
+                setIsFinanceManagerOpen(true)
+              }}
+              className="py-2 px-2.5 rounded-xl bg-stone-900 hover:bg-stone-800 border border-stone-800 text-stone-200 font-bold text-xs flex items-center gap-1.5 transition-colors cursor-pointer"
+              title="Manage Wallets & Currencies"
+            >
+              <Wallet className="w-3.5 h-3.5 text-emerald-400" />
+              <span>Wallets</span>
             </button>
             <button
               onClick={() => setIsMultiRailOpen(true)}
@@ -419,23 +513,12 @@ export default function DashboardPage() {
               title="Multi-Rail Ingestion: Scan Receipt OCR or Import Bank Statement"
             >
               <Receipt className="w-3.5 h-3.5" />
-              <span>Receipt / CSV</span>
-            </button>
-            <button
-              onClick={() => {
-                financeStore.logExpense('Espresso Fuel', 4.5, 'Coffee')
-                toast.success('Quick logged: $4.50 Coffee')
-                speakKyro('Logged $4.50 coffee. Recalculating cash-flow pacing in real time.', 3500)
-              }}
-              className="px-2.5 py-2 rounded-xl bg-stone-900 hover:bg-stone-800 border border-stone-800 text-stone-300 font-bold text-xs transition-colors cursor-pointer"
-              title="Quick Log $4.50 Coffee"
-            >
-              +$4.50
+              <span>OCR / CSV</span>
             </button>
           </div>
         </div>
 
-        {/* TILE 2: DYNAMIC CIRCADIAN HYDRATION VESSEL (SKY BLUE) */}
+        {/* TILE 2: PERSONALIZED HYDRATION TRACKER (SKY BLUE) */}
         <div className="world-deck p-6 flex flex-col justify-between space-y-5 border-sky-500/25 bg-gradient-to-b from-stone-950 via-stone-900/40 to-stone-950 relative overflow-hidden">
           <div className="absolute top-0 right-0 w-44 h-44 rounded-full blur-[70px] bg-sky-500/10 pointer-events-none" />
 
@@ -447,114 +530,130 @@ export default function DashboardPage() {
                 </div>
                 <div>
                   <h3 className="text-xs font-bold uppercase tracking-wider text-stone-200 font-mono">
-                    Circadian Hydration
+                    Hydration Tracker
                   </h3>
-                  <span className="text-[10px] text-stone-400">Continuous physiological model</span>
+                  <span className="text-[10px] text-stone-400">
+                    Goal: {hydrationCalc.targetHydrationMl.toLocaleString()} ml (
+                    {(hydrationCalc.targetHydrationMl / 1000).toFixed(2)} L)
+                  </span>
                 </div>
               </div>
 
-              <span className="px-2 py-0.5 rounded-full bg-sky-500/15 border border-sky-500/30 text-sky-300 font-mono text-[10px] font-bold">
-                {hydrationCalc.completionPercentage}% GOAL
-              </span>
+              <button
+                onClick={() => {
+                  setHydrationInitialTab('goal')
+                  setIsHydrationManagerOpen(true)
+                }}
+                className="px-2 py-0.5 rounded-full bg-sky-500/15 hover:bg-sky-500/25 border border-sky-500/30 text-sky-300 font-mono text-[10px] font-bold flex items-center gap-1 cursor-pointer"
+                title="Customize Daily Water Goal"
+              >
+                <Settings2 className="w-3 h-3" />
+                <span>{hydrationCalc.completionPercentage}% GOAL</span>
+              </button>
             </div>
 
             {/* Vessel Cylinder & Liquid Meter */}
             <div className="my-5 flex items-center justify-center gap-6">
               <div className="relative w-24 h-36 rounded-2xl border-2 border-sky-500/40 bg-stone-950/80 overflow-hidden shadow-[inset_0_0_20px_rgba(56,189,248,0.2)]">
-                {/* Dynamic Liquid Wave Fill */}
                 <div
                   className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-sky-600 via-sky-500 to-sky-400 transition-all duration-700 ease-out flex items-center justify-center"
-                  style={{ height: `${Math.max(8, hydrationCalc.completionPercentage)}%` }}
+                  style={{ height: `${Math.max(8, Math.min(100, hydrationCalc.completionPercentage))}%` }}
                 >
                   <div className="w-full h-2 absolute top-0 bg-white/40 blur-[1px] animate-pulse" />
                 </div>
 
-                {/* Milestone tick at 50% */}
                 <div className="absolute top-1/2 left-0 right-0 border-t border-dashed border-sky-300/40 flex justify-end pr-1">
-                  <span className="text-[8px] font-mono text-sky-200/70">14:00 (50%)</span>
+                  <span className="text-[8px] font-mono text-sky-200/70">50%</span>
                 </div>
               </div>
 
               <div className="space-y-1">
-                <span className="text-[10px] uppercase font-mono tracking-widest text-stone-400 block">Consumed Today</span>
+                <span className="text-[10px] uppercase font-mono tracking-widest text-stone-400 block">
+                  Consumed Today
+                </span>
                 <div className="text-3xl font-serif font-bold text-foreground">
-                  {hydrationStore.consumedTodayMl}<span className="text-sm font-sans text-stone-400">ml</span>
+                  {hydrationCalc.consumedTodayMl.toLocaleString()}
+                  <span className="text-sm font-sans text-stone-400"> ml</span>
                 </div>
                 <span className="text-xs text-sky-300 font-mono block">
-                  of {hydrationCalc.targetHydrationMl}ml target
+                  of {hydrationCalc.targetHydrationMl.toLocaleString()} ml target
                 </span>
                 <span className="text-[11px] text-stone-400 block">
-                  Remaining: <strong className="text-stone-200">{hydrationCalc.remainingMl}ml</strong>
+                  Remaining:{' '}
+                  <strong className="text-stone-200">
+                    {hydrationCalc.remainingMl.toLocaleString()} ml
+                  </strong>
                 </span>
               </div>
             </div>
 
-            {/* Physiological Dynamic Offsets Breakdown */}
+            {/* Goal & Interval Reminder Summary */}
             <div className="grid grid-cols-2 gap-2 text-[11px] font-mono">
-              <div className="p-2 rounded-xl bg-stone-900/60 border border-stone-800/80 flex items-center gap-2">
-                <Sun className="w-3.5 h-3.5 text-amber-400 shrink-0" />
+              <button
+                onClick={() => {
+                  setHydrationInitialTab('goal')
+                  setIsHydrationManagerOpen(true)
+                }}
+                className="p-2 rounded-xl bg-stone-900/60 hover:bg-stone-900 border border-stone-800/80 flex items-center gap-2 text-left cursor-pointer transition-colors"
+              >
+                <Target className="w-3.5 h-3.5 text-sky-400 shrink-0" />
                 <div>
-                  <span className="text-[9px] text-stone-400 block">Climate Thermal</span>
-                  <span className="font-bold text-stone-200">+{hydrationCalc.weatherOffsetMl}ml ({hydrationStore.ambientTemperatureC}°C)</span>
+                  <span className="text-[9px] text-stone-400 block">Daily Goal</span>
+                  <span className="font-bold text-stone-200">
+                    {hydrationCalc.targetHydrationMl.toLocaleString()} ml (Edit)
+                  </span>
                 </div>
-              </div>
+              </button>
 
-              <div className="p-2 rounded-xl bg-stone-900/60 border border-stone-800/80 flex items-center gap-2">
-                <Coffee className="w-3.5 h-3.5 text-amber-500 shrink-0" />
+              <button
+                onClick={() => {
+                  setHydrationInitialTab('reminders')
+                  setIsHydrationManagerOpen(true)
+                }}
+                className="p-2 rounded-xl bg-stone-900/60 hover:bg-stone-900 border border-stone-800/80 flex items-center gap-2 text-left cursor-pointer transition-colors"
+              >
+                <Bell className="w-3.5 h-3.5 text-amber-400 shrink-0" />
                 <div>
-                  <span className="text-[9px] text-stone-400 block">Caffeine Offset</span>
-                  <span className="font-bold text-stone-200">+{hydrationCalc.caffeineOffsetMl}ml ({hydrationStore.caffeineCups} cups)</span>
+                  <span className="text-[9px] text-stone-400 block">Water Reminders</span>
+                  <span className="font-bold text-stone-200">
+                    {hydrationStore.reminderConfig.enabled
+                      ? `Every ${hydrationStore.reminderConfig.intervalMinutes}m`
+                      : 'Paused'}
+                  </span>
                 </div>
-              </div>
+              </button>
             </div>
           </div>
 
           {/* Quick Add Fluid Chips */}
           <div className="pt-2 flex items-center gap-1.5 flex-wrap">
+            {[150, 250, 500].map((ml) => (
+              <button
+                key={ml}
+                onClick={() => {
+                  hydrationStore.logDrink(ml, 'water')
+                  toast.success(`Logged +${ml} ml water`)
+                }}
+                className="flex-1 py-1.5 px-2 rounded-xl bg-sky-500/20 hover:bg-sky-500/30 border border-sky-500/40 text-sky-300 font-bold text-xs flex items-center justify-center gap-1 transition-all cursor-pointer"
+              >
+                <Plus className="w-3 h-3" /> {ml}ml
+              </button>
+            ))}
             <button
               onClick={() => {
-                hydrationStore.logDrink(250, 'water')
-                toast.success('Logged +250ml water')
-                speakKyro('250ml water added. Keep your hydration curve optimal!', 3500)
+                setHydrationInitialTab('log')
+                setIsHydrationManagerOpen(true)
               }}
-              className="flex-1 py-1.5 px-2 rounded-xl bg-sky-500/20 hover:bg-sky-500/30 border border-sky-500/40 text-sky-300 font-bold text-xs flex items-center justify-center gap-1 transition-all cursor-pointer"
+              className="py-1.5 px-2.5 rounded-xl bg-stone-900 hover:bg-stone-800 border border-stone-800 text-stone-200 text-xs font-semibold flex items-center gap-1 transition-colors cursor-pointer"
+              title="Custom Drink Amount, Goal & History"
             >
-              <Plus className="w-3 h-3" /> 250ml
-            </button>
-            <button
-              onClick={() => {
-                hydrationStore.logDrink(500, 'water')
-                toast.success('Logged +500ml water bottle')
-                speakKyro('500ml bottle logged! Strong physiological momentum.', 3500)
-              }}
-              className="flex-1 py-1.5 px-2 rounded-xl bg-sky-500/20 hover:bg-sky-500/30 border border-sky-500/40 text-sky-300 font-bold text-xs flex items-center justify-center gap-1 transition-all cursor-pointer"
-            >
-              <Plus className="w-3 h-3" /> 500ml
-            </button>
-            <button
-              onClick={() => {
-                hydrationStore.logDrink(120, 'coffee')
-                toast.success('Logged coffee (+120ml offset)')
-              }}
-              className="py-1.5 px-2.5 rounded-xl bg-stone-900 hover:bg-stone-800 border border-stone-800 text-stone-300 text-xs font-semibold flex items-center gap-1 transition-colors cursor-pointer"
-              title="Log Coffee (+120ml diuretic offset)"
-            >
-              <Coffee className="w-3 h-3 text-amber-400" />
-            </button>
-            <button
-              onClick={() => {
-                hydrationStore.resetDaily()
-                toast.info('Hydration logs reset for new day.')
-              }}
-              className="p-2 rounded-xl bg-stone-900 hover:bg-stone-800 border border-stone-800 text-stone-400 hover:text-stone-200 transition-colors cursor-pointer"
-              title="Reset Day"
-            >
-              <RotateCcw className="w-3 h-3" />
+              <Settings2 className="w-3.5 h-3.5 text-sky-400" />
+              <span>Manage</span>
             </button>
           </div>
         </div>
 
-        {/* TILE 3: PHONE REMINDER & HABIT SCHEDULE ENGINE */}
+        {/* TILE 3: REAL ANDROID NOTIFICATION & REMINDER ENGINE */}
         <div className="world-deck p-6 flex flex-col justify-between space-y-4 border-amber-500/25 bg-gradient-to-b from-stone-950 via-stone-900/40 to-stone-950 relative overflow-hidden">
           <div className="absolute top-0 right-0 w-44 h-44 rounded-full blur-[70px] bg-amber-500/10 pointer-events-none" />
 
@@ -566,9 +665,11 @@ export default function DashboardPage() {
                 </div>
                 <div>
                   <h3 className="text-xs font-bold uppercase tracking-wider text-stone-200 font-mono">
-                    Phone Reminders Active
+                    Android System Reminders
                   </h3>
-                  <span className="text-[10px] text-stone-400">Lock-screen &amp; notification bar alerts</span>
+                  <span className="text-[10px] text-stone-400">
+                    Notification shade &amp; heads-up alerts
+                  </span>
                 </div>
               </div>
 
@@ -584,14 +685,14 @@ export default function DashboardPage() {
             </div>
 
             <p className="text-xs text-stone-300 mt-3 leading-relaxed">
-              Sends reminder notifications directly to your phone lock-screen with audio chime and vibration at your scheduled habit times and every 2 hours for hydration.
+              Delivers scheduled task, habit, hydration, and expense notifications to the Android system notification shade even when Nexora is in the background.
             </p>
 
             {/* Permission Action if not granted */}
             {notifPermission !== 'granted' && (
               <div className="mt-3 p-3 rounded-xl bg-amber-500/10 border border-amber-500/30 flex items-center justify-between gap-3">
                 <div className="text-[11px] text-amber-200">
-                  Allow phone permissions so reminders ring and vibrate on your phone outside the app.
+                  Allow notification permission so scheduled alarms ring in your Android notification shade.
                 </div>
                 <button
                   onClick={handleEnablePermissions}
@@ -602,22 +703,41 @@ export default function DashboardPage() {
               </div>
             )}
 
-            {/* Production Schedule Milestones */}
+            {/* Production Schedule Channels */}
             <div className="mt-4 space-y-2 text-xs">
               <span className="text-[10px] font-mono uppercase tracking-wider text-stone-400 block">
-                Active Phone Alert Schedules:
+                Active Notification Channels:
               </span>
 
-              {/* Habit Reminders item */}
+              {/* Task Reminders */}
+              <div className="p-2.5 rounded-xl bg-stone-900/60 border border-stone-800/80 flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <CheckCircle2 className="w-3.5 h-3.5 text-blue-400 shrink-0" />
+                  <div>
+                    <span className="font-semibold text-stone-200 block">Task Reminders</span>
+                    <span className="text-[10px] text-stone-400">
+                      {tasks.filter((t) => t.status !== 'done' && (t.reminderTime || t.startTime)).length}{' '}
+                      scheduled task(s) armed
+                    </span>
+                  </div>
+                </div>
+                <Link
+                  href="/tasks"
+                  className="text-[10px] font-mono text-blue-400 hover:text-blue-300 underline shrink-0"
+                >
+                  Configure
+                </Link>
+              </div>
+
+              {/* Habit Reminders */}
               <div className="p-2.5 rounded-xl bg-stone-900/60 border border-stone-800/80 flex items-center justify-between">
                 <div className="flex items-center gap-2">
                   <Flame className="w-3.5 h-3.5 text-amber-400 shrink-0" />
                   <div>
-                    <span className="font-semibold text-stone-200 block">Scheduled Habit Reminders</span>
+                    <span className="font-semibold text-stone-200 block">Habit Reminders</span>
                     <span className="text-[10px] text-stone-400">
-                      {habits.filter((h) => h.startTime).length > 0
-                        ? `${habits.filter((h) => h.startTime).length} habit(s) armed with exact time alerts`
-                        : 'Alerts ring at exact habit start time & 15m prior'}
+                      {habits.filter((h) => h.enableReminder && (h.reminderTime || h.startTime)).length}{' '}
+                      habit(s) with scheduled alarms
                     </span>
                   </div>
                 </div>
@@ -625,34 +745,32 @@ export default function DashboardPage() {
                   href="/habits"
                   className="text-[10px] font-mono text-amber-400 hover:text-amber-300 underline shrink-0"
                 >
-                  View Habits
+                  Configure
                 </Link>
               </div>
 
-              {/* 2-Hour Hydration item */}
+              {/* Hydration Interval Reminders */}
               <div className="p-2.5 rounded-xl bg-stone-900/60 border border-stone-800/80 flex items-center justify-between">
                 <div className="flex items-center gap-2">
                   <Droplets className="w-3.5 h-3.5 text-sky-400 shrink-0" />
                   <div>
-                    <span className="font-semibold text-stone-200 block">Drink Water Reminders</span>
-                    <span className="text-[10px] text-stone-400">Every 2 hours throughout the day</span>
+                    <span className="font-semibold text-stone-200 block">Hydration Intervals</span>
+                    <span className="text-[10px] text-stone-400">
+                      {hydrationStore.reminderConfig.startTime}–{hydrationStore.reminderConfig.endTime} window
+                    </span>
                   </div>
                 </div>
-                <span className="text-[10px] font-mono text-emerald-300 px-1.5 py-0.5 rounded bg-emerald-500/10 border border-emerald-500/20">
-                  Every 2h
-                </span>
-              </div>
-
-              {/* Circadian Anchors item */}
-              <div className="p-2.5 rounded-xl bg-stone-900/60 border border-stone-800/80 flex items-center justify-between">
-                <div className="flex items-center gap-2">
-                  <Sun className="w-3.5 h-3.5 text-amber-400 shrink-0" />
-                  <div>
-                    <span className="font-semibold text-stone-200 block">Daily Circadian Briefing</span>
-                    <span className="text-[10px] text-stone-400">08:00 AM Briefing • 21:00 PM Rebalance</span>
-                  </div>
-                </div>
-                <span className="text-[10px] font-mono text-stone-400">Daily</span>
+                <button
+                  onClick={() => {
+                    setHydrationInitialTab('reminders')
+                    setIsHydrationManagerOpen(true)
+                  }}
+                  className="text-[10px] font-mono text-sky-300 px-1.5 py-0.5 rounded bg-sky-500/10 border border-sky-500/20 cursor-pointer"
+                >
+                  {hydrationStore.reminderConfig.enabled
+                    ? `Every ${hydrationStore.reminderConfig.intervalMinutes}m`
+                    : 'Off'}
+                </button>
               </div>
             </div>
           </div>
@@ -660,11 +778,11 @@ export default function DashboardPage() {
           {/* Action to configure habits & reminders */}
           <div className="pt-2">
             <Link
-              href="/habits"
+              href="/notifications"
               className="w-full py-2.5 rounded-xl bg-stone-900 hover:bg-stone-800 border border-amber-400/40 text-amber-300 font-bold text-xs flex items-center justify-center gap-2 transition-all cursor-pointer shadow-sm"
             >
-              <Flame className="w-3.5 h-3.5" />
-              <span>Configure Habits &amp; Alert Times →</span>
+              <Bell className="w-3.5 h-3.5" />
+              <span>Notification Channels &amp; Schedule Settings →</span>
             </Link>
           </div>
         </div>
@@ -713,14 +831,14 @@ export default function DashboardPage() {
 
         <Link href="/notifications" className="world-deck p-4 hover:border-amber-400/40 transition-all group">
           <div className="flex items-center justify-between">
-            <span className="text-xs font-semibold text-stone-400">OS Transmissions</span>
+            <span className="text-xs font-semibold text-stone-400">System Channels</span>
             <Bell className="w-4 h-4 text-amber-400" />
           </div>
           <div className="text-2xl sm:text-3xl font-bold font-serif text-foreground mt-2">
-            3 Daily
+            4 Active
           </div>
           <span className="text-[11px] text-amber-300/80 font-medium mt-1 block">
-            08:00 • 14:00 • 21:00
+            Tasks • Habits • Water • Expense
           </span>
         </Link>
       </div>
@@ -880,19 +998,19 @@ export default function DashboardPage() {
             </div>
 
             <p className="text-xs text-stone-400">
-              Updates your Safe-to-Spend pacing in real-time. Deficits are automatically smoothed across your remaining {financeStore.payPeriodDaysRemaining} cycle days.
+              Updates your {financeStore.defaultCurrency} wallet balance and Safe-to-Spend pacing in real-time.
             </p>
 
             <form onSubmit={handleLogExpenseSubmit} className="space-y-3.5">
               <div>
                 <label className="block text-[11px] font-bold text-stone-300 font-mono uppercase mb-1">
-                  Amount ($)
+                  Amount ({financeStore.defaultCurrency})
                 </label>
                 <input
                   type="number"
                   step="0.01"
                   required
-                  placeholder="e.g. 14.50"
+                  placeholder="e.g. 250"
                   value={expenseAmount}
                   onChange={(e) => setExpenseAmount(e.target.value)}
                   className="w-full px-3.5 py-2.5 rounded-xl bg-stone-900 border border-stone-800 focus:border-emerald-400 text-stone-100 font-mono text-sm outline-none"
@@ -906,7 +1024,7 @@ export default function DashboardPage() {
                 </label>
                 <input
                   type="text"
-                  placeholder="e.g. Organic Market Lunch"
+                  placeholder="e.g. Lunch"
                   value={expenseTitle}
                   onChange={(e) => setExpenseTitle(e.target.value)}
                   className="w-full px-3.5 py-2.5 rounded-xl bg-stone-900 border border-stone-800 focus:border-emerald-400 text-stone-100 text-xs outline-none"
@@ -922,12 +1040,12 @@ export default function DashboardPage() {
                   onChange={(e) => setExpenseCategory(e.target.value)}
                   className="w-full px-3.5 py-2.5 rounded-xl bg-stone-900 border border-stone-800 focus:border-emerald-400 text-stone-100 text-xs outline-none"
                 >
-                  <option value="Food & Dining">Food &amp; Dining</option>
-                  <option value="Transportation">Transportation</option>
+                  <option value="Food">Food</option>
+                  <option value="Transport">Transport</option>
                   <option value="Shopping">Shopping</option>
                   <option value="Entertainment">Entertainment</option>
-                  <option value="Health & Personal">Health &amp; Personal</option>
-                  <option value="General">General</option>
+                  <option value="Health">Health</option>
+                  <option value="Other">Other</option>
                 </select>
               </div>
 
@@ -943,13 +1061,27 @@ export default function DashboardPage() {
                   type="submit"
                   className="px-5 py-2 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-stone-950 font-bold text-xs cursor-pointer shadow-[0_0_15px_rgba(16,185,129,0.3)]"
                 >
-                  Confirm &amp; Smooth Pacing
+                  Save Expense
                 </button>
               </div>
             </form>
           </div>
         </div>
       )}
+
+      {/* ─── FULL MULTI-CURRENCY WALLETS & EXPENSE TRACKER MODAL ─── */}
+      <FinanceManagerModal
+        isOpen={isFinanceManagerOpen}
+        onClose={() => setIsFinanceManagerOpen(false)}
+        initialTab={financeInitialTab}
+      />
+
+      {/* ─── PERSONALIZED HYDRATION GOAL, LOG & REMINDER MODAL ─── */}
+      <HydrationManagerModal
+        isOpen={isHydrationManagerOpen}
+        onClose={() => setIsHydrationManagerOpen(false)}
+        initialTab={hydrationInitialTab}
+      />
 
       {/* ─── MULTI-RAIL FINANCIAL INGESTION (OCR / CSV / BANK WEBHOOK) ─── */}
       <MultiRailIngestionModal

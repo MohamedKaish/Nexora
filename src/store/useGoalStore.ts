@@ -1,6 +1,6 @@
 import { create } from 'zustand'
 import { persist } from 'zustand/middleware'
-import { LocalGoal, GoalType } from '@/types/local'
+import type { LocalGoal, GoalType } from '@/types/local'
 
 interface GoalState {
   goals: LocalGoal[]

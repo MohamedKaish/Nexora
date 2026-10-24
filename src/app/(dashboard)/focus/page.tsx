@@ -230,7 +230,7 @@ export default function FocusChamberPage() {
             {/* Ambient Background Aura */}
             <div
               className={`absolute inset-0 bg-gradient-radial from-amber-500/15 via-transparent to-transparent pointer-events-none transition-opacity duration-1000 ${
-                isRunning ? 'opacity-100 scale-110' : 'opacity-40 scale-100'
+                isRunning ? 'opacity-100' : 'opacity-40'
               }`}
             />
 
@@ -321,10 +321,10 @@ export default function FocusChamberPage() {
                     companionController.onFocusStarted(mode)
                   }
                 }}
-                className={`w-18 h-18 rounded-3xl flex items-center justify-center shadow-lg transition-all duration-200 cursor-pointer ${
+                className={`w-18 h-18 rounded-3xl flex items-center justify-center shadow-lg transition-colors duration-200 cursor-pointer ${
                   isRunning
                     ? 'bg-amber-500/20 text-amber-300 border border-amber-400 hover:bg-amber-500/30 shadow-[0_0_30px_rgba(212,168,83,0.35)]'
-                    : 'bg-amber-400 hover:bg-amber-300 text-stone-950 shadow-[0_0_25px_rgba(212,168,83,0.45)] hover:scale-105'
+                    : 'bg-amber-400 hover:bg-amber-300 text-stone-950 shadow-[0_0_25px_rgba(212,168,83,0.45)]'
                 }`}
               >
                 {isRunning ? (

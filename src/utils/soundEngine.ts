@@ -19,7 +19,7 @@ function getAudioContext(): AudioContext | null {
 }
 
 // User-interaction unlocker for mobile browsers & Android WebView
-if (typeof window !== 'undefined') {
+if (typeof window !== 'undefined' && typeof window.addEventListener === 'function') {
   const unlock = () => {
     getAudioContext()
     window.removeEventListener('pointerdown', unlock)

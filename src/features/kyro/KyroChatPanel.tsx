@@ -108,7 +108,7 @@ export function KyroChatPanel() {
       {!isOpen && (
         <button
           onClick={toggleOpen}
-          className="fixed bottom-20 right-4 lg:bottom-6 lg:right-6 z-50 flex items-center gap-2.5 px-4 py-3 rounded-full bg-stone-900/95 border border-amber-400/40 text-amber-200 shadow-[0_8px_30px_rgba(0,0,0,0.5)] hover:border-amber-400 hover:scale-105 transition-all duration-200 backdrop-blur-md cursor-pointer group"
+          className="fixed bottom-20 right-4 lg:bottom-6 lg:right-6 z-50 flex items-center gap-2.5 px-4 py-3 rounded-full bg-stone-900/95 border border-amber-400/40 text-amber-200 shadow-[0_8px_30px_rgba(0,0,0,0.5)] hover:border-amber-400 transition-colors duration-200 backdrop-blur-md cursor-pointer group"
           aria-label={`Open ${agentName} companion chat`}
         >
           <div className="relative">

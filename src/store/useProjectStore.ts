@@ -1,6 +1,6 @@
 import { create } from 'zustand'
 import { persist } from 'zustand/middleware'
-import { LocalProject, ProjectStatus } from '@/types/local'
+import type { LocalProject, ProjectStatus } from '@/types/local'
 
 interface ProjectState {
   projects: LocalProject[]

@@ -1,6 +1,6 @@
 import { create } from 'zustand'
 import { persist } from 'zustand/middleware'
-import { FocusMode, LocalFocusSession } from '@/types/local'
+import type { FocusMode, LocalFocusSession } from '@/types/local'
 
 interface FocusState {
   mode: FocusMode

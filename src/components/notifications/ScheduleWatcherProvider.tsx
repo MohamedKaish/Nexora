@@ -5,7 +5,6 @@ import { startScheduleNotificationWatcher } from '@/lib/scheduleNotificationWatc
 import {
   getPhoneNotificationPermission,
   requestPhoneNotificationPermission,
-  testPhoneNotificationAndSound,
 } from '@/utils/notificationBridge'
 import { Bell, X, ShieldCheck } from 'lucide-react'
 import { toast } from 'sonner'
@@ -16,7 +15,7 @@ export function ScheduleWatcherProvider() {
 
   useEffect(() => {
     setMounted(true)
-    // 1. Start background schedule watcher for tasks, habits, and tactical notes
+    // 1. Start background schedule watcher for tasks, habits, hydration, expenses, and tactical notes
     startScheduleNotificationWatcher()
 
     // 2. Listen for Native Android APK permission callback
@@ -66,7 +65,7 @@ export function ScheduleWatcherProvider() {
     const res = await requestPhoneNotificationPermission()
     if (res === 'granted' || res === 'default') {
       localStorage.setItem('nexora_notif_granted', 'true')
-      toast.success('Phone reminders enabled! You will receive lock-screen alerts for scheduled habits and hydration.')
+      toast.success('Phone reminders enabled! You will receive alerts for scheduled tasks, habits, and hydration.')
     } else {
       toast.info('Notification preference saved.')
     }
@@ -101,7 +100,7 @@ export function ScheduleWatcherProvider() {
             </button>
           </div>
           <p className="text-[11px] text-stone-400 leading-relaxed">
-            Allow phone notifications so your device rings and vibrates 15 minutes before scheduled tasks, habit horizons, and reminder notes.
+            Allow phone notifications so your device rings and vibrates for scheduled tasks, habits, hydration reminders, and tactical notes.
           </p>
           <div className="pt-2 flex items-center gap-2">
             <button

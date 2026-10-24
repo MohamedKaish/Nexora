@@ -11,11 +11,7 @@ import { KyroChatPanel } from '@/features/kyro/KyroChatPanel'
 import { SystemCompanionBanner } from '@/components/companion/SystemCompanionBanner'
 import { SanctuaryTutorialModal } from '@/components/companion/SanctuaryTutorialModal'
 import { useFocusStore } from '@/store/useFocusStore'
-import { useHabitStore } from '@/store/useHabitStore'
 import { useAppStore, isUserOnboarded } from '@/store/appStore'
-import { format } from 'date-fns'
-import { toast } from 'sonner'
-import { sendNotification } from '@/lib/notificationService'
 import { initSupabaseSync } from '@/lib/supabaseSync'
 
 export function AppShell({ children }: { children: React.ReactNode }) {
@@ -83,57 +79,6 @@ export function AppShell({ children }: { children: React.ReactNode }) {
     }, 1000)
     return () => clearInterval(interval)
   }, [isFocusRunning, tickFocusTimer])
-
-  // ─── Automated Habit Timing Range Notification Engine ───
-  useEffect(() => {
-    const checkHabitReminders = () => {
-      const now = new Date()
-      const todayStr = format(now, 'yyyy-MM-dd')
-      const currentTimeStr = format(now, 'HH:mm')
-
-      const { habits, completions, markHabitNotified, toggleCompletion } = useHabitStore.getState()
-
-      habits.forEach((habit) => {
-        if (!habit.hasTimeRange || !habit.enableReminder || !habit.startTime) return
-
-        const isCompletedToday = completions.some(
-          (c) => c.habitId === habit.id && c.completedDate === todayStr
-        )
-        if (isCompletedToday) return
-
-        // Prevent repeated alerts on the same day
-        if (habit.lastNotifiedDate === todayStr) return
-
-        const endTime = habit.endTime || '23:59'
-
-        // Check if current time matches habit's scheduled time
-        if (currentTimeStr >= habit.startTime && currentTimeStr <= endTime) {
-          markHabitNotified(habit.id, todayStr)
-
-          // 1. In-App Interactive Toast
-          toast(`⏰ Habit Reminder: ${habit.name}`, {
-            description: `Scheduled at ${habit.startTime}! Tap to check it off and keep your streak going.`,
-            action: {
-              label: 'Done',
-              onClick: () => toggleCompletion(habit.id),
-            },
-            duration: 8000,
-          })
-
-          // 2. Real Phone OS / ServiceWorker Push Notification (Locks Screen & Notification Tray)
-          sendNotification(`⏰ Habit Reminder: ${habit.name}`, {
-            body: `It's ${habit.startTime}! Time for your scheduled habit: ${habit.name}.`,
-            tag: `habit-${habit.id}-${todayStr}`,
-          })
-        }
-      })
-    }
-
-    checkHabitReminders()
-    const reminderInterval = setInterval(checkHabitReminders, 30000)
-
-    return () => clearInterval(reminderInterval)
-  }, [])
 
   // Mobile edge-swipe gesture detection (Swipe right from left screen edge to open menu)
   useEffect(() => {

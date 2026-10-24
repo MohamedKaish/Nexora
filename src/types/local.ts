@@ -12,6 +12,7 @@ export interface LocalEntity {
 export type TaskPriority = 'low' | 'medium' | 'high' | 'urgent'
 export type TaskStatus = 'todo' | 'in_progress' | 'done'
 export type TaskTimeframe = 'daily' | 'weekly' | 'monthly' | 'none'
+export type TaskRecurrence = 'none' | 'daily' | 'weekdays' | 'weekly' | 'custom'
 
 export interface LocalTask extends LocalEntity {
   title: string
@@ -21,9 +22,15 @@ export interface LocalTask extends LocalEntity {
   timeframe?: TaskTimeframe
   projectId: string | null
   dueDate: string | null
+  dueTime?: string | null
+  reminderTime?: string | null
   startTime?: string | null
   endTime?: string | null
+  recurrence?: TaskRecurrence
+  recurrenceDays?: number[]
   enableReminder?: boolean
+  repeatOverdueAlerts?: boolean
+  lastNotifiedDate?: string | null
   isScheduleForToday?: boolean
   estimatedTimeMinutes?: number | null
   actualTimeMinutes?: number
@@ -57,17 +64,19 @@ export interface LocalGoal extends LocalEntity {
   progress: number
 }
 
-export type HabitFrequency = 'daily' | 'weekly' | 'weekdays'
+export type HabitFrequency = 'daily' | 'weekly' | 'weekdays' | 'custom'
 
 export interface LocalHabit extends LocalEntity {
   name: string
   description?: string | null
   frequency: HabitFrequency
+  selectedDays?: number[]
   color: string
   streak: number
   hasTimeRange?: boolean
   startTime?: string | null // "HH:mm" e.g. "07:30"
   endTime?: string | null // "HH:mm" e.g. "09:00"
+  reminderTime?: string | null // "HH:mm"
   enableReminder?: boolean
   lastNotifiedDate?: string | null // "YYYY-MM-DD"
 }

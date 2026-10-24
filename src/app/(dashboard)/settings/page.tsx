@@ -8,6 +8,10 @@ import { useHabitStore } from '@/store/useHabitStore'
 import { useGoalStore } from '@/store/useGoalStore'
 import { useProjectStore } from '@/store/useProjectStore'
 import { useFocusStore } from '@/store/useFocusStore'
+import { useFinanceStore } from '@/store/useFinanceStore'
+import { useHydrationStore } from '@/store/useHydrationStore'
+import { useNoteStore } from '@/store/useNoteStore'
+import { useTimelineStore } from '@/store/timelineStore'
 import { useKyroStore } from '@/store/kyroStore'
 import { usePwa } from '@/components/pwa/PwaProvider'
 import {
@@ -31,7 +35,6 @@ import {
 } from 'lucide-react'
 import { toast } from 'sonner'
 import {
-  testPhoneNotificationAndSound,
   requestPhoneNotificationPermission,
 } from '@/utils/notificationBridge'
 
@@ -53,15 +56,27 @@ export default function SettingsPage() {
 
   // Export full sanctuary data as JSON
   const handleExportData = () => {
+    const financeState = useFinanceStore.getState()
+    const hydrationState = useHydrationStore.getState()
     const backup = {
       version: '2.0.0',
       exportedAt: new Date().toISOString(),
       tasks: useTaskStore.getState().tasks,
+      subtasks: useTaskStore.getState().subtasks,
       habits: useHabitStore.getState().habits,
       habitCompletions: useHabitStore.getState().completions,
       goals: useGoalStore.getState().goals,
       projects: useProjectStore.getState().projects,
       focusSessions: useFocusStore.getState().sessions,
+      wallets: financeState.wallets,
+      transactions: financeState.transactions,
+      defaultCurrency: financeState.defaultCurrency,
+      defaultWalletId: financeState.defaultWalletId,
+      hydrationLogs: hydrationState.logs,
+      dailyGoalMl: hydrationState.dailyGoalMl,
+      hydrationReminderConfig: hydrationState.reminderConfig,
+      notes: useNoteStore.getState().notes,
+      timetableSlots: useTimelineStore.getState().slots,
     }
 
     const dataStr = 'data:text/json;charset=utf-8,' + encodeURIComponent(JSON.stringify(backup, null, 2))
@@ -92,11 +107,25 @@ export default function SettingsPage() {
         }
 
         if (Array.isArray(parsed.tasks)) useTaskStore.setState({ tasks: parsed.tasks })
+        if (Array.isArray(parsed.subtasks)) useTaskStore.setState({ subtasks: parsed.subtasks })
         if (Array.isArray(parsed.habits)) useHabitStore.setState({ habits: parsed.habits })
         if (Array.isArray(parsed.habitCompletions)) useHabitStore.setState({ completions: parsed.habitCompletions })
         if (Array.isArray(parsed.goals)) useGoalStore.setState({ goals: parsed.goals })
         if (Array.isArray(parsed.projects)) useProjectStore.setState({ projects: parsed.projects })
         if (Array.isArray(parsed.focusSessions)) useFocusStore.setState({ sessions: parsed.focusSessions })
+        if (Array.isArray(parsed.wallets)) useFinanceStore.setState({ wallets: parsed.wallets })
+        if (Array.isArray(parsed.transactions)) useFinanceStore.setState({ transactions: parsed.transactions })
+        if (typeof parsed.defaultCurrency === 'string') {
+          useFinanceStore.setState({ defaultCurrency: parsed.defaultCurrency })
+        }
+        if (Array.isArray(parsed.hydrationLogs)) {
+          useHydrationStore.setState({ logs: parsed.hydrationLogs })
+        }
+        if (typeof parsed.dailyGoalMl === 'number' && parsed.dailyGoalMl > 0) {
+          useHydrationStore.getState().setDailyGoalMl(parsed.dailyGoalMl)
+        }
+        if (Array.isArray(parsed.notes)) useNoteStore.setState({ notes: parsed.notes })
+        if (Array.isArray(parsed.timetableSlots)) useTimelineStore.setState({ slots: parsed.timetableSlots })
 
         toast.success('Sanctuary ledger successfully restored from backup!')
       } catch (err) {
@@ -226,7 +255,7 @@ export default function SettingsPage() {
                     Nexora Standalone Application Active
                   </h4>
                   <p className="text-xs text-stone-400">
-                    You are currently running the official installed Nexora habitat (v1.0.0). Automatic cloud updates and offline caching are active.
+                    You are currently running the official installed Nexora habitat (v2.0.0). Automatic cloud updates and offline caching are active.
                   </p>
                 </div>
               </div>
@@ -516,8 +545,6 @@ function KyroBrainSettingsCard() {
     }
     return ''
   })
-  const [isTesting, setIsTesting] = useState(false)
-  const [testResult, setTestResult] = useState<string | null>(null)
 
   const isGeminiActive = Boolean(apiKey.trim().length > 20)
 
@@ -533,44 +560,6 @@ function KyroBrainSettingsCard() {
         toast.info('API key removed. Kyro switched to 0ms Local Context Engine.')
         speak('Operating in 0ms Local Context Engine mode. All sanctuary systems secure offline.', 4000)
       }
-    }
-  }
-
-  const handleTestPing = async () => {
-    setIsTesting(true)
-    setTestResult(null)
-    try {
-      const res = await fetch('/api/kyro', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          message: 'Telemetry ping test.',
-          userApiKey: apiKey.trim() || undefined,
-          context: { userName: 'Explorer', agentName: 'Kyro' },
-        }),
-      })
-      const data = await res.json()
-      if (data.provider === 'gemini-2.5-flash') {
-        const text = `⚡ Connected to gemini-2.5-flash in ${data.latencyMs ?? 300}ms! Telemetry: "${data.speechBubble || data.reply}"`
-        setTestResult(text)
-        toast.success(`Connected to Gemini 2.5 Flash in ${data.latencyMs ?? 300}ms!`)
-        speak(data.speechBubble || 'Gemini 2.5 Flash neural uplink verified, Boss!', 5000)
-      } else if (data.errorReason) {
-        const text = `⚠️ Local Brain Fallback (${data.latencyMs ?? 1}ms). Notice: ${data.errorReason}`
-        setTestResult(text)
-        toast.warning(`Gemini notice: ${data.errorReason}`)
-        speak('Operating on 0ms Local Context Engine fallback.', 4000)
-      } else {
-        const text = `🛡️ 0ms Local Brain Active (${data.latencyMs ?? 1}ms): "${data.speechBubble || data.reply}"`
-        setTestResult(text)
-        toast.info('Local Context Engine telemetry verified.')
-        speak(data.speechBubble || 'Local systems nominal.', 4000)
-      }
-    } catch (e: any) {
-      setTestResult(`Ping failed: ${e?.message || 'Network unreachable'}. Operating in offline local engine.`)
-      toast.error('Ping failed to reach server.')
-    } finally {
-      setIsTesting(false)
     }
   }
 

@@ -277,7 +277,7 @@ export default function DownloadPage() {
                       </div>
                       <div className="flex justify-between text-stone-400">
                         <span>Version:</span>
-                        <span className="text-amber-300 font-semibold">v1.0.0 (Release)</span>
+                        <span className="text-amber-300 font-semibold">v2.0.0 (Release)</span>
                       </div>
                       <div className="flex justify-between text-stone-400">
                         <span>Min SDK:</span>
@@ -346,19 +346,19 @@ export default function DownloadPage() {
                 </button>
               </div>
 
-              {/* Google Play Store Badge Placeholder */}
+              {/* Native Android Notification Channels & Boot Persistence Card */}
               <div className="p-4 rounded-xl bg-gradient-to-r from-stone-900 via-stone-900 to-stone-950 border border-stone-800 flex items-center justify-between">
                 <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 rounded-xl bg-stone-800 flex items-center justify-center text-amber-400 font-bold text-base">
-                    ▶
+                  <div className="w-10 h-10 rounded-xl bg-emerald-500/10 border border-emerald-500/30 flex items-center justify-center text-emerald-400 font-bold text-base">
+                    ✓
                   </div>
                   <div>
-                    <h4 className="text-xs font-bold text-stone-200">Google Play Store Edition</h4>
-                    <p className="text-[11px] text-stone-400">Closed tester registration &amp; official AAB bundle publishing in progress.</p>
+                    <h4 className="text-xs font-bold text-stone-200">Native Android Alarm &amp; Notification Engine</h4>
+                    <p className="text-[11px] text-stone-400">Includes 4 dedicated system channels (Tasks, Habits, Hydration, Expenses) &amp; BootReceiver alarm restoration.</p>
                   </div>
                 </div>
-                <span className="px-2.5 py-1 rounded-md bg-stone-800 text-stone-400 font-mono text-[11px] font-semibold">
-                  Coming Soon
+                <span className="px-2.5 py-1 rounded-md bg-emerald-500/10 border border-emerald-500/30 text-emerald-300 font-mono text-[11px] font-semibold">
+                  v2.0.0 Active
                 </span>
               </div>
             </div>

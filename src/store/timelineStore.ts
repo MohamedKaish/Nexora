@@ -1,6 +1,6 @@
 import { create } from 'zustand'
 import { persist } from 'zustand/middleware'
-import { LocalTimetableSlot } from '@/types/local'
+import type { LocalTimetableSlot } from '@/types/local'
 
 interface TimelineState {
   slots: LocalTimetableSlot[]

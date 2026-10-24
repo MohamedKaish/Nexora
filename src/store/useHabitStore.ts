@@ -1,7 +1,11 @@
 import { create } from 'zustand'
 import { persist } from 'zustand/middleware'
-import { LocalHabit, LocalHabitCompletion, HabitFrequency } from '@/types/local'
+import type { LocalHabit, LocalHabitCompletion, HabitFrequency } from '@/types/local'
 import { format } from 'date-fns'
+import {
+  syncHabitNotification,
+  cancelAlarmsBySourceId,
+} from '@/lib/nativeNotificationScheduler'
 
 interface HabitState {
   habits: LocalHabit[]
@@ -10,12 +14,14 @@ interface HabitState {
     name: string
     description?: string | null
     frequency?: HabitFrequency
+    selectedDays?: number[]
     color?: string
     hasTimeRange?: boolean
     startTime?: string | null
     endTime?: string | null
+    reminderTime?: string | null
     enableReminder?: boolean
-  }) => void
+  }) => LocalHabit
   updateHabit: (id: string, partial: Partial<LocalHabit>) => void
   removeHabit: (id: string) => void
   toggleCompletion: (habitId: string, dateStr?: string) => boolean
@@ -33,7 +39,6 @@ function computeConsecutiveStreak(habitId: string, completions: LocalHabitComple
   let checkDate = new Date()
   const todayStr = format(checkDate, 'yyyy-MM-dd')
 
-  // If today isn't checked, check if yesterday was checked
   if (!dates.has(todayStr)) {
     const yesterday = new Date()
     yesterday.setDate(yesterday.getDate() - 1)
@@ -51,53 +56,7 @@ function computeConsecutiveStreak(habitId: string, completions: LocalHabitComple
   return streak
 }
 
-const INITIAL_HABITS: LocalHabit[] = [
-  {
-    id: 'habit-wake-up',
-    name: 'Wake up & Hydrate',
-    description: 'Rise early at 06:00 AM and drink a fresh glass of water',
-    frequency: 'daily',
-    color: '#F59E0B',
-    streak: 3,
-    hasTimeRange: true,
-    startTime: '06:00',
-    endTime: '07:00',
-    enableReminder: true,
-    lastNotifiedDate: null,
-    createdAt: new Date().toISOString(),
-    updatedAt: new Date().toISOString(),
-  },
-  {
-    id: 'habit-morning-focus',
-    name: 'Deep Focus Chamber',
-    description: 'High-leverage uninterrupted execution session',
-    frequency: 'weekdays',
-    color: '#34D399',
-    streak: 5,
-    hasTimeRange: true,
-    startTime: '09:00',
-    endTime: '10:30',
-    enableReminder: true,
-    lastNotifiedDate: null,
-    createdAt: new Date().toISOString(),
-    updatedAt: new Date().toISOString(),
-  },
-  {
-    id: 'habit-evening-reflection',
-    name: 'Evening Wind-Down',
-    description: 'Rebalance daily priorities and disconnect for deep rest',
-    frequency: 'daily',
-    color: '#A78BFA',
-    streak: 4,
-    hasTimeRange: true,
-    startTime: '21:30',
-    endTime: '22:30',
-    enableReminder: true,
-    lastNotifiedDate: null,
-    createdAt: new Date().toISOString(),
-    updatedAt: new Date().toISOString(),
-  },
-]
+const INITIAL_HABITS: LocalHabit[] = []
 
 export const useHabitStore = create<HabitState>()(
   persist(
@@ -106,30 +65,53 @@ export const useHabitStore = create<HabitState>()(
       completions: [],
 
       addHabit: (params) => {
+        const hasRange =
+          params.hasTimeRange ?? Boolean(params.startTime || params.reminderTime)
+        const start = hasRange
+          ? params.startTime ?? params.reminderTime ?? '08:00'
+          : null
         const habit: LocalHabit = {
-          id: 'habit_' + Math.random().toString(36).substring(2, 9),
+          id: 'habit_' + Math.random().toString(36).substring(2, 9) + '_' + Date.now(),
           name: params.name,
           description: params.description ?? null,
           frequency: params.frequency ?? 'daily',
+          selectedDays: params.selectedDays,
           color: params.color ?? '#34D399',
           streak: 0,
-          hasTimeRange: params.hasTimeRange ?? false,
-          startTime: params.hasTimeRange ? params.startTime ?? '08:00' : null,
-          endTime: params.hasTimeRange ? params.endTime ?? '09:00' : null,
-          enableReminder: params.hasTimeRange ? params.enableReminder ?? true : false,
+          hasTimeRange: hasRange,
+          startTime: start,
+          endTime: hasRange ? params.endTime ?? '09:00' : null,
+          reminderTime: hasRange ? params.reminderTime ?? start : null,
+          enableReminder: hasRange ? params.enableReminder ?? true : false,
           lastNotifiedDate: null,
           createdAt: new Date().toISOString(),
           updatedAt: new Date().toISOString(),
         }
         set((state) => ({ habits: [...state.habits, habit] }))
+        syncHabitNotification(habit, false)
+        return habit
       },
 
       updateHabit: (id, partial) => {
+        let updatedHabit: LocalHabit | null = null
         set((state) => ({
-          habits: state.habits.map((h) =>
-            h.id === id ? { ...h, ...partial, updatedAt: new Date().toISOString() } : h
-          ),
+          habits: state.habits.map((h) => {
+            if (h.id !== id) return h
+            updatedHabit = {
+              ...h,
+              ...partial,
+              updatedAt: new Date().toISOString(),
+            }
+            return updatedHabit
+          }),
         }))
+        if (updatedHabit) {
+          const todayStr = format(new Date(), 'yyyy-MM-dd')
+          const doneToday = get().completions.some(
+            (c) => c.habitId === id && c.completedDate === todayStr
+          )
+          syncHabitNotification(updatedHabit, doneToday)
+        }
       },
 
       markHabitNotified: (id, dateStr) => {
@@ -141,6 +123,7 @@ export const useHabitStore = create<HabitState>()(
       },
 
       removeHabit: (id) => {
+        cancelAlarmsBySourceId(id)
         set((state) => ({
           habits: state.habits.filter((h) => h.id !== id),
           completions: state.completions.filter((c) => c.habitId !== id),
@@ -154,7 +137,6 @@ export const useHabitStore = create<HabitState>()(
         const isDone = !!existing
 
         if (isDone) {
-          // Unmark
           const updatedCompletions = get().completions.filter((c) => c.id !== existing.id)
           const newStreak = computeConsecutiveStreak(habitId, updatedCompletions)
           set((state) => ({
@@ -163,9 +145,12 @@ export const useHabitStore = create<HabitState>()(
               h.id === habitId ? { ...h, streak: newStreak } : h
             ),
           }))
+          const targetHabit = get().habits.find((h) => h.id === habitId)
+          if (targetHabit) {
+            syncHabitNotification(targetHabit, false)
+          }
           return false
         } else {
-          // Mark complete
           const newCompletion: LocalHabitCompletion = {
             id: 'comp_' + Math.random().toString(36).substring(2, 9),
             habitId,
@@ -180,10 +165,32 @@ export const useHabitStore = create<HabitState>()(
               h.id === habitId ? { ...h, streak: newStreak } : h
             ),
           }))
+          const targetHabit = get().habits.find((h) => h.id === habitId)
+          if (targetHabit) {
+            syncHabitNotification(targetHabit, true)
+          }
           return true
         }
       },
     }),
-    { name: 'nexora_habit_storage' }
+    {
+      name: 'nexora_habit_storage',
+      version: 2,
+      migrate: (persistedState: unknown) => {
+        const state = (persistedState || {}) as Partial<HabitState>
+        const rawHabits = Array.isArray(state.habits) ? state.habits : []
+        const migratedHabits: LocalHabit[] = rawHabits
+          .filter((h) => h && !['habit-wake-up', 'habit-morning-focus', 'habit-evening-reflection'].includes(h.id))
+          .map((h) => ({
+            ...h,
+            reminderTime: h.reminderTime ?? h.startTime ?? null,
+            selectedDays: Array.isArray(h.selectedDays) ? h.selectedDays : undefined,
+          }))
+        return {
+          habits: migratedHabits,
+          completions: Array.isArray(state.completions) ? state.completions : [],
+        }
+      },
+    }
   )
 )

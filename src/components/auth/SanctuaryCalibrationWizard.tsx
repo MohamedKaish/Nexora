@@ -1166,7 +1166,7 @@ export function SanctuaryCalibrationWizard({
                 type="button"
                 onClick={handleFinalSubmit}
                 disabled={!isStep5Valid || isSubmitting}
-                className="w-full sm:w-auto px-7 py-3.5 rounded-2xl bg-gradient-to-r from-amber-400 via-amber-300 to-amber-500 hover:scale-[1.02] active:scale-[0.98] disabled:opacity-40 disabled:cursor-not-allowed text-stone-950 font-bold text-sm shadow-[0_0_30px_rgba(212,168,83,0.45)] flex items-center justify-center gap-2.5 transition-all cursor-pointer"
+                className="w-full sm:w-auto px-7 py-3.5 rounded-2xl bg-gradient-to-r from-amber-400 via-amber-300 to-amber-500 hover:brightness-105 disabled:opacity-40 disabled:cursor-not-allowed text-stone-950 font-bold text-sm shadow-[0_0_30px_rgba(212,168,83,0.45)] flex items-center justify-center gap-2.5 transition-all cursor-pointer"
               >
                 <Zap className="w-4 h-4 fill-stone-950" />
                 <span>

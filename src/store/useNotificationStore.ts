@@ -1,11 +1,19 @@
 import { create } from 'zustand'
 import { persist } from 'zustand/middleware'
 
+export type NotificationCategoryType =
+  | 'habit'
+  | 'kyro'
+  | 'focus'
+  | 'task'
+  | 'hydration'
+  | 'expense'
+
 export interface SanctuaryNotification {
   id: string
   title: string
   message: string
-  type: 'habit' | 'kyro' | 'focus' | 'task'
+  type: NotificationCategoryType
   timestamp: string
   isRead: boolean
   link?: string
@@ -16,7 +24,7 @@ interface NotificationState {
   addNotification: (params: {
     title: string
     message: string
-    type: 'habit' | 'kyro' | 'focus' | 'task'
+    type: NotificationCategoryType
     link?: string
   }) => void
   markAsRead: (id: string) => void
@@ -26,17 +34,7 @@ interface NotificationState {
   clearAll: () => void
 }
 
-const INITIAL_NOTIFICATIONS: SanctuaryNotification[] = [
-  {
-    id: 'n-welcome',
-    title: 'Sanctuary Transmissions Active',
-    message: 'Habit reminder schedules and real-time alerts are now synchronized with your device.',
-    type: 'habit',
-    timestamp: new Date().toISOString(),
-    isRead: false,
-    link: '/habits',
-  },
-]
+const INITIAL_NOTIFICATIONS: SanctuaryNotification[] = []
 
 export const useNotificationStore = create<NotificationState>()(
   persist(

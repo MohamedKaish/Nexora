@@ -108,14 +108,16 @@ export async function sendNotification(
     icon?: string
     badge?: string
     tag?: string
+    channelId?: string
+    actions?: Array<{ action: string; title: string }>
     data?: unknown
-    type?: 'habit' | 'kyro' | 'focus' | 'task'
+    type?: 'habit' | 'kyro' | 'focus' | 'task' | 'hydration' | 'expense'
     link?: string
     silentStore?: boolean
     playSound?: boolean
   } = {}
 ): Promise<boolean> {
-  const messageBody = options.body || 'Habit reminder from Nexora'
+  const messageBody = options.body || 'Reminder from Nexora'
 
   // Trigger device sound & haptics
   if (options.playSound !== false) {
@@ -139,13 +141,19 @@ export async function sendNotification(
 
   // 0. Native Android APK Bridge Delivery (PRIORITY 1 - Direct hardware transmission)
   if (typeof window !== 'undefined') {
-    const bridge = (window as unknown as { NexoraNativeBridge?: { showNotification: (t: string, m: string, tag: string) => void } }).NexoraNativeBridge
+    const bridge = (window as unknown as {
+      NexoraNativeBridge?: {
+        showNotification?: (t: string, m: string, tag: string, channelId?: string, deepLink?: string) => void
+      }
+    }).NexoraNativeBridge
     if (bridge?.showNotification) {
       try {
         bridge.showNotification(
           title,
           messageBody,
-          options.tag || 'nexora-alert'
+          options.tag || 'nexora-alert',
+          options.channelId || 'nexora_tasks',
+          options.link || '/dashboard'
         )
         return true
       } catch (bridgeErr) {
@@ -169,7 +177,8 @@ export async function sendNotification(
     vibrate: [250, 100, 250, 100, 250],
     requireInteraction: true,
     renotify: true,
-    data: options.data || { url: '/habits' },
+    actions: options.actions,
+    data: options.data || { url: options.link || '/habits', channelId: options.channelId },
   }
 
   // 1. Android & PWA Service Worker Delivery (Highest reliability on mobile)
@@ -201,15 +210,4 @@ export async function sendNotification(
     console.warn('Standard Notification constructor failed:', fallbackErr)
     return false
   }
-}
-
-export async function sendTestNotification(): Promise<boolean> {
-  return sendNotification('⚡ Nexora Sanctuary System Alert', {
-    body: 'Phone system is active! Your device will sound and vibrate when scheduled habit windows open.',
-    icon: '/icon-192.png',
-    tag: 'nexora-test-alert',
-    type: 'habit',
-    link: '/habits',
-    playSound: true,
-  })
 }

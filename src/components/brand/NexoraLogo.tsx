@@ -26,7 +26,7 @@ export function NexoraLogo({
           viewBox="0 0 512 512"
           width="100%"
           height="100%"
-          className="w-full h-full drop-shadow-[0_4px_12px_rgba(212,168,83,0.3)] transition-transform duration-300 group-hover:scale-105"
+          className="w-full h-full drop-shadow-[0_4px_12px_rgba(212,168,83,0.3)] transition-opacity duration-300"
         >
           <defs>
             <radialGradient id="logoBgGrad" cx="50%" cy="40%" r="60%">

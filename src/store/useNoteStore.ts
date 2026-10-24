@@ -49,59 +49,13 @@ interface NoteState {
   convertToTask: (id: string) => void
 }
 
-const INITIAL_NOTES: TacticalNote[] = [
-  {
-    id: 'note_horizon_launch',
-    title: '⚔️ Nexus Horizon Launch Protocol',
-    content: 'Finalize core app assets, test 60 FPS WebGL rendering on mobile WebView, and check high-priority notification channels.',
-    checklist: [
-      { id: 'c1', text: 'Verify Android POST_NOTIFICATIONS runtime permission', done: true },
-      { id: 'c2', text: 'Calibrate Kyro 3D mobile touch drag coordinates', done: true },
-      { id: 'c3', text: 'Test 15-minute scheduled reminder window dispatch', done: false },
-      { id: 'c4', text: 'Run full tsc --noEmit static integrity audit', done: true },
-    ],
-    color: 'gold',
-    isPinned: true,
-    remindAt: new Date(Date.now() + 30 * 60 * 1000).toISOString().slice(0, 16),
-    reminderFired: false,
-    priority: 'urgent',
-    createdAt: new Date().toISOString(),
-    updatedAt: new Date().toISOString(),
-  },
-  {
-    id: 'note_sanctuary_focus',
-    title: '🧘 Deep Focus Sanctuary Protocol',
-    content: 'Environmental alignment before entering a 45-minute focus chamber block.',
-    checklist: [
-      { id: 'c5', text: 'Enable Do Not Disturb on mobile phone', done: true },
-      { id: 'c6', text: 'Fill water flask with 500ml hydration', done: true },
-      { id: 'c7', text: 'Review top 3 priority objectives with Kyro', done: false },
-    ],
-    color: 'emerald',
-    isPinned: true,
-    remindAt: new Date(Date.now() + 60 * 60 * 1000).toISOString().slice(0, 16),
-    reminderFired: false,
-    priority: 'high',
-    createdAt: new Date().toISOString(),
-    updatedAt: new Date().toISOString(),
-  },
-  {
-    id: 'note_neural_arch',
-    title: '🧠 Neural Architecture & Habit Anchors',
-    content: 'Anchor new habits right after existing morning rituals: drink water -> review timetable -> 10m tactical stretch.',
-    checklist: [
-      { id: 'c8', text: 'Morning habit window (06:00 - 11:00)', done: false },
-      { id: 'c9', text: 'Evening review window (18:00 - 22:30)', done: false },
-    ],
-    color: 'cyan',
-    isPinned: false,
-    remindAt: null,
-    reminderFired: false,
-    priority: 'normal',
-    createdAt: new Date().toISOString(),
-    updatedAt: new Date().toISOString(),
-  },
-]
+const DEMO_NOTE_IDS = new Set([
+  'note_horizon_launch',
+  'note_sanctuary_focus',
+  'note_neural_arch',
+])
+
+const INITIAL_NOTES: TacticalNote[] = []
 
 export const useNoteStore = create<NoteState>()(
   persist(
@@ -277,6 +231,18 @@ export const useNoteStore = create<NoteState>()(
     }),
     {
       name: 'nexora_tactical_notes',
+      version: 2,
+      migrate: (persistedState: unknown, version: number) => {
+        const s = (persistedState as Partial<NoteState>) || {}
+        if (version < 2 && Array.isArray(s.notes)) {
+          return {
+            ...s,
+            notes: s.notes.filter((n) => !DEMO_NOTE_IDS.has(n.id)),
+          } as NoteState
+        }
+        return s as NoteState
+      },
     }
   )
 )
+

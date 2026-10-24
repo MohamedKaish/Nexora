@@ -1,5 +1,12 @@
 import { getSupabaseClient, getSupabaseSession } from './supabase'
-import { useFinanceStore, DiscretionaryExpense, CommittedBill } from '@/store/useFinanceStore'
+import {
+  useFinanceStore,
+  DiscretionaryExpense,
+  CommittedBill,
+  WalletAccount,
+  FinanceTransaction,
+  CurrencyCode,
+} from '@/store/useFinanceStore'
 import { useHydrationStore, HydrationLog } from '@/store/useHydrationStore'
 import { useKyroStore } from '@/store/kyroStore'
 import { useAppStore } from '@/store/appStore'
@@ -53,7 +60,6 @@ export async function initSupabaseSync(): Promise<void> {
       syncStatusState.userId = newSession.user.id
       syncStatusState.userEmail = newSession.user.email || null
 
-      // Sync user profile to AppStore
       const email = newSession.user.email || ''
       const name =
         (newSession.user.user_metadata?.full_name as string) ||
@@ -70,20 +76,29 @@ export async function initSupabaseSync(): Promise<void> {
     }
   })
 
-  // 1. Subscribe to Finance Store expenses
-  let lastExpensesCount = useFinanceStore.getState().expenses.length
+  // 1. Subscribe to Finance Store wallets and transactions
+  let lastTxCount = useFinanceStore.getState().transactions.length
+  let lastWalletCount = useFinanceStore.getState().wallets.length
   useFinanceStore.subscribe((state) => {
-    if (state.expenses.length > lastExpensesCount) {
-      const newest = state.expenses[0]
-      if (newest) {
-        pushExpenseToSupabase(newest).catch(() => {})
+    if (state.transactions.length > lastTxCount) {
+      const newestTx = state.transactions[0]
+      if (newestTx) {
+        pushTransactionToSupabase(newestTx).catch(() => {})
       }
     }
-    lastExpensesCount = state.expenses.length
+    if (state.wallets.length > lastWalletCount) {
+      const newestWallet = state.wallets[state.wallets.length - 1]
+      if (newestWallet) {
+        pushWalletToSupabase(newestWallet).catch(() => {})
+      }
+    }
+    lastTxCount = state.transactions.length
+    lastWalletCount = state.wallets.length
   })
 
-  // 2. Subscribe to Hydration Store logs
+  // 2. Subscribe to Hydration Store logs & goal changes
   let lastLogsCount = useHydrationStore.getState().logs.length
+  let lastGoalMl = useHydrationStore.getState().dailyGoalMl
   useHydrationStore.subscribe((state) => {
     if (state.logs.length > lastLogsCount) {
       const newest = state.logs[0]
@@ -91,31 +106,34 @@ export async function initSupabaseSync(): Promise<void> {
         pushHydrationLogToSupabase(newest).catch(() => {})
       }
     }
+    if (state.dailyGoalMl !== lastGoalMl) {
+      pushHydrationSettingsToSupabase().catch(() => {})
+    }
     lastLogsCount = state.logs.length
+    lastGoalMl = state.dailyGoalMl
   })
 
   // 3. Subscribe to Kyro Companion Preferences
   useKyroStore.subscribe((state, prevState) => {
     if (
-      state.selectedArchetype !== prevState.selectedArchetype ||
-      state.selectedCostume !== prevState.selectedCostume ||
-      state.selectedShader !== prevState.selectedShader ||
-      state.voiceEnabled !== prevState.voiceEnabled ||
-      state.sfxEnabled !== prevState.sfxEnabled
+      state.settings.model !== prevState.settings.model ||
+      state.settings.costume !== prevState.settings.costume ||
+      state.settings.colorTheme !== prevState.settings.colorTheme ||
+      state.settings.voiceEnabled !== prevState.settings.voiceEnabled
     ) {
       pushKyroPreferencesToSupabase({
-        archetype: state.selectedArchetype,
-        costume: state.selectedCostume,
-        shader: state.selectedShader,
-        voiceEnabled: state.voiceEnabled,
-        sfxEnabled: state.sfxEnabled,
+        archetype: state.settings.model,
+        costume: state.settings.costume,
+        shader: state.settings.colorTheme,
+        voiceEnabled: state.settings.voiceEnabled,
+        sfxEnabled: state.settings.voiceEnabled,
       }).catch(() => {})
     }
   })
 }
 
 /**
- * Pulls user profile, finance ledger, hydration logs, and Kyro preferences from Supabase
+ * Pulls user profile, multi-currency wallets/transactions, hydration logs/settings, and Kyro preferences from Supabase
  */
 export async function pullUserDataFromSupabase(userId: string): Promise<void> {
   if (isSyncing) return
@@ -124,22 +142,56 @@ export async function pullUserDataFromSupabase(userId: string): Promise<void> {
   const client = getSupabaseClient()
 
   try {
-    // 1. Pull Finance Settings & Committed Bills
+    // 1. Pull Wallets & Finance Transactions
     try {
-      const { data: financeSettings } = await client
-        .from('finance_settings')
+      const { data: remoteWallets } = await client
+        .from('wallets')
         .select('*')
         .eq('user_id', userId)
-        .maybeSingle()
+        .order('created_at', { ascending: true })
 
-      if (financeSettings) {
-        useFinanceStore.setState({
-          liquidChecking: Number(financeSettings.liquid_checking),
-          accountFloor: Number(financeSettings.account_floor),
-          savingsBuffer: Number(financeSettings.savings_buffer),
-          payPeriodDaysRemaining: Number(financeSettings.pay_period_days_remaining),
-          surplusPosture: financeSettings.surplus_posture,
-        })
+      if (remoteWallets && remoteWallets.length > 0) {
+        const mappedWallets: WalletAccount[] = remoteWallets.map((w) => ({
+          id: w.id,
+          name: w.name,
+          type: w.type,
+          currency: (w.currency as CurrencyCode) || 'INR',
+          openingBalance: Number(w.opening_balance),
+          color: w.color || '#10B981',
+          archived: Boolean(w.archived),
+          createdAt: w.created_at,
+          updatedAt: w.updated_at,
+        }))
+        useFinanceStore.setState({ wallets: mappedWallets })
+      }
+
+      const { data: remoteTxs } = await client
+        .from('finance_transactions')
+        .select('*')
+        .eq('user_id', userId)
+        .order('date', { ascending: false })
+        .limit(250)
+
+      if (remoteTxs && remoteTxs.length > 0) {
+        const mappedTxs: FinanceTransaction[] = remoteTxs.map((t) => ({
+          id: t.id,
+          type: t.type,
+          amount: Number(t.amount),
+          currency: (t.currency as CurrencyCode) || 'INR',
+          category: t.category,
+          walletId: t.wallet_id,
+          toWalletId: t.to_wallet_id || undefined,
+          toCurrency: (t.to_currency as CurrencyCode) || undefined,
+          convertedAmount: t.converted_amount ? Number(t.converted_amount) : undefined,
+          exchangeRate: t.exchange_rate ? Number(t.exchange_rate) : undefined,
+          title: t.title,
+          notes: t.notes || undefined,
+          paymentMethod: t.payment_method || undefined,
+          date: t.date,
+          createdAt: t.created_at,
+          updatedAt: t.updated_at,
+        }))
+        useFinanceStore.setState({ transactions: mappedTxs })
       }
 
       const { data: bills } = await client
@@ -159,24 +211,6 @@ export async function pullUserDataFromSupabase(userId: string): Promise<void> {
         }))
         useFinanceStore.setState({ committedBills: mappedBills })
       }
-
-      const { data: expenses } = await client
-        .from('expenses')
-        .select('*')
-        .eq('user_id', userId)
-        .order('date', { ascending: false })
-        .limit(100)
-
-      if (expenses && expenses.length > 0) {
-        const mappedExpenses: DiscretionaryExpense[] = expenses.map((e) => ({
-          id: e.id,
-          title: e.title,
-          amount: Number(e.amount),
-          category: e.category,
-          date: e.date,
-        }))
-        useFinanceStore.setState({ expenses: mappedExpenses })
-      }
     } catch (finErr) {
       console.warn('Supabase finance sync notice:', finErr)
     }
@@ -190,12 +224,21 @@ export async function pullUserDataFromSupabase(userId: string): Promise<void> {
         .maybeSingle()
 
       if (hydroSettings) {
-        useHydrationStore.setState({
-          baselineWeightKg: Number(hydroSettings.baseline_weight_kg),
-          activeCaloriesBurned: Number(hydroSettings.active_calories_burned),
-          ambientTemperatureC: Number(hydroSettings.ambient_temperature_c),
-          caffeineCups: Number(hydroSettings.caffeine_cups),
-        })
+        useHydrationStore.setState((prev) => ({
+          dailyGoalMl: Number(hydroSettings.daily_goal_ml || prev.dailyGoalMl),
+          goalMode: hydroSettings.goal_mode || prev.goalMode,
+          baselineWeightKg: Number(hydroSettings.baseline_weight_kg || prev.baselineWeightKg),
+          activeCaloriesBurned: Number(
+            hydroSettings.active_calories_burned || prev.activeCaloriesBurned
+          ),
+          ambientTemperatureC: Number(
+            hydroSettings.ambient_temperature_c || prev.ambientTemperatureC
+          ),
+          caffeineCups: Number(hydroSettings.caffeine_cups ?? prev.caffeineCups),
+          reminderConfig: hydroSettings.reminder_config
+            ? { ...prev.reminderConfig, ...hydroSettings.reminder_config }
+            : prev.reminderConfig,
+        }))
       }
 
       const { data: logs } = await client
@@ -203,7 +246,7 @@ export async function pullUserDataFromSupabase(userId: string): Promise<void> {
         .select('*')
         .eq('user_id', userId)
         .order('timestamp', { ascending: false })
-        .limit(50)
+        .limit(100)
 
       if (logs && logs.length > 0) {
         const mappedLogs: HydrationLog[] = logs.map((l) => ({
@@ -211,6 +254,7 @@ export async function pullUserDataFromSupabase(userId: string): Promise<void> {
           amountMl: Number(l.amount_ml),
           beverageType: l.beverage_type,
           timestamp: l.timestamp,
+          note: l.note || undefined,
         }))
         useHydrationStore.setState({ logs: mappedLogs })
       }
@@ -227,12 +271,11 @@ export async function pullUserDataFromSupabase(userId: string): Promise<void> {
         .maybeSingle()
 
       if (kyroPrefs) {
-        useKyroStore.setState({
-          selectedArchetype: kyroPrefs.archetype,
-          selectedCostume: kyroPrefs.costume,
-          selectedShader: kyroPrefs.shader_theme,
+        useKyroStore.getState().updateSettings({
+          model: kyroPrefs.archetype,
+          costume: kyroPrefs.costume,
+          colorTheme: kyroPrefs.shader_theme,
           voiceEnabled: Boolean(kyroPrefs.voice_enabled),
-          sfxEnabled: Boolean(kyroPrefs.sfx_enabled),
         })
       }
     } catch (kyroErr) {
@@ -249,8 +292,61 @@ export async function pullUserDataFromSupabase(userId: string): Promise<void> {
   }
 }
 
+export async function pushWalletToSupabase(wallet: WalletAccount): Promise<void> {
+  const { user } = await getSupabaseSession()
+  if (!user) return
+
+  const client = getSupabaseClient()
+  try {
+    await client.from('wallets').upsert({
+      id: wallet.id,
+      user_id: user.id,
+      name: wallet.name,
+      type: wallet.type,
+      currency: wallet.currency,
+      opening_balance: wallet.openingBalance,
+      color: wallet.color,
+      archived: wallet.archived || false,
+      created_at: wallet.createdAt,
+      updated_at: wallet.updatedAt,
+    })
+  } catch (err) {
+    console.warn('Failed to push wallet to Supabase:', err)
+  }
+}
+
+export async function pushTransactionToSupabase(tx: FinanceTransaction): Promise<void> {
+  const { user } = await getSupabaseSession()
+  if (!user) return
+
+  const client = getSupabaseClient()
+  try {
+    await client.from('finance_transactions').upsert({
+      id: tx.id,
+      user_id: user.id,
+      type: tx.type,
+      amount: tx.amount,
+      currency: tx.currency,
+      category: tx.category,
+      wallet_id: tx.walletId,
+      to_wallet_id: tx.toWalletId || null,
+      to_currency: tx.toCurrency || null,
+      converted_amount: tx.convertedAmount ?? null,
+      exchange_rate: tx.exchangeRate ?? null,
+      title: tx.title,
+      notes: tx.notes || null,
+      payment_method: tx.paymentMethod || null,
+      date: tx.date,
+      created_at: tx.createdAt,
+      updated_at: tx.updatedAt,
+    })
+  } catch (err) {
+    console.warn('Failed to push transaction to Supabase:', err)
+  }
+}
+
 /**
- * Pushes a newly logged expense to Supabase
+ * Legacy helper for pushing discretionary expenses
  */
 export async function pushExpenseToSupabase(expense: DiscretionaryExpense): Promise<void> {
   const { user } = await getSupabaseSession()
@@ -271,6 +367,29 @@ export async function pushExpenseToSupabase(expense: DiscretionaryExpense): Prom
   }
 }
 
+export async function pushHydrationSettingsToSupabase(): Promise<void> {
+  const { user } = await getSupabaseSession()
+  if (!user) return
+
+  const state = useHydrationStore.getState()
+  const client = getSupabaseClient()
+  try {
+    await client.from('hydration_settings').upsert({
+      user_id: user.id,
+      daily_goal_ml: state.dailyGoalMl,
+      goal_mode: state.goalMode,
+      baseline_weight_kg: state.baselineWeightKg,
+      active_calories_burned: state.activeCaloriesBurned,
+      ambient_temperature_c: state.ambientTemperatureC,
+      caffeine_cups: state.caffeineCups,
+      reminder_config: state.reminderConfig,
+      updated_at: new Date().toISOString(),
+    })
+  } catch (err) {
+    console.warn('Failed to push hydration settings to Supabase:', err)
+  }
+}
+
 /**
  * Pushes a hydration intake log to Supabase
  */
@@ -286,6 +405,7 @@ export async function pushHydrationLogToSupabase(log: HydrationLog): Promise<voi
       amount_ml: log.amountMl,
       beverage_type: log.beverageType,
       timestamp: log.timestamp,
+      note: log.note || null,
     })
   } catch (err) {
     console.warn('Failed to push hydration log to Supabase:', err)
